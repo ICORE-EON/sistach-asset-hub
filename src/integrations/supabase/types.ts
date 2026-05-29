@@ -326,6 +326,151 @@ export type Database = {
         }
         Relationships: []
       }
+      certificate_items: {
+        Row: {
+          asset_id: string | null
+          certificate_id: string
+          created_at: string
+          id: string
+          maintenance_item_id: string | null
+          maintenance_session_id: string | null
+          notes: string | null
+          result: string
+        }
+        Insert: {
+          asset_id?: string | null
+          certificate_id: string
+          created_at?: string
+          id?: string
+          maintenance_item_id?: string | null
+          maintenance_session_id?: string | null
+          notes?: string | null
+          result?: string
+        }
+        Update: {
+          asset_id?: string | null
+          certificate_id?: string
+          created_at?: string
+          id?: string
+          maintenance_item_id?: string | null
+          maintenance_session_id?: string | null
+          notes?: string | null
+          result?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_items_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_maintenance_item_id_fkey"
+            columns: ["maintenance_item_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_maintenance_session_id_fkey"
+            columns: ["maintenance_session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificates: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          external_cert_number: string | null
+          external_provider: string | null
+          id: string
+          issued_on: string
+          issuer_name: string | null
+          issuer_role: string | null
+          metadata: Json
+          notes: string | null
+          pdf_hash_sha256: string | null
+          pdf_url: string | null
+          signature_image_url: string | null
+          signer_ip: unknown
+          signer_user_agent: string | null
+          status: string
+          title: string
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          external_cert_number?: string | null
+          external_provider?: string | null
+          id?: string
+          issued_on?: string
+          issuer_name?: string | null
+          issuer_role?: string | null
+          metadata?: Json
+          notes?: string | null
+          pdf_hash_sha256?: string | null
+          pdf_url?: string | null
+          signature_image_url?: string | null
+          signer_ip?: unknown
+          signer_user_agent?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          external_cert_number?: string | null
+          external_provider?: string | null
+          id?: string
+          issued_on?: string
+          issuer_name?: string | null
+          issuer_role?: string | null
+          metadata?: Json
+          notes?: string | null
+          pdf_hash_sha256?: string | null
+          pdf_url?: string | null
+          signature_image_url?: string | null
+          signer_ip?: unknown
+          signer_user_agent?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_questions: {
         Row: {
           creates_incident: boolean
@@ -704,6 +849,154 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          asset_id: string | null
+          category: string
+          certificate_id: string | null
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          description: string | null
+          expires_on: string | null
+          file_hash_sha256: string | null
+          file_size_bytes: number | null
+          id: string
+          incident_id: string | null
+          is_signed: boolean
+          issued_on: string | null
+          location_id: string | null
+          maintenance_item_id: string | null
+          maintenance_session_id: string | null
+          metadata: Json
+          mime_type: string | null
+          storage_bucket: string
+          storage_path: string
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          vehicle_asset_id: string | null
+        }
+        Insert: {
+          asset_id?: string | null
+          category: string
+          certificate_id?: string | null
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          description?: string | null
+          expires_on?: string | null
+          file_hash_sha256?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          incident_id?: string | null
+          is_signed?: boolean
+          issued_on?: string | null
+          location_id?: string | null
+          maintenance_item_id?: string | null
+          maintenance_session_id?: string | null
+          metadata?: Json
+          mime_type?: string | null
+          storage_bucket: string
+          storage_path: string
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vehicle_asset_id?: string | null
+        }
+        Update: {
+          asset_id?: string | null
+          category?: string
+          certificate_id?: string | null
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          description?: string | null
+          expires_on?: string | null
+          file_hash_sha256?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          incident_id?: string | null
+          is_signed?: boolean
+          issued_on?: string | null
+          location_id?: string | null
+          maintenance_item_id?: string | null
+          maintenance_session_id?: string | null
+          metadata?: Json
+          mime_type?: string | null
+          storage_bucket?: string
+          storage_path?: string
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vehicle_asset_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_item_open_incidents"
+            referencedColumns: ["incident_id"]
+          },
+          {
+            foreignKeyName: "documents_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_maintenance_item_id_fkey"
+            columns: ["maintenance_item_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_maintenance_session_id_fkey"
+            columns: ["maintenance_session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_vehicle_asset_id_fkey"
+            columns: ["vehicle_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       first_aid_kit_contents: {
         Row: {
           batch_code: string | null
@@ -750,6 +1043,178 @@ export type Database = {
             columns: ["kit_asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_batches: {
+        Row: {
+          code: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          duplicate_rows: number
+          error_rows: number
+          file_name: string | null
+          file_storage_path: string | null
+          finished_at: string | null
+          id: string
+          mapping: Json
+          ok_rows: number
+          options: Json
+          source_type: string
+          started_at: string | null
+          status: string
+          target_entity: string
+          total_rows: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          duplicate_rows?: number
+          error_rows?: number
+          file_name?: string | null
+          file_storage_path?: string | null
+          finished_at?: string | null
+          id?: string
+          mapping?: Json
+          ok_rows?: number
+          options?: Json
+          source_type: string
+          started_at?: string | null
+          status?: string
+          target_entity: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          duplicate_rows?: number
+          error_rows?: number
+          file_name?: string | null
+          file_storage_path?: string | null
+          finished_at?: string | null
+          id?: string
+          mapping?: Json
+          ok_rows?: number
+          options?: Json
+          source_type?: string
+          started_at?: string | null
+          status?: string
+          target_entity?: string
+          total_rows?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_errors: {
+        Row: {
+          batch_id: string
+          created_at: string
+          details: Json | null
+          error_code: string
+          field: string | null
+          id: string
+          message: string
+          row_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          details?: Json | null
+          error_code: string
+          field?: string | null
+          id?: string
+          message: string
+          row_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          details?: Json | null
+          error_code?: string
+          field?: string | null
+          id?: string
+          message?: string
+          row_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_errors_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_errors_row_id_fkey"
+            columns: ["row_id"]
+            isOneToOne: false
+            referencedRelation: "import_rows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_rows: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_entity_id: string | null
+          dedupe_key: string | null
+          duplicate_of: string | null
+          id: string
+          normalized: Json | null
+          raw: Json
+          row_number: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_entity_id?: string | null
+          dedupe_key?: string | null
+          duplicate_of?: string | null
+          id?: string
+          normalized?: Json | null
+          raw: Json
+          row_number: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_entity_id?: string | null
+          dedupe_key?: string | null
+          duplicate_of?: string | null
+          id?: string
+          normalized?: Json | null
+          raw?: Json
+          row_number?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "import_batches"
             referencedColumns: ["id"]
           },
         ]
@@ -1257,6 +1722,172 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "maintenance_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_deliveries: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          event_id: string
+          id: string
+          last_error: string | null
+          metadata: Json
+          opened_at: string | null
+          provider_message_id: string | null
+          recipient_address: string
+          recipient_user_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          event_id: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json
+          opened_at?: string | null
+          provider_message_id?: string | null
+          recipient_address: string
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json
+          opened_at?: string | null
+          provider_message_id?: string | null
+          recipient_address?: string
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "notification_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_events: {
+        Row: {
+          asset_id: string | null
+          body: string | null
+          certificate_id: string | null
+          company_id: string
+          created_at: string
+          document_id: string | null
+          event_type: string
+          id: string
+          incident_id: string | null
+          maintenance_session_id: string | null
+          payload: Json
+          processed_at: string | null
+          scheduled_for: string
+          severity: string
+          status: string
+          subject: string
+        }
+        Insert: {
+          asset_id?: string | null
+          body?: string | null
+          certificate_id?: string | null
+          company_id: string
+          created_at?: string
+          document_id?: string | null
+          event_type: string
+          id?: string
+          incident_id?: string | null
+          maintenance_session_id?: string | null
+          payload?: Json
+          processed_at?: string | null
+          scheduled_for?: string
+          severity?: string
+          status?: string
+          subject: string
+        }
+        Update: {
+          asset_id?: string | null
+          body?: string | null
+          certificate_id?: string | null
+          company_id?: string
+          created_at?: string
+          document_id?: string | null
+          event_type?: string
+          id?: string
+          incident_id?: string | null
+          maintenance_session_id?: string | null
+          payload?: Json
+          processed_at?: string | null
+          scheduled_for?: string
+          severity?: string
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_certificate_id_fkey"
+            columns: ["certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_item_open_incidents"
+            referencedColumns: ["incident_id"]
+          },
+          {
+            foreignKeyName: "notification_events_maintenance_session_id_fkey"
+            columns: ["maintenance_session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
             referencedColumns: ["id"]
           },
         ]
