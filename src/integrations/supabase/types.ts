@@ -422,8 +422,6 @@ export type Database = {
         Args: { p_company_id: string; p_prefix: string; p_scope: string }
         Returns: string
       }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       user_company_ids: { Args: never; Returns: string[] }
       user_has_membership: { Args: { p_company_id: string }; Returns: boolean }
       user_role_in: {
