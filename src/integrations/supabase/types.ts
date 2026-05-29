@@ -14,6 +14,144 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_types: {
+        Row: {
+          active: boolean
+          category: string
+          code: string
+          company_id: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          metadata: Json
+          name_i18n: Json
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          code: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          metadata?: Json
+          name_i18n?: Json
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          code?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          metadata?: Json
+          name_i18n?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          asset_type_id: string
+          code: string
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          install_date: string | null
+          location_id: string | null
+          manufacture_date: string | null
+          manufacturer: string | null
+          metadata: Json
+          model: string | null
+          name: string | null
+          notes: string | null
+          qr_token: string
+          retire_date: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+          warranty_until: string | null
+        }
+        Insert: {
+          asset_type_id: string
+          code: string
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          install_date?: string | null
+          location_id?: string | null
+          manufacture_date?: string | null
+          manufacturer?: string | null
+          metadata?: Json
+          model?: string | null
+          name?: string | null
+          notes?: string | null
+          qr_token: string
+          retire_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          warranty_until?: string | null
+        }
+        Update: {
+          asset_type_id?: string
+          code?: string
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          install_date?: string | null
+          location_id?: string | null
+          manufacture_date?: string | null
+          manufacturer?: string | null
+          metadata?: Json
+          model?: string | null
+          name?: string | null
+          notes?: string | null
+          qr_token?: string
+          retire_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          warranty_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_asset_type_id_fkey"
+            columns: ["asset_type_id"]
+            isOneToOne: false
+            referencedRelation: "asset_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
@@ -360,6 +498,119 @@ export type Database = {
           },
         ]
       }
+      first_aid_kit_contents: {
+        Row: {
+          batch_code: string | null
+          created_at: string
+          expires_on: string | null
+          id: string
+          kit_asset_id: string
+          notes: string | null
+          product_code: string | null
+          product_name: string
+          quantity: number
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          batch_code?: string | null
+          created_at?: string
+          expires_on?: string | null
+          id?: string
+          kit_asset_id: string
+          notes?: string | null
+          product_code?: string | null
+          product_name: string
+          quantity?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          batch_code?: string | null
+          created_at?: string
+          expires_on?: string | null
+          id?: string
+          kit_asset_id?: string
+          notes?: string | null
+          product_code?: string | null
+          product_name?: string
+          quantity?: number
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "first_aid_kit_contents_kit_asset_id_fkey"
+            columns: ["kit_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      locations: {
+        Row: {
+          active: boolean
+          address: string | null
+          code: string
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          kind: string
+          metadata: Json
+          name: string
+          notes: string | null
+          parent_location_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          code: string
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          name: string
+          notes?: string | null
+          parent_location_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          code?: string
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          kind?: string
+          metadata?: Json
+          name?: string
+          notes?: string | null
+          parent_location_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locations_parent_location_id_fkey"
+            columns: ["parent_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -398,6 +649,126 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      vehicle_mounts: {
+        Row: {
+          created_at: string
+          id: string
+          mounted_asset_id: string
+          mounted_at: string
+          notes: string | null
+          position: string | null
+          removed_at: string | null
+          updated_at: string
+          vehicle_asset_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mounted_asset_id: string
+          mounted_at?: string
+          notes?: string | null
+          position?: string | null
+          removed_at?: string | null
+          updated_at?: string
+          vehicle_asset_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mounted_asset_id?: string
+          mounted_at?: string
+          notes?: string | null
+          position?: string | null
+          removed_at?: string | null
+          updated_at?: string
+          vehicle_asset_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_mounts_mounted_asset_id_fkey"
+            columns: ["mounted_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_mounts_vehicle_asset_id_fkey"
+            columns: ["vehicle_asset_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["asset_id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          asset_id: string
+          brand: string | null
+          color: string | null
+          company_id: string
+          created_at: string
+          current_km: number | null
+          fuel_type: string | null
+          insurance_expires_on: string | null
+          itv_expires_on: string | null
+          license_plate: string
+          metadata: Json
+          notes: string | null
+          updated_at: string
+          vehicle_model: string | null
+          vin: string | null
+        }
+        Insert: {
+          asset_id: string
+          brand?: string | null
+          color?: string | null
+          company_id: string
+          created_at?: string
+          current_km?: number | null
+          fuel_type?: string | null
+          insurance_expires_on?: string | null
+          itv_expires_on?: string | null
+          license_plate: string
+          metadata?: Json
+          notes?: string | null
+          updated_at?: string
+          vehicle_model?: string | null
+          vin?: string | null
+        }
+        Update: {
+          asset_id?: string
+          brand?: string | null
+          color?: string | null
+          company_id?: string
+          created_at?: string
+          current_km?: number | null
+          fuel_type?: string | null
+          insurance_expires_on?: string | null
+          itv_expires_on?: string | null
+          license_plate?: string
+          metadata?: Json
+          notes?: string | null
+          updated_at?: string
+          vehicle_model?: string | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
