@@ -1634,6 +1634,7 @@ export type Database = {
           pdf_hash_sha256: string | null
           pdf_url: string | null
           plan_id: string | null
+          reopen_reason: string | null
           scheduled_for: string | null
           signature_image_url: string | null
           signer_ip: unknown
@@ -1662,6 +1663,7 @@ export type Database = {
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
+          reopen_reason?: string | null
           scheduled_for?: string | null
           signature_image_url?: string | null
           signer_ip?: unknown
@@ -1690,6 +1692,7 @@ export type Database = {
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
+          reopen_reason?: string | null
           scheduled_for?: string | null
           signature_image_url?: string | null
           signer_ip?: unknown
@@ -2169,6 +2172,7 @@ export type Database = {
       }
     }
     Functions: {
+      audit_logs_purge_old: { Args: never; Returns: number }
       can_close_session: { Args: { p_company_id: string }; Returns: boolean }
       can_manage_assets: { Args: { p_company_id: string }; Returns: boolean }
       can_manage_company: { Args: { p_company_id: string }; Returns: boolean }
