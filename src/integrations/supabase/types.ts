@@ -59,6 +59,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "asset_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       assets: {
@@ -142,6 +149,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "assets_location_id_fkey"
@@ -270,6 +284,45 @@ export type Database = {
         Relationships: []
       }
       audit_logs_2026_07: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          changed_fields: Json | null
+          company_id: string
+          context: Json | null
+          created_at: string
+          id: number
+          member_id: string | null
+          record_id: string | null
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          changed_fields?: Json | null
+          company_id: string
+          context?: Json | null
+          created_at?: string
+          id?: number
+          member_id?: string | null
+          record_id?: string | null
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          changed_fields?: Json | null
+          company_id?: string
+          context?: Json | null
+          created_at?: string
+          id?: number
+          member_id?: string | null
+          record_id?: string | null
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_logs_2026_08: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
           changed_fields: Json | null
@@ -468,6 +521,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -675,6 +735,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "checklist_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       companies: {
@@ -764,6 +831,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_features_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       company_members: {
@@ -812,6 +886,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "company_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -846,6 +927,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counters_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -952,6 +1040,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "documents_incident_id_fkey"
@@ -1118,6 +1213,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_batches_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1356,6 +1458,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "incidents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "incidents_location_id_fkey"
             columns: ["location_id"]
             isOneToOne: false
@@ -1431,6 +1540,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "locations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "locations_parent_location_id_fkey"
@@ -1615,6 +1731,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "maintenance_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       maintenance_sessions: {
@@ -1712,6 +1835,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "maintenance_sessions_location_id_fkey"
@@ -1864,6 +1994,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "notification_events_document_id_fkey"
@@ -2084,6 +2221,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
     }
@@ -2120,7 +2264,44 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "maintenance_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
+      }
+      company_kpis: {
+        Row: {
+          assets_active: number | null
+          assets_total: number | null
+          company_id: string | null
+          company_name: string | null
+          incidents_open: number | null
+          sessions_open: number | null
+          vehicles_total: number | null
+        }
+        Insert: {
+          assets_active?: never
+          assets_total?: never
+          company_id?: string | null
+          company_name?: string | null
+          incidents_open?: never
+          sessions_open?: never
+          vehicles_total?: never
+        }
+        Update: {
+          assets_active?: never
+          assets_total?: never
+          company_id?: string | null
+          company_name?: string | null
+          incidents_open?: never
+          sessions_open?: never
+          vehicles_total?: never
+        }
+        Relationships: []
       }
       maintenance_item_open_incidents: {
         Row: {
@@ -2168,10 +2349,21 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "incidents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
     }
     Functions: {
+      audit_logs_ensure_partitions: {
+        Args: { p_months_ahead?: number }
+        Returns: number
+      }
       audit_logs_purge_old: { Args: never; Returns: number }
       can_close_session: { Args: { p_company_id: string }; Returns: boolean }
       can_manage_assets: { Args: { p_company_id: string }; Returns: boolean }
