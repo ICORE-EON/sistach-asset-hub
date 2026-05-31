@@ -36,12 +36,17 @@ interface Props {
 }
 
 const CATEGORIES = [
-  { value: "manual", label: "Manual" },
-  { value: "datasheet", label: "Ficha técnica" },
-  { value: "invoice", label: "Factura" },
-  { value: "certificate", label: "Certificado" },
-  { value: "photo", label: "Foto" },
-  { value: "report", label: "Informe" },
+  { value: "asset_photo", label: "Foto" },
+  { value: "asset_manual", label: "Manual" },
+  { value: "asset_invoice", label: "Factura" },
+  { value: "asset_warranty", label: "Garantía" },
+  { value: "maintenance_pdf", label: "PDF de mantenimiento" },
+  { value: "maintenance_evidence", label: "Evidencia de mantenimiento" },
+  { value: "incident_evidence", label: "Evidencia de incidencia" },
+  { value: "certificate_pdf", label: "Certificado" },
+  { value: "vehicle_doc", label: "Documento vehículo" },
+  { value: "itv", label: "ITV" },
+  { value: "insurance", label: "Seguro" },
   { value: "other", label: "Otro" },
 ];
 

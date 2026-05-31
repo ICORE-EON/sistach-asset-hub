@@ -342,7 +342,7 @@ function AssetDetail() {
         </Card>
 
         <div className="lg:col-span-3">
-          <AttachmentsPanel entity="asset" entityId={id} defaultCategory="manual" />
+          <AttachmentsPanel entity="asset" entityId={id} defaultCategory="asset_manual" />
         </div>
       </div>
     </div>

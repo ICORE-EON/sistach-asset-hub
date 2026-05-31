@@ -201,7 +201,7 @@ function SessionDetail() {
         )}
       </div>
 
-      <AttachmentsPanel entity="maintenance_session" entityId={id} defaultCategory="report" />
+      <AttachmentsPanel entity="maintenance_session" entityId={id} defaultCategory="maintenance_evidence" />
 
 
 

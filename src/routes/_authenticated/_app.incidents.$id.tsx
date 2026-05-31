@@ -377,7 +377,7 @@ function IncidentDetail() {
         </div>
 
         <div className="lg:col-span-3">
-          <AttachmentsPanel entity="incident" entityId={id} defaultCategory="photo" />
+          <AttachmentsPanel entity="incident" entityId={id} defaultCategory="incident_evidence" />
         </div>
       </div>
     </div>
