@@ -34,8 +34,7 @@ function IncidentDetail() {
   const { user } = useAuth();
   const { activeMembership } = useCompany();
   const role = activeMembership?.role;
-  const canEdit =
-    role === "administrator" || role === "system_manager" || role === "manager" || role === "technician";
+  const canEdit = role !== undefined && role !== "auditor";
 
   const { data: incident, isLoading } = useQuery({
     queryKey: ["incident", id],
@@ -119,7 +118,11 @@ function IncidentDetail() {
   const changeStatus = useMutation({
     mutationFn: async ({ to, note }: { to: string; note?: string }) => {
       if (!incident) return;
-      const patch: Record<string, unknown> = { status: to };
+      const patch: {
+        status: string;
+        resolved_at?: string | null;
+        closed_at?: string | null;
+      } = { status: to };
       if (to === "resolved") patch.resolved_at = new Date().toISOString();
       if (to === "closed") patch.closed_at = new Date().toISOString();
       const { error } = await supabase.from("incidents").update(patch).eq("id", id);

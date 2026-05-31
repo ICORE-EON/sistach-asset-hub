@@ -52,8 +52,7 @@ function IncidentsList() {
   const { activeMembership } = useCompany();
   const companyId = activeMembership?.company_id;
   const role = activeMembership?.role;
-  const canCreate =
-    role === "administrator" || role === "system_manager" || role === "manager" || role === "technician";
+  const canCreate = role !== undefined && role !== "auditor";
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [view, setView] = useState<"kanban" | "list">("kanban");
