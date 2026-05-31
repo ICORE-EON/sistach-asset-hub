@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Check, ChevronsUpDown, LogOut, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
+import { NotificationsBell } from "@/components/notifications-bell";
 
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: "Panel",
