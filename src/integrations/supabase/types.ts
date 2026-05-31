@@ -2371,6 +2371,33 @@ export type Database = {
       can_reopen_session: { Args: { p_company_id: string }; Returns: boolean }
       can_run_maintenance: { Args: { p_company_id: string }; Returns: boolean }
       can_view: { Args: { p_company_id: string }; Returns: boolean }
+      create_company_with_owner: {
+        Args: { p_address?: string; p_cif: string; p_name: string }
+        Returns: {
+          active: boolean
+          active_until: string | null
+          address: string | null
+          cif: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          locale: string
+          logo_url: string | null
+          name: string
+          plan: string
+          primary_color: string | null
+          seat_limit: number | null
+          storage_limit_mb: number | null
+          timezone: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "companies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_company_id: { Args: never; Returns: string }
       has_role_in: {
         Args: {
