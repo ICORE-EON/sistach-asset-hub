@@ -52,7 +52,7 @@ function DocumentsPage() {
       const { data, error } = await supabase
         .from("documents")
         .select(
-          "id, title, category, mime_type, file_size_bytes, storage_path, storage_bucket, created_at, asset_id, incident_id, maintenance_session_id, assets:asset_id(name, code), incidents:incident_id(code), maintenance_sessions:maintenance_session_id(code)",
+          "id, title, category, mime_type, file_size_bytes, storage_path, storage_bucket, created_at, asset_id, incident_id, maintenance_session_id, asset:assets!documents_asset_id_fkey(name, code), incident:incidents!documents_incident_id_fkey(code), session:maintenance_sessions!documents_maintenance_session_id_fkey(code)",
         )
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
