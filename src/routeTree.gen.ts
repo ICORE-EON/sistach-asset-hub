@@ -18,12 +18,16 @@ import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_a
 import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app.settings'
 import { Route as AuthenticatedAppMaintenanceRouteImport } from './routes/_authenticated/_app.maintenance'
+import { Route as AuthenticatedAppLocationsRouteImport } from './routes/_authenticated/_app.locations'
 import { Route as AuthenticatedAppIncidentsRouteImport } from './routes/_authenticated/_app.incidents'
 import { Route as AuthenticatedAppImportsRouteImport } from './routes/_authenticated/_app.imports'
 import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/_app.documents'
 import { Route as AuthenticatedAppDashboardRouteImport } from './routes/_authenticated/_app.dashboard'
 import { Route as AuthenticatedAppCertificatesRouteImport } from './routes/_authenticated/_app.certificates'
 import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
+import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
+import { Route as AuthenticatedAppAssetsIndexRouteImport } from './routes/_authenticated/_app.assets.index'
+import { Route as AuthenticatedAppAssetsIdRouteImport } from './routes/_authenticated/_app.assets.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -72,6 +76,12 @@ const AuthenticatedAppMaintenanceRoute =
     path: '/maintenance',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppLocationsRoute =
+  AuthenticatedAppLocationsRouteImport.update({
+    id: '/locations',
+    path: '/locations',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppIncidentsRoute =
   AuthenticatedAppIncidentsRouteImport.update({
     id: '/incidents',
@@ -106,36 +116,61 @@ const AuthenticatedAppAssetsRoute = AuthenticatedAppAssetsRouteImport.update({
   path: '/assets',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
+const AuthenticatedAppAssetTypesRoute =
+  AuthenticatedAppAssetTypesRouteImport.update({
+    id: '/asset-types',
+    path: '/asset-types',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppAssetsIndexRoute =
+  AuthenticatedAppAssetsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppAssetsRoute,
+  } as any)
+const AuthenticatedAppAssetsIdRoute =
+  AuthenticatedAppAssetsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppAssetsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
-  '/assets': typeof AuthenticatedAppAssetsRoute
+  '/asset-types': typeof AuthenticatedAppAssetTypesRoute
+  '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/certificates': typeof AuthenticatedAppCertificatesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/documents': typeof AuthenticatedAppDocumentsRoute
   '/imports': typeof AuthenticatedAppImportsRoute
   '/incidents': typeof AuthenticatedAppIncidentsRoute
+  '/locations': typeof AuthenticatedAppLocationsRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
+  '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/assets/': typeof AuthenticatedAppAssetsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
-  '/assets': typeof AuthenticatedAppAssetsRoute
+  '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/certificates': typeof AuthenticatedAppCertificatesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/documents': typeof AuthenticatedAppDocumentsRoute
   '/imports': typeof AuthenticatedAppImportsRoute
   '/incidents': typeof AuthenticatedAppIncidentsRoute
+  '/locations': typeof AuthenticatedAppLocationsRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
+  '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/assets': typeof AuthenticatedAppAssetsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -145,15 +180,19 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/select-company': typeof AuthenticatedSelectCompanyRoute
-  '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRoute
+  '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
+  '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/_authenticated/_app/certificates': typeof AuthenticatedAppCertificatesRoute
   '/_authenticated/_app/dashboard': typeof AuthenticatedAppDashboardRoute
   '/_authenticated/_app/documents': typeof AuthenticatedAppDocumentsRoute
   '/_authenticated/_app/imports': typeof AuthenticatedAppImportsRoute
   '/_authenticated/_app/incidents': typeof AuthenticatedAppIncidentsRoute
+  '/_authenticated/_app/locations': typeof AuthenticatedAppLocationsRoute
   '/_authenticated/_app/maintenance': typeof AuthenticatedAppMaintenanceRoute
   '/_authenticated/_app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
+  '/_authenticated/_app/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,30 +201,37 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/select-company'
+    | '/asset-types'
     | '/assets'
     | '/certificates'
     | '/dashboard'
     | '/documents'
     | '/imports'
     | '/incidents'
+    | '/locations'
     | '/maintenance'
     | '/settings'
     | '/onboarding/company'
+    | '/assets/$id'
+    | '/assets/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/signup'
     | '/select-company'
-    | '/assets'
+    | '/asset-types'
     | '/certificates'
     | '/dashboard'
     | '/documents'
     | '/imports'
     | '/incidents'
+    | '/locations'
     | '/maintenance'
     | '/settings'
     | '/onboarding/company'
+    | '/assets/$id'
+    | '/assets'
   id:
     | '__root__'
     | '/'
@@ -194,15 +240,19 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/_app'
     | '/_authenticated/select-company'
+    | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
     | '/_authenticated/_app/certificates'
     | '/_authenticated/_app/dashboard'
     | '/_authenticated/_app/documents'
     | '/_authenticated/_app/imports'
     | '/_authenticated/_app/incidents'
+    | '/_authenticated/_app/locations'
     | '/_authenticated/_app/maintenance'
     | '/_authenticated/_app/settings'
     | '/_authenticated/onboarding/company'
+    | '/_authenticated/_app/assets/$id'
+    | '/_authenticated/_app/assets/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -277,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMaintenanceRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/locations': {
+      id: '/_authenticated/_app/locations'
+      path: '/locations'
+      fullPath: '/locations'
+      preLoaderRoute: typeof AuthenticatedAppLocationsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_app/incidents': {
       id: '/_authenticated/_app/incidents'
       path: '/incidents'
@@ -319,27 +376,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAssetsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/asset-types': {
+      id: '/_authenticated/_app/asset-types'
+      path: '/asset-types'
+      fullPath: '/asset-types'
+      preLoaderRoute: typeof AuthenticatedAppAssetTypesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/assets/': {
+      id: '/_authenticated/_app/assets/'
+      path: '/'
+      fullPath: '/assets/'
+      preLoaderRoute: typeof AuthenticatedAppAssetsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppAssetsRoute
+    }
+    '/_authenticated/_app/assets/$id': {
+      id: '/_authenticated/_app/assets/$id'
+      path: '/$id'
+      fullPath: '/assets/$id'
+      preLoaderRoute: typeof AuthenticatedAppAssetsIdRouteImport
+      parentRoute: typeof AuthenticatedAppAssetsRoute
+    }
   }
 }
 
+interface AuthenticatedAppAssetsRouteChildren {
+  AuthenticatedAppAssetsIdRoute: typeof AuthenticatedAppAssetsIdRoute
+  AuthenticatedAppAssetsIndexRoute: typeof AuthenticatedAppAssetsIndexRoute
+}
+
+const AuthenticatedAppAssetsRouteChildren: AuthenticatedAppAssetsRouteChildren =
+  {
+    AuthenticatedAppAssetsIdRoute: AuthenticatedAppAssetsIdRoute,
+    AuthenticatedAppAssetsIndexRoute: AuthenticatedAppAssetsIndexRoute,
+  }
+
+const AuthenticatedAppAssetsRouteWithChildren =
+  AuthenticatedAppAssetsRoute._addFileChildren(
+    AuthenticatedAppAssetsRouteChildren,
+  )
+
 interface AuthenticatedAppRouteChildren {
-  AuthenticatedAppAssetsRoute: typeof AuthenticatedAppAssetsRoute
+  AuthenticatedAppAssetTypesRoute: typeof AuthenticatedAppAssetTypesRoute
+  AuthenticatedAppAssetsRoute: typeof AuthenticatedAppAssetsRouteWithChildren
   AuthenticatedAppCertificatesRoute: typeof AuthenticatedAppCertificatesRoute
   AuthenticatedAppDashboardRoute: typeof AuthenticatedAppDashboardRoute
   AuthenticatedAppDocumentsRoute: typeof AuthenticatedAppDocumentsRoute
   AuthenticatedAppImportsRoute: typeof AuthenticatedAppImportsRoute
   AuthenticatedAppIncidentsRoute: typeof AuthenticatedAppIncidentsRoute
+  AuthenticatedAppLocationsRoute: typeof AuthenticatedAppLocationsRoute
   AuthenticatedAppMaintenanceRoute: typeof AuthenticatedAppMaintenanceRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
-  AuthenticatedAppAssetsRoute: AuthenticatedAppAssetsRoute,
+  AuthenticatedAppAssetTypesRoute: AuthenticatedAppAssetTypesRoute,
+  AuthenticatedAppAssetsRoute: AuthenticatedAppAssetsRouteWithChildren,
   AuthenticatedAppCertificatesRoute: AuthenticatedAppCertificatesRoute,
   AuthenticatedAppDashboardRoute: AuthenticatedAppDashboardRoute,
   AuthenticatedAppDocumentsRoute: AuthenticatedAppDocumentsRoute,
   AuthenticatedAppImportsRoute: AuthenticatedAppImportsRoute,
   AuthenticatedAppIncidentsRoute: AuthenticatedAppIncidentsRoute,
+  AuthenticatedAppLocationsRoute: AuthenticatedAppLocationsRoute,
   AuthenticatedAppMaintenanceRoute: AuthenticatedAppMaintenanceRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
 }
