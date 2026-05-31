@@ -293,6 +293,7 @@ function CreateAssetDialog({
       if (codeErr) throw codeErr;
       const { error } = await supabase.from("assets").insert({
         company_id: activeCompanyId,
+        qr_token: "",
         asset_type_id: assetTypeId,
         location_id: locationId || null,
         code: codeData as string,
