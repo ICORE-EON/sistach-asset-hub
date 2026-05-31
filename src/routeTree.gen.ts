@@ -13,6 +13,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QrTokenRouteImport } from './routes/qr.$token'
 import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authenticated/select-company'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
@@ -33,6 +34,7 @@ import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './rou
 import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
 import { Route as AuthenticatedAppChecklistTemplatesIndexRouteImport } from './routes/_authenticated/_app.checklist-templates.index'
 import { Route as AuthenticatedAppAssetsIndexRouteImport } from './routes/_authenticated/_app.assets.index'
+import { Route as ApiPublicQrTokenRouteImport } from './routes/api/public/qr.$token'
 import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
 import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
 import { Route as AuthenticatedAppIncidentsIdRouteImport } from './routes/_authenticated/_app.incidents.$id'
@@ -56,6 +58,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QrTokenRoute = QrTokenRouteImport.update({
+  id: '/qr/$token',
+  path: '/qr/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSelectCompanyRoute =
@@ -174,6 +181,11 @@ const AuthenticatedAppAssetsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppAssetsRoute,
   } as any)
+const ApiPublicQrTokenRoute = ApiPublicQrTokenRouteImport.update({
+  id: '/api/public/qr/$token',
+  path: '/api/public/qr/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppMaintenanceIdRoute =
   AuthenticatedAppMaintenanceIdRouteImport.update({
     id: '/$id',
@@ -210,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/qr/$token': typeof QrTokenRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/certificates': typeof AuthenticatedAppCertificatesRoute
@@ -228,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
@@ -239,6 +253,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/qr/$token': typeof QrTokenRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/certificates': typeof AuthenticatedAppCertificatesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
@@ -252,6 +267,7 @@ export interface FileRoutesByTo {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets': typeof AuthenticatedAppAssetsIndexRoute
   '/checklist-templates': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/incidents': typeof AuthenticatedAppIncidentsIndexRoute
@@ -266,6 +282,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/qr/$token': typeof QrTokenRoute
   '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/_authenticated/_app/certificates': typeof AuthenticatedAppCertificatesRoute
@@ -284,6 +301,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/_authenticated/_app/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/_authenticated/_app/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/_authenticated/_app/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/_authenticated/_app/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
@@ -297,6 +315,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/select-company'
+    | '/qr/$token'
     | '/asset-types'
     | '/assets'
     | '/certificates'
@@ -315,6 +334,7 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
+    | '/api/public/qr/$token'
     | '/assets/'
     | '/checklist-templates/'
     | '/incidents/'
@@ -326,6 +346,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/select-company'
+    | '/qr/$token'
     | '/asset-types'
     | '/certificates'
     | '/dashboard'
@@ -339,6 +360,7 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
+    | '/api/public/qr/$token'
     | '/assets'
     | '/checklist-templates'
     | '/incidents'
@@ -352,6 +374,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/_app'
     | '/_authenticated/select-company'
+    | '/qr/$token'
     | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
     | '/_authenticated/_app/certificates'
@@ -370,6 +393,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/incidents/$id'
     | '/_authenticated/_app/maintenance-plans/$id'
     | '/_authenticated/_app/maintenance/$id'
+    | '/api/public/qr/$token'
     | '/_authenticated/_app/assets/'
     | '/_authenticated/_app/checklist-templates/'
     | '/_authenticated/_app/incidents/'
@@ -382,6 +406,8 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  QrTokenRoute: typeof QrTokenRoute
+  ApiPublicQrTokenRoute: typeof ApiPublicQrTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -412,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qr/$token': {
+      id: '/qr/$token'
+      path: '/qr/$token'
+      fullPath: '/qr/$token'
+      preLoaderRoute: typeof QrTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/select-company': {
@@ -553,6 +586,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/assets/'
       preLoaderRoute: typeof AuthenticatedAppAssetsIndexRouteImport
       parentRoute: typeof AuthenticatedAppAssetsRoute
+    }
+    '/api/public/qr/$token': {
+      id: '/api/public/qr/$token'
+      path: '/api/public/qr/$token'
+      fullPath: '/api/public/qr/$token'
+      preLoaderRoute: typeof ApiPublicQrTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_app/maintenance/$id': {
       id: '/_authenticated/_app/maintenance/$id'
@@ -734,6 +774,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  QrTokenRoute: QrTokenRoute,
+  ApiPublicQrTokenRoute: ApiPublicQrTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
