@@ -32,7 +32,7 @@ function OnboardingCompanyPage() {
       const { data: company, error } = await supabase.rpc("create_company_with_owner", {
         p_name: name,
         p_cif: cif,
-        p_address: address || null,
+        p_address: address || undefined,
       });
       if (error) throw error;
       if (!company) throw new Error("No se pudo crear la empresa");
