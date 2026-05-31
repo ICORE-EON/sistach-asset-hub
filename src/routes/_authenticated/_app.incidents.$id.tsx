@@ -375,6 +375,10 @@ function IncidentDetail() {
             </Card>
           )}
         </div>
+
+        <div className="lg:col-span-3">
+          <AttachmentsPanel entity="incident" entityId={id} defaultCategory="photo" />
+        </div>
       </div>
     </div>
   );
