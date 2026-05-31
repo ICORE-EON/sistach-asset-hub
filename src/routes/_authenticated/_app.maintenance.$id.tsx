@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/$id")({
   head: () => ({ meta: [{ title: "Sesión de mantenimiento" }] }),
