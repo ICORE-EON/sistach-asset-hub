@@ -271,7 +271,7 @@ function ItemChecklist({
           maintenance_item_id: item.id,
           checklist_template_version_id: item.checklist_template_version_id,
           question_id: args.question.id,
-          answer: { value: args.answer },
+          answer: { value: args.answer } as unknown as never,
           is_fail: args.isFail,
           observations: args.observations ?? null,
           answered_at: new Date().toISOString(),
@@ -309,7 +309,7 @@ function ItemChecklist({
           if (existing) continue;
           await supabase.from("incidents").insert({
             company_id: companyId,
-            code: code ?? null,
+            code: code ?? "",
             title: `Fallo en checklist: ${q?.prompt ?? "pregunta"}`,
             description: r.observations || null,
             severity: "medium",
