@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/assets/$id")({
   head: () => ({ meta: [{ title: "Detalle de activo" }] }),
