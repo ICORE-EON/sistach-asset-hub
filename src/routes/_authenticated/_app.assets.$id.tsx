@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/assets/$id")({
   head: () => ({ meta: [{ title: "Detalle de activo" }] }),
@@ -339,6 +340,10 @@ function AssetDetail() {
             <p className="text-center text-xs text-muted-foreground break-all">{qrUrl}</p>
           </CardContent>
         </Card>
+
+        <div className="lg:col-span-3">
+          <AttachmentsPanel entity="asset" entityId={id} defaultCategory="manual" />
+        </div>
       </div>
     </div>
   );

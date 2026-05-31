@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { INCIDENT_STATUSES, SEVERITY_LABELS } from "./_app.incidents.index";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/incidents/$id")({
   head: () => ({ meta: [{ title: "Incidencia" }] }),
@@ -373,6 +374,10 @@ function IncidentDetail() {
               </CardContent>
             </Card>
           )}
+        </div>
+
+        <div className="lg:col-span-3">
+          <AttachmentsPanel entity="incident" entityId={id} defaultCategory="photo" />
         </div>
       </div>
     </div>
