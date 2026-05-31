@@ -335,7 +335,7 @@ function ItemChecklist({
             description: r.observations || null,
             severity: "medium",
             status: "open",
-            source: "checklist",
+            source: "maintenance",
             asset_id: item.asset_id,
             source_maintenance_item_id: item.id,
             source_response_id: r.id,
