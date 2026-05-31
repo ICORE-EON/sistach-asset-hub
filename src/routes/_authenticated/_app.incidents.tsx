@@ -1,14 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ModulePlaceholder } from "@/components/module-placeholder";
-import { AlertTriangle } from "lucide-react";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/_app/incidents")({
   head: () => ({ meta: [{ title: "Incidencias" }] }),
-  component: () => (
-    <ModulePlaceholder
-      icon={AlertTriangle}
-      title="Incidencias"
-      description="Detección, seguimiento y cierre con histórico de estados."
-    />
-  ),
+  component: () => <Outlet />,
 });
