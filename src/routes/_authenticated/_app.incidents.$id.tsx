@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { INCIDENT_STATUSES, SEVERITY_LABELS } from "./_app.incidents.index";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/incidents/$id")({
   head: () => ({ meta: [{ title: "Incidencia" }] }),
