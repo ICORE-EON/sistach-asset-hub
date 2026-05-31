@@ -292,21 +292,30 @@ function ItemChecklist({
   });
 
   const completeItem = useMutation({
-    mutationFn: async (result: "ok" | "fail" | "na") => {
-      // Crear incidencias automáticas para respuestas con creates_incident=true y is_fail=true
-      if (result !== "na") {
-        const failedWithIncident = responses.filter((r) => {
-          if (!r.is_fail) return false;
+    mutationFn: async (intent: "complete" | "na") => {
+      let createdIncidents = 0;
+      let failsWithoutIncident = 0;
+      let dbResult: "ok" | "with_incident" | "not_applicable" = "ok";
+
+      if (intent === "na") {
+        dbResult = "not_applicable";
+      } else {
+        // Releer respuestas frescas desde la BD para evitar race con la caché
+        const { data: freshResponses, error: rErr } = await supabase
+          .from("checklist_responses")
+          .select("id, question_id, is_fail, observations")
+          .eq("maintenance_item_id", item.id);
+        if (rErr) throw rErr;
+
+        const fails = (freshResponses ?? []).filter((r) => r.is_fail);
+        const failedWithIncident = fails.filter((r) => {
           const q = questions.find((qq) => qq.id === r.question_id);
           return q?.creates_incident;
         });
+        failsWithoutIncident = fails.length - failedWithIncident.length;
+
         for (const r of failedWithIncident) {
           const q = questions.find((qq) => qq.id === r.question_id);
-          const { data: code } = await supabase.rpc("next_code", {
-            p_company_id: companyId,
-            p_scope: "incidents",
-            p_prefix: "INC",
-          });
           // Evitar duplicar si ya hay incidencia ligada a esta respuesta
           const { data: existing } = await supabase
             .from("incidents")
@@ -314,7 +323,12 @@ function ItemChecklist({
             .eq("source_response_id", r.id)
             .maybeSingle();
           if (existing) continue;
-          await supabase.from("incidents").insert({
+          const { data: code } = await supabase.rpc("next_code", {
+            p_company_id: companyId,
+            p_scope: "incidents",
+            p_prefix: "INC",
+          });
+          const { error: insErr } = await supabase.from("incidents").insert({
             company_id: companyId,
             code: code ?? "",
             title: `Fallo en checklist: ${q?.prompt ?? "pregunta"}`,
@@ -326,11 +340,13 @@ function ItemChecklist({
             source_maintenance_item_id: item.id,
             source_response_id: r.id,
           });
+          if (insErr) throw insErr;
+          createdIncidents += 1;
         }
+
+        dbResult = fails.length > 0 ? "with_incident" : "ok";
       }
 
-      const dbResult =
-        result === "fail" ? "with_incident" : result === "na" ? "not_applicable" : "ok";
       const { error } = await supabase
         .from("maintenance_items")
         .update({
@@ -340,10 +356,25 @@ function ItemChecklist({
         })
         .eq("id", item.id);
       if (error) throw error;
+
+      return { dbResult, createdIncidents, failsWithoutIncident };
     },
-    onSuccess: () => {
-      toast.success("Activo guardado");
+    onSuccess: ({ dbResult, createdIncidents, failsWithoutIncident }) => {
+      if (dbResult === "not_applicable") {
+        toast.success("Activo marcado como N/A");
+      } else if (createdIncidents > 0) {
+        toast.success(
+          `Activo guardado con ${createdIncidents} incidencia${createdIncidents === 1 ? "" : "s"} abierta${createdIncidents === 1 ? "" : "s"}.`,
+        );
+      } else if (failsWithoutIncident > 0) {
+        toast.warning(
+          "Activo guardado con fallos. Ninguna pregunta del checklist está configurada para abrir incidencia.",
+        );
+      } else {
+        toast.success("Activo guardado");
+      }
       qc.invalidateQueries({ queryKey: ["session-items", sessionId] });
+      qc.invalidateQueries({ queryKey: ["item-responses", item.id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
