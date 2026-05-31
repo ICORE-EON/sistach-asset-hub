@@ -322,10 +322,12 @@ function ItemChecklist({
         }
       }
 
+      const dbResult =
+        result === "fail" ? "with_incident" : result === "na" ? "not_applicable" : "ok";
       const { error } = await supabase
         .from("maintenance_items")
         .update({
-          result,
+          result: dbResult,
           observations: observations || null,
           completed_at: new Date().toISOString(),
         })
