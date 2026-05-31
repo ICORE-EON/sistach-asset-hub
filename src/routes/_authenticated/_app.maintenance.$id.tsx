@@ -491,7 +491,14 @@ function QuestionInput({
           )}
         </div>
         {response?.is_fail && (
-          <Badge variant="destructive" className="text-xs">Falla</Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="destructive" className="text-xs">Falla</Badge>
+            {!question.creates_incident && (
+              <span className="text-[10px] text-muted-foreground">
+                No abre incidencia automática
+              </span>
+            )}
+          </div>
         )}
       </div>
 
