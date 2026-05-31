@@ -29,21 +29,13 @@ function OnboardingCompanyPage() {
     if (!user) return;
     setSubmitting(true);
     try {
-      const { data: company, error: cErr } = await supabase
-        .from("companies")
-        .insert({ name, cif, address: address || null })
-        .select()
-        .single();
-      if (cErr) throw cErr;
-
-      const { error: mErr } = await supabase.from("company_members").insert({
-        company_id: company.id,
-        user_id: user.id,
-        role: "administrator",
-        is_default: true,
-        active: true,
+      const { data: company, error } = await supabase.rpc("create_company_with_owner", {
+        p_name: name,
+        p_cif: cif,
+        p_address: address || undefined,
       });
-      if (mErr) throw mErr;
+      if (error) throw error;
+      if (!company) throw new Error("No se pudo crear la empresa");
 
       setActiveCompanyId(company.id);
       await refetch();
