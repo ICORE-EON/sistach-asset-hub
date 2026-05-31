@@ -423,7 +423,7 @@ function QuestionInput({
   disabled: boolean;
   onSave: (answer: unknown, isFail: boolean, observations?: string) => void;
 }) {
-  const current = response?.answer?.value;
+  const current = (response?.answer as { value?: unknown } | null | undefined)?.value;
   const [obs, setObs] = useState(response?.observations ?? "");
 
   const handleBoolean = (value: boolean) => {
