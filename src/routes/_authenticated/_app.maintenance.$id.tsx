@@ -56,7 +56,7 @@ function SessionDetail() {
   const { activeMembership } = useCompany();
   const role = activeMembership?.role;
   const canRun =
-    role === "administrator" || role === "system_manager" || role === "technician";
+    role === "administrator" || role === "system_manager" || role === "manager";
 
   const { data: session } = useQuery({
     queryKey: ["session", id],

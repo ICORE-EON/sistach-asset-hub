@@ -44,7 +44,7 @@ function MaintenanceList() {
   const companyId = activeMembership?.company_id;
   const role = activeMembership?.role;
   const canRun =
-    role === "administrator" || role === "system_manager" || role === "technician";
+    role === "administrator" || role === "system_manager" || role === "manager";
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
