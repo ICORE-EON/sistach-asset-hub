@@ -1,0 +1,2 @@
+ALTER TABLE public.locations DROP CONSTRAINT locations_kind_check;
+ALTER TABLE public.locations ADD CONSTRAINT locations_kind_check CHECK (kind = ANY (ARRAY['site','building','floor','zone','area','room','vehicle','outdoor','other']));
