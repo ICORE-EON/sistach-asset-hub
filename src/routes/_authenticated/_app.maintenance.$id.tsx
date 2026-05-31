@@ -419,7 +419,7 @@ function QuestionInput({
 }: {
   index: number;
   question: { id: string; prompt: string; help_text: string | null; response_type: string; options: unknown; required: boolean; creates_incident: boolean };
-  response?: { answer: { value?: unknown } | null; is_fail: boolean; observations: string | null };
+  response?: { answer: unknown; is_fail: boolean; observations: string | null };
   disabled: boolean;
   onSave: (answer: unknown, isFail: boolean, observations?: string) => void;
 }) {
