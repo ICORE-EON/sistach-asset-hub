@@ -9,6 +9,8 @@ import {
   Upload,
   Settings,
   Building2,
+  Tag,
+  MapPin,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +40,8 @@ const docsItems = [
 ] as const;
 
 const adminItems = [
+  { title: "Tipos de activo", url: "/asset-types", icon: Tag },
+  { title: "Ubicaciones", url: "/locations", icon: MapPin },
   { title: "Administración", url: "/settings", icon: Settings },
 ] as const;
 
