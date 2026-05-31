@@ -2032,6 +2032,32 @@ export type Database = {
           },
         ]
       }
+      notification_reads: {
+        Row: {
+          event_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_reads_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "notification_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active: boolean
@@ -2399,6 +2425,7 @@ export type Database = {
         }
       }
       current_company_id: { Args: never; Returns: string }
+      generate_expiry_notifications: { Args: never; Returns: number }
       has_role_in: {
         Args: {
           p_company_id: string
