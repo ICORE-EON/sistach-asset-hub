@@ -30,10 +30,12 @@ import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
 import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
 import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './routes/_authenticated/_app.maintenance-plans.index'
+import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
 import { Route as AuthenticatedAppChecklistTemplatesIndexRouteImport } from './routes/_authenticated/_app.checklist-templates.index'
 import { Route as AuthenticatedAppAssetsIndexRouteImport } from './routes/_authenticated/_app.assets.index'
 import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
 import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
+import { Route as AuthenticatedAppIncidentsIdRouteImport } from './routes/_authenticated/_app.incidents.$id'
 import { Route as AuthenticatedAppChecklistTemplatesIdRouteImport } from './routes/_authenticated/_app.checklist-templates.$id'
 import { Route as AuthenticatedAppAssetsIdRouteImport } from './routes/_authenticated/_app.assets.$id'
 
@@ -154,6 +156,12 @@ const AuthenticatedAppMaintenancePlansIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
   } as any)
+const AuthenticatedAppIncidentsIndexRoute =
+  AuthenticatedAppIncidentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppIncidentsRoute,
+  } as any)
 const AuthenticatedAppChecklistTemplatesIndexRoute =
   AuthenticatedAppChecklistTemplatesIndexRouteImport.update({
     id: '/',
@@ -177,6 +185,12 @@ const AuthenticatedAppMaintenancePlansIdRoute =
     id: '/$id',
     path: '/$id',
     getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
+  } as any)
+const AuthenticatedAppIncidentsIdRoute =
+  AuthenticatedAppIncidentsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppIncidentsRoute,
   } as any)
 const AuthenticatedAppChecklistTemplatesIdRoute =
   AuthenticatedAppChecklistTemplatesIdRouteImport.update({
@@ -203,7 +217,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/documents': typeof AuthenticatedAppDocumentsRoute
   '/imports': typeof AuthenticatedAppImportsRoute
-  '/incidents': typeof AuthenticatedAppIncidentsRoute
+  '/incidents': typeof AuthenticatedAppIncidentsRouteWithChildren
   '/locations': typeof AuthenticatedAppLocationsRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceRouteWithChildren
   '/maintenance-plans': typeof AuthenticatedAppMaintenancePlansRouteWithChildren
@@ -211,10 +225,12 @@ export interface FileRoutesByFullPath {
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
   '/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
+  '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
+  '/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
 }
@@ -228,16 +244,17 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/documents': typeof AuthenticatedAppDocumentsRoute
   '/imports': typeof AuthenticatedAppImportsRoute
-  '/incidents': typeof AuthenticatedAppIncidentsRoute
   '/locations': typeof AuthenticatedAppLocationsRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
   '/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
+  '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/assets': typeof AuthenticatedAppAssetsIndexRoute
   '/checklist-templates': typeof AuthenticatedAppChecklistTemplatesIndexRoute
+  '/incidents': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceIndexRoute
 }
@@ -256,7 +273,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/dashboard': typeof AuthenticatedAppDashboardRoute
   '/_authenticated/_app/documents': typeof AuthenticatedAppDocumentsRoute
   '/_authenticated/_app/imports': typeof AuthenticatedAppImportsRoute
-  '/_authenticated/_app/incidents': typeof AuthenticatedAppIncidentsRoute
+  '/_authenticated/_app/incidents': typeof AuthenticatedAppIncidentsRouteWithChildren
   '/_authenticated/_app/locations': typeof AuthenticatedAppLocationsRoute
   '/_authenticated/_app/maintenance': typeof AuthenticatedAppMaintenanceRouteWithChildren
   '/_authenticated/_app/maintenance-plans': typeof AuthenticatedAppMaintenancePlansRouteWithChildren
@@ -264,10 +281,12 @@ export interface FileRoutesById {
   '/_authenticated/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/_authenticated/_app/assets/$id': typeof AuthenticatedAppAssetsIdRoute
   '/_authenticated/_app/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
+  '/_authenticated/_app/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/_authenticated/_app/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/_authenticated/_app/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/_authenticated/_app/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
+  '/_authenticated/_app/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/_authenticated/_app/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/_authenticated/_app/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
 }
@@ -293,10 +312,12 @@ export interface FileRouteTypes {
     | '/onboarding/company'
     | '/assets/$id'
     | '/checklist-templates/$id'
+    | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
     | '/assets/'
     | '/checklist-templates/'
+    | '/incidents/'
     | '/maintenance-plans/'
     | '/maintenance/'
   fileRoutesByTo: FileRoutesByTo
@@ -310,16 +331,17 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/imports'
-    | '/incidents'
     | '/locations'
     | '/settings'
     | '/onboarding/company'
     | '/assets/$id'
     | '/checklist-templates/$id'
+    | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
     | '/assets'
     | '/checklist-templates'
+    | '/incidents'
     | '/maintenance-plans'
     | '/maintenance'
   id:
@@ -345,10 +367,12 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding/company'
     | '/_authenticated/_app/assets/$id'
     | '/_authenticated/_app/checklist-templates/$id'
+    | '/_authenticated/_app/incidents/$id'
     | '/_authenticated/_app/maintenance-plans/$id'
     | '/_authenticated/_app/maintenance/$id'
     | '/_authenticated/_app/assets/'
     | '/_authenticated/_app/checklist-templates/'
+    | '/_authenticated/_app/incidents/'
     | '/_authenticated/_app/maintenance-plans/'
     | '/_authenticated/_app/maintenance/'
   fileRoutesById: FileRoutesById
@@ -509,6 +533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIndexRouteImport
       parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
     }
+    '/_authenticated/_app/incidents/': {
+      id: '/_authenticated/_app/incidents/'
+      path: '/'
+      fullPath: '/incidents/'
+      preLoaderRoute: typeof AuthenticatedAppIncidentsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppIncidentsRoute
+    }
     '/_authenticated/_app/checklist-templates/': {
       id: '/_authenticated/_app/checklist-templates/'
       path: '/'
@@ -536,6 +567,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/maintenance-plans/$id'
       preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIdRouteImport
       parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
+    }
+    '/_authenticated/_app/incidents/$id': {
+      id: '/_authenticated/_app/incidents/$id'
+      path: '/$id'
+      fullPath: '/incidents/$id'
+      preLoaderRoute: typeof AuthenticatedAppIncidentsIdRouteImport
+      parentRoute: typeof AuthenticatedAppIncidentsRoute
     }
     '/_authenticated/_app/checklist-templates/$id': {
       id: '/_authenticated/_app/checklist-templates/$id'
@@ -588,6 +626,22 @@ const AuthenticatedAppChecklistTemplatesRouteWithChildren =
     AuthenticatedAppChecklistTemplatesRouteChildren,
   )
 
+interface AuthenticatedAppIncidentsRouteChildren {
+  AuthenticatedAppIncidentsIdRoute: typeof AuthenticatedAppIncidentsIdRoute
+  AuthenticatedAppIncidentsIndexRoute: typeof AuthenticatedAppIncidentsIndexRoute
+}
+
+const AuthenticatedAppIncidentsRouteChildren: AuthenticatedAppIncidentsRouteChildren =
+  {
+    AuthenticatedAppIncidentsIdRoute: AuthenticatedAppIncidentsIdRoute,
+    AuthenticatedAppIncidentsIndexRoute: AuthenticatedAppIncidentsIndexRoute,
+  }
+
+const AuthenticatedAppIncidentsRouteWithChildren =
+  AuthenticatedAppIncidentsRoute._addFileChildren(
+    AuthenticatedAppIncidentsRouteChildren,
+  )
+
 interface AuthenticatedAppMaintenanceRouteChildren {
   AuthenticatedAppMaintenanceIdRoute: typeof AuthenticatedAppMaintenanceIdRoute
   AuthenticatedAppMaintenanceIndexRoute: typeof AuthenticatedAppMaintenanceIndexRoute
@@ -631,7 +685,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppDashboardRoute: typeof AuthenticatedAppDashboardRoute
   AuthenticatedAppDocumentsRoute: typeof AuthenticatedAppDocumentsRoute
   AuthenticatedAppImportsRoute: typeof AuthenticatedAppImportsRoute
-  AuthenticatedAppIncidentsRoute: typeof AuthenticatedAppIncidentsRoute
+  AuthenticatedAppIncidentsRoute: typeof AuthenticatedAppIncidentsRouteWithChildren
   AuthenticatedAppLocationsRoute: typeof AuthenticatedAppLocationsRoute
   AuthenticatedAppMaintenanceRoute: typeof AuthenticatedAppMaintenanceRouteWithChildren
   AuthenticatedAppMaintenancePlansRoute: typeof AuthenticatedAppMaintenancePlansRouteWithChildren
@@ -647,7 +701,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppDashboardRoute: AuthenticatedAppDashboardRoute,
   AuthenticatedAppDocumentsRoute: AuthenticatedAppDocumentsRoute,
   AuthenticatedAppImportsRoute: AuthenticatedAppImportsRoute,
-  AuthenticatedAppIncidentsRoute: AuthenticatedAppIncidentsRoute,
+  AuthenticatedAppIncidentsRoute: AuthenticatedAppIncidentsRouteWithChildren,
   AuthenticatedAppLocationsRoute: AuthenticatedAppLocationsRoute,
   AuthenticatedAppMaintenanceRoute:
     AuthenticatedAppMaintenanceRouteWithChildren,
