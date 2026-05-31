@@ -438,7 +438,7 @@ function ItemChecklist({
             </Button>
             <Button
               variant={anyFail ? "destructive" : "default"}
-              onClick={() => completeItem.mutate(anyFail ? "fail" : "ok")}
+              onClick={() => completeItem.mutate("complete")}
               disabled={!allRequiredAnswered}
             >
               {anyFail ? "Guardar con fallos" : "Marcar OK"}
