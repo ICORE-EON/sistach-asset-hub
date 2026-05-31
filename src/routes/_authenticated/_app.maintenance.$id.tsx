@@ -201,6 +201,10 @@ function SessionDetail() {
         )}
       </div>
 
+      <AttachmentsPanel entity="maintenance_session" entityId={id} defaultCategory="report" />
+
+
+
       {closeOpen && (
         <CloseSessionDialog
           sessionId={id}
