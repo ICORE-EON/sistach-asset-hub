@@ -18,6 +18,7 @@ import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authen
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
 import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app.settings'
+import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/_app.notifications'
 import { Route as AuthenticatedAppMaintenancePlansRouteImport } from './routes/_authenticated/_app.maintenance-plans'
 import { Route as AuthenticatedAppMaintenanceRouteImport } from './routes/_authenticated/_app.maintenance'
 import { Route as AuthenticatedAppLocationsRouteImport } from './routes/_authenticated/_app.locations'
@@ -85,6 +86,12 @@ const AuthenticatedAppSettingsRoute =
   AuthenticatedAppSettingsRouteImport.update({
     id: '/settings',
     path: '/settings',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppNotificationsRoute =
+  AuthenticatedAppNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppMaintenancePlansRoute =
@@ -234,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/locations': typeof AuthenticatedAppLocationsRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceRouteWithChildren
   '/maintenance-plans': typeof AuthenticatedAppMaintenancePlansRouteWithChildren
+  '/notifications': typeof AuthenticatedAppNotificationsRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
@@ -260,6 +268,7 @@ export interface FileRoutesByTo {
   '/documents': typeof AuthenticatedAppDocumentsRoute
   '/imports': typeof AuthenticatedAppImportsRoute
   '/locations': typeof AuthenticatedAppLocationsRoute
+  '/notifications': typeof AuthenticatedAppNotificationsRoute
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
@@ -294,6 +303,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/locations': typeof AuthenticatedAppLocationsRoute
   '/_authenticated/_app/maintenance': typeof AuthenticatedAppMaintenanceRouteWithChildren
   '/_authenticated/_app/maintenance-plans': typeof AuthenticatedAppMaintenancePlansRouteWithChildren
+  '/_authenticated/_app/notifications': typeof AuthenticatedAppNotificationsRoute
   '/_authenticated/_app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/_authenticated/_app/assets/$id': typeof AuthenticatedAppAssetsIdRoute
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/locations'
     | '/maintenance'
     | '/maintenance-plans'
+    | '/notifications'
     | '/settings'
     | '/onboarding/company'
     | '/assets/$id'
@@ -353,6 +364,7 @@ export interface FileRouteTypes {
     | '/documents'
     | '/imports'
     | '/locations'
+    | '/notifications'
     | '/settings'
     | '/onboarding/company'
     | '/assets/$id'
@@ -386,6 +398,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/locations'
     | '/_authenticated/_app/maintenance'
     | '/_authenticated/_app/maintenance-plans'
+    | '/_authenticated/_app/notifications'
     | '/_authenticated/_app/settings'
     | '/_authenticated/onboarding/company'
     | '/_authenticated/_app/assets/$id'
@@ -473,6 +486,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/notifications': {
+      id: '/_authenticated/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/_app/maintenance-plans': {
@@ -729,6 +749,7 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppLocationsRoute: typeof AuthenticatedAppLocationsRoute
   AuthenticatedAppMaintenanceRoute: typeof AuthenticatedAppMaintenanceRouteWithChildren
   AuthenticatedAppMaintenancePlansRoute: typeof AuthenticatedAppMaintenancePlansRouteWithChildren
+  AuthenticatedAppNotificationsRoute: typeof AuthenticatedAppNotificationsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
 }
 
@@ -747,6 +768,7 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
     AuthenticatedAppMaintenanceRouteWithChildren,
   AuthenticatedAppMaintenancePlansRoute:
     AuthenticatedAppMaintenancePlansRouteWithChildren,
+  AuthenticatedAppNotificationsRoute: AuthenticatedAppNotificationsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
 }
 
