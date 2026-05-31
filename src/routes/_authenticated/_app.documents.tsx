@@ -171,10 +171,10 @@ function DocumentsPage() {
                             className="text-primary hover:underline"
                           >
                             {target.label}
-                            {d.assets?.code && ` · ${d.assets.code}`}
-                            {d.incidents?.code && ` · ${d.incidents.code}`}
-                            {d.maintenance_sessions?.code &&
-                              ` · ${d.maintenance_sessions.code}`}
+                            {d.asset?.code && ` · ${d.asset.code}`}
+                            {d.incident?.code && ` · ${d.incident.code}`}
+                            {d.session?.code &&
+                              ` · ${d.session.code}`}
                           </Link>
                         )}
                       </div>
