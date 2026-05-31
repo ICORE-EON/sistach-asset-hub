@@ -95,6 +95,8 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        <NotificationsBell />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
