@@ -11,6 +11,8 @@ import {
   Building2,
   Tag,
   MapPin,
+  ClipboardList,
+  CalendarClock,
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +42,8 @@ const docsItems = [
 ] as const;
 
 const adminItems = [
+  { title: "Plantillas checklist", url: "/checklist-templates", icon: ClipboardList },
+  { title: "Planes mant.", url: "/maintenance-plans", icon: CalendarClock },
   { title: "Tipos de activo", url: "/asset-types", icon: Tag },
   { title: "Ubicaciones", url: "/locations", icon: MapPin },
   { title: "Administración", url: "/settings", icon: Settings },
