@@ -214,8 +214,10 @@ function SessionDetail() {
 
 function ItemStatusIcon({ result }: { result: string }) {
   if (result === "ok") return <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />;
-  if (result === "fail") return <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />;
-  if (result === "na") return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
+  if (result === "with_incident" || result === "fail")
+    return <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />;
+  if (result === "not_applicable" || result === "na" || result === "skipped")
+    return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
   return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
 }
 
@@ -322,10 +324,12 @@ function ItemChecklist({
         }
       }
 
+      const dbResult =
+        result === "fail" ? "with_incident" : result === "na" ? "not_applicable" : "ok";
       const { error } = await supabase
         .from("maintenance_items")
         .update({
-          result,
+          result: dbResult,
           observations: observations || null,
           completed_at: new Date().toISOString(),
         })
