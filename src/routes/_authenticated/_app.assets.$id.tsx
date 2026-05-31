@@ -340,6 +340,10 @@ function AssetDetail() {
             <p className="text-center text-xs text-muted-foreground break-all">{qrUrl}</p>
           </CardContent>
         </Card>
+
+        <div className="lg:col-span-3">
+          <AttachmentsPanel entity="asset" entityId={id} defaultCategory="manual" />
+        </div>
       </div>
     </div>
   );
