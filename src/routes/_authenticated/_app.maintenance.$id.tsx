@@ -85,6 +85,20 @@ function SessionDetail() {
     },
   });
 
+  const { data: linkedCert } = useQuery({
+    queryKey: ["session-cert", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("certificate_items")
+        .select("certificates(id, code, status)")
+        .eq("maintenance_session_id", id)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.certificates ?? null;
+    },
+  });
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const activeItem = useMemo(
     () => items.find((i) => i.id === selectedItemId) ?? items[0] ?? null,
