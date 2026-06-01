@@ -361,6 +361,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs_2026_09: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          changed_fields: Json | null
+          company_id: string
+          context: Json | null
+          created_at: string
+          id: number
+          member_id: string | null
+          record_id: string | null
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          changed_fields?: Json | null
+          company_id: string
+          context?: Json | null
+          created_at?: string
+          id?: number
+          member_id?: string | null
+          record_id?: string | null
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          changed_fields?: Json | null
+          company_id?: string
+          context?: Json | null
+          created_at?: string
+          id?: number
+          member_id?: string | null
+          record_id?: string | null
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_outbox: {
         Row: {
           created_at: string
