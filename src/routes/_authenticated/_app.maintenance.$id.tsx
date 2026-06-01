@@ -215,6 +215,21 @@ function SessionDetail() {
         )}
       </div>
 
+      {linkedCert && (
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 py-3">
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>Certificado emitido para esta sesión:</span>
+              <span className="font-mono text-xs text-muted-foreground">{linkedCert.code}</span>
+            </div>
+            <Link to="/certificates/$id" params={{ id: linkedCert.id }}>
+              <Button variant="outline" size="sm">Ver certificado</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       <AttachmentsPanel entity="maintenance_session" entityId={id} defaultCategory="maintenance_evidence" />
 
 
