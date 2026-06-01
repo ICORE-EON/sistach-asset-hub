@@ -632,6 +632,22 @@ function CloseSessionDialog({
       if (!hasInk.current) throw new Error("Firma para continuar");
       const c = canvasRef.current!;
       const signature = c.toDataURL("image/png");
+
+      // 1. Load session + plan + items to build the certificate
+      const { data: session, error: sErr } = await supabase
+        .from("maintenance_sessions")
+        .select("*, maintenance_plans(name, interval_months)")
+        .eq("id", sessionId)
+        .single();
+      if (sErr) throw sErr;
+
+      const { data: items, error: iErr } = await supabase
+        .from("maintenance_items")
+        .select("id, asset_id, result, observations")
+        .eq("session_id", sessionId);
+      if (iErr) throw iErr;
+
+      // 2. Close the session
       const { error } = await supabase
         .from("maintenance_sessions")
         .update({
@@ -643,9 +659,62 @@ function CloseSessionDialog({
         })
         .eq("id", sessionId);
       if (error) throw error;
+
+      // 3. Generate certificate
+      const { data: code, error: codeErr } = await supabase.rpc("next_code", {
+        p_company_id: session.company_id,
+        p_scope: "certificate",
+        p_prefix: "CERT",
+      });
+      if (codeErr) throw codeErr;
+
+      const today = new Date();
+      const intervalMonths = session.maintenance_plans?.interval_months ?? null;
+      const validUntil = intervalMonths
+        ? new Date(today.getFullYear(), today.getMonth() + intervalMonths, today.getDate())
+            .toISOString()
+            .slice(0, 10)
+        : null;
+
+      const okCount = items.filter((i) => i.result === "ok").length;
+      const failCount = items.filter((i) => i.result === "with_incident" || i.result === "fail").length;
+      const summary = `${okCount} activo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}.`;
+
+      const { data: cert, error: certErr } = await supabase
+        .from("certificates")
+        .insert({
+          company_id: session.company_id,
+          code,
+          title: `Certificado de mantenimiento — ${session.maintenance_plans?.name ?? session.code}`,
+          issued_on: today.toISOString().slice(0, 10),
+          valid_until: validUntil,
+          issuer_name: signerName.trim(),
+          issuer_role: signerRole.trim() || null,
+          signature_image_url: signature,
+          notes: summary,
+          status: "issued",
+        })
+        .select()
+        .single();
+      if (certErr) throw certErr;
+
+      if (items.length > 0) {
+        const certItems = items.map((it) => ({
+          certificate_id: cert.id,
+          asset_id: it.asset_id,
+          maintenance_session_id: sessionId,
+          maintenance_item_id: it.id,
+          result: it.result === "pending" ? "ok" : it.result,
+          notes: it.observations ?? null,
+        }));
+        const { error: ciErr } = await supabase.from("certificate_items").insert(certItems);
+        if (ciErr) throw ciErr;
+      }
+
+      return cert;
     },
-    onSuccess: () => {
-      toast.success("Sesión cerrada y firmada");
+    onSuccess: (cert) => {
+      toast.success(`Sesión cerrada. Certificado ${cert.code} emitido.`);
       onClosed();
       onOpenChange(false);
     },
