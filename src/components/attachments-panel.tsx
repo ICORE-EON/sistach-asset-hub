@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type EntityKind = "asset" | "incident" | "maintenance_session";
+type EntityKind = "asset" | "incident" | "maintenance_session" | "certificate";
 
 interface Props {
   entity: EntityKind;
@@ -61,12 +61,14 @@ const COLUMN_MAP: Record<EntityKind, string> = {
   asset: "asset_id",
   incident: "incident_id",
   maintenance_session: "maintenance_session_id",
+  certificate: "certificate_id",
 };
 
 const PATH_PREFIX: Record<EntityKind, string> = {
   asset: "assets",
   incident: "incidents",
   maintenance_session: "sessions",
+  certificate: "certificates",
 };
 
 export function AttachmentsPanel({ entity, entityId, defaultCategory = "other" }: Props) {
