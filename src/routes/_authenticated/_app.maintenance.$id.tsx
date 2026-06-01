@@ -728,12 +728,29 @@ function CloseSessionDialog({
       if (certErr) throw certErr;
 
       if (items.length > 0) {
+        const mapResult = (r: string | null | undefined): "ok" | "conditional" | "failed" | "na" => {
+          switch (r) {
+            case "ok":
+              return "ok";
+            case "with_incident":
+            case "conditional":
+              return "conditional";
+            case "fail":
+            case "failed":
+              return "failed";
+            case "na":
+            case "n/a":
+              return "na";
+            default:
+              return "ok";
+          }
+        };
         const certItems = items.map((it) => ({
           certificate_id: cert.id,
           asset_id: it.asset_id,
           maintenance_session_id: sessionId,
           maintenance_item_id: it.id,
-          result: it.result === "pending" ? "ok" : it.result,
+          result: mapResult(it.result),
           notes: it.observations ?? null,
         }));
         const { error: ciErr } = await supabase.from("certificate_items").insert(certItems);
