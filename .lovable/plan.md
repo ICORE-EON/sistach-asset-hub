@@ -1,54 +1,82 @@
-# Auto-incidencias al cerrar un activo con fallos
+# Módulo Certificados
 
-## Diagnóstico
+## Objetivo
 
-Hoy, al pulsar **"Guardar con fallos"** en un activo de la sesión (`src/routes/_authenticated/_app.maintenance.$id.tsx → completeItem`), el código:
+Convertir el placeholder de **Certificados** en un módulo funcional que cubra el flujo realista del MVP:
 
-1. Lee las respuestas desde la caché de React Query (`responses`).
-2. Filtra las que tienen `is_fail = true` **y** cuya pregunta tiene `creates_incident = true`.
-3. Crea una incidencia por cada una.
+1. **Listado** filtrable de certificados emitidos.
+2. **Detalle** con metadatos, items relacionados, adjuntos y descarga del PDF.
+3. **Generación automática** de un certificado al cerrar una sesión de mantenimiento (1 certificado por sesión).
+4. **Registro manual** de certificados externos (cuando lo emite un técnico externo y solo tenemos PDF).
 
-Esto produce dos huecos por los que las incidencias pueden no aparecer:
+No tocamos el módulo de incidencias ni la firma — reutilizamos lo que ya hay.
 
-- **A. Caché desactualizada.** El botón usa `responses` cacheadas; si la última respuesta aún no se ha re-fetcheado, no se contabiliza como fallo y no se crea incidencia (ni se marca el activo como "with_incident").
-- **B. `creates_incident = false` en la pregunta.** Si en la plantilla esa casilla no está marcada, jamás se crea incidencia aunque el técnico marque el fallo. Esto es por diseño, pero hoy no se comunica en la UI, así que el usuario percibe un bug.
+## Cambios
 
-## Cambios propuestos (solo frontend del módulo de mantenimiento)
+### 1. Listado `/certificates`
 
-### 1. Recalcular fallos contra la base de datos en el cierre del activo
-En `completeItem.mutationFn`, antes de decidir resultado e incidencias:
+Reemplazar el placeholder por una tabla con:
+- Buscador por código, título, emisor.
+- Filtros: estado (`issued` / `superseded` / `revoked`), tipo (interno / externo), rango de fechas, "por caducar / caducados".
+- Columnas: código, título, activo/sesión origen, emitido el, válido hasta, emisor, estado, acciones (ver / descargar).
+- Botón **"Registrar certificado externo"** → abre formulario (subida de PDF + metadatos).
+- Badge "caducado / por caducar" calculado en cliente desde `valid_until`.
 
-- Hacer un `select` fresco de `checklist_responses` filtrado por `maintenance_item_id`.
-- Calcular `anyFail` y `failedWithIncident` con esos datos (no con la caché).
-- Mantener la deduplicación actual por `source_response_id`.
+### 2. Detalle `/certificates/$id`
 
-Esto elimina el race condition entre `saveResponse` (upsert) y el clic inmediato en "Guardar con fallos".
+- Cabecera con código, título, estado y fechas (emitido / vence).
+- Bloque de **emisor** (interno = usuario actual; externo = provider + número).
+- Bloque de **items cubiertos** (`certificate_items` con result y notas).
+- Enlace a la sesión origen (si la hay) y a las incidencias derivadas.
+- **AttachmentsPanel** con `defaultCategory="certificate_pdf"` para subir el PDF firmado y adjuntos.
+- Botón **"Descargar PDF"** (descarga el archivo subido en `pdf_url` / adjunto principal).
+- Acciones según rol:
+  - `administrator` / `system_manager`: editar notas, revocar.
+  - `auditor`: solo lectura.
 
-### 2. Forzar el resultado correcto del activo
-Sustituir la decisión actual `anyFail ? "fail" : "ok"` en el `onClick` por una decisión **derivada del resultado del paso 1**. El handler pasa solo la intención (`complete` / `na`); la mutación decide `with_incident` vs `ok` según el `select` fresco.
+### 3. Generación al cerrar sesión
 
-### 3. Aviso visible cuando una pregunta no genera incidencia
-En `QuestionInput`, cuando `response?.is_fail === true` **y** la pregunta tiene `creates_incident = false`, mostrar un texto pequeño junto al badge "Falla":
+En `CloseSessionDialog` (sesión de mantenimiento), después de marcar la sesión como `closed`:
 
-> "Esta pregunta no abre incidencia automáticamente (configurable en la plantilla)."
+- Llamar a `next_code(company_id, 'certificate', 'CERT')` para obtener el código.
+- Crear un `certificates` con:
+  - `title` = "Certificado de mantenimiento — {plan.name}" (o nombre genérico si no hay plan).
+  - `issued_on` = hoy, `valid_until` = `issued_on + interval del plan` (si existe), si no, sin caducidad.
+  - `issuer_name` = `signer_name`, `issuer_role` = `signer_role`.
+  - `signature_image_url` = misma firma de la sesión.
+  - `notes` con resumen ("X activos OK, Y con incidencias abiertas").
+- Insertar un `certificate_items` por cada `maintenance_item` de la sesión (asset_id, maintenance_item_id, maintenance_session_id, result derivado).
+- Toast con enlace al detalle del certificado.
 
-Así el técnico entiende por qué un fallo puntual no aparece luego en `/incidents`.
+Si la sesión se reabre y se vuelve a cerrar, se emite un certificado nuevo (no se reemplaza el anterior) — el viejo queda como `issued` igualmente; la revocación es manual.
 
-### 4. Toast informativo al cerrar el activo con fallos
-Cuando `completeItem` cree N incidencias, el `toast.success` debe decir, por ejemplo:
+### 4. Registro de certificado externo
 
-> "Activo guardado con 2 incidencias abiertas."
+Diálogo con:
+- Título, emisor (nombre y rol), proveedor externo, número externo.
+- Fechas emitido / válido hasta.
+- Selección opcional de activos cubiertos → crea `certificate_items` solo con `asset_id`.
+- Subida obligatoria del PDF al bucket `documents` con categoría `certificate_pdf`, vinculado al certificado.
 
-Si hay fallos pero ninguna pregunta tenía `creates_incident`, el toast indica:
+### 5. Navegación
 
-> "Activo guardado con fallos. Ninguna pregunta del checklist está configurada para abrir incidencia."
+- Card en `/dashboard` con "Certificados emitidos este mes" y "Por caducar (30 días)".
+- Enlace cruzado: en `/maintenance/$id` cerrado, mostrar enlace al certificado generado.
+
+## Técnico
+
+- Rutas nuevas:
+  - `src/routes/_authenticated/_app.certificates.index.tsx` (listado).
+  - `src/routes/_authenticated/_app.certificates.$id.tsx` (detalle).
+  - Convertir `_app.certificates.tsx` en layout con `<Outlet />`.
+- Componente nuevo: `src/components/external-certificate-dialog.tsx`.
+- Helper nuevo: `src/lib/cert-status.ts` (cálculo de estado de caducidad).
+- Lógica de generación: extender `close.mutationFn` en `CloseSessionDialog` para crear `certificates` + `certificate_items` en la misma mutación.
+- **Sin migraciones**: las tablas `certificates`, `certificate_items`, los counters (`scope='certificate'`) y la RPC `next_code` ya existen.
+- RLS ya cubre: `certificates_insert` exige `can_run_maintenance`; `cert_items_modify` lo mismo; `certificates_update` exige `can_manage_assets`.
 
 ## Fuera de alcance
 
-- No se toca el módulo de **Certificados** (sigue placeholder); cuando lo construyamos definiremos su relación con incidencias.
-- No se modifica el trigger de notificaciones ni el esquema de BD.
-- No se cambia el flujo de cierre de sesión (la firma) — los activos siguen necesitando estar completados antes.
-
-## Archivos a tocar
-
-- `src/routes/_authenticated/_app.maintenance.$id.tsx` (lógica de `completeItem`, `QuestionInput` y toasts).
+- **Generación de PDF en el servidor** (con plantilla bonita). Por ahora el PDF lo aporta el usuario (subida manual) o se omite. Lo abordaremos como mejora posterior cuando definamos plantilla y branding.
+- Numeración personalizable por empresa (usa el formato estándar `CERT-YYYY-NNNN`).
+- Firma electrónica avanzada / sellos cualificados.
