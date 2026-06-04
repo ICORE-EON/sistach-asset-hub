@@ -169,7 +169,7 @@ function CreateTemplateDialog({ onCreated }: { onCreated: (id: string) => void }
           intro_text: DEFAULT_CERTIFICATE_TEMPLATE.intro_text,
           regulation_text: DEFAULT_CERTIFICATE_TEMPLATE.regulation_text,
           footer_text: DEFAULT_CERTIFICATE_TEMPLATE.footer_text,
-          columns: DEFAULT_CERTIFICATE_TEMPLATE.columns,
+          columns: DEFAULT_CERTIFICATE_TEMPLATE.columns as unknown as Record<string, unknown>[],
           show_logo: DEFAULT_CERTIFICATE_TEMPLATE.show_logo,
           show_signature: DEFAULT_CERTIFICATE_TEMPLATE.show_signature,
           show_company_stamp: DEFAULT_CERTIFICATE_TEMPLATE.show_company_stamp,
