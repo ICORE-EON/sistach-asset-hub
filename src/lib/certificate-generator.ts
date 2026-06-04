@@ -147,14 +147,19 @@ export async function generateCertificatePdf(certificateId: string): Promise<{ p
 
   // Upload to storage. Bucket policy expects path = {company_id}/...
   const path = `${cert.company_id}/certificates/${cert.id}.pdf`;
-  const blob = new Blob([pdfBytes], { type: "application/pdf" });
+  const ab = pdfBytes.buffer.slice(
+    pdfBytes.byteOffset,
+    pdfBytes.byteOffset + pdfBytes.byteLength,
+  ) as ArrayBuffer;
+  const blob = new Blob([ab], { type: "application/pdf" });
   const { error: upErr } = await supabase.storage
     .from("signed-certificates")
     .upload(path, blob, { contentType: "application/pdf", upsert: true });
   if (upErr) throw upErr;
 
   // Compute sha256
-  const hashBuf = await crypto.subtle.digest("SHA-256", pdfBytes);
+  const hashBuf = await crypto.subtle.digest("SHA-256", ab);
+
   const hashHex = Array.from(new Uint8Array(hashBuf))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
