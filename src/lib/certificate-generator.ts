@@ -76,19 +76,22 @@ export async function generateCertificatePdf(certificateId: string): Promise<{ p
       .select("plan_id, maintenance_plans(name), locations(name)")
       .eq("id", sessionId)
       .maybeSingle();
-    planId = session?.plan_id ?? null;
-    // @ts-expect-error nested type
-    planName = session?.maintenance_plans?.name ?? null;
-    // @ts-expect-error nested type
-    locationName = session?.locations?.name ?? "";
+    const s = session as unknown as {
+      plan_id: string | null;
+      maintenance_plans: { name: string } | null;
+      locations: { name: string } | null;
+    } | null;
+    planId = s?.plan_id ?? null;
+    planName = s?.maintenance_plans?.name ?? null;
+    locationName = s?.locations?.name ?? "";
   }
 
   // Pick most common location among assets if no session location
   if (!locationName && items && items.length > 0) {
     const counts: Record<string, number> = {};
     for (const it of items) {
-      // @ts-expect-error nested
-      const ln = it.assets?.locations?.name as string | undefined;
+      const a = it.assets as unknown as { locations?: { name?: string } | null } | null;
+      const ln = a?.locations?.name;
       if (ln) counts[ln] = (counts[ln] ?? 0) + 1;
     }
     locationName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
@@ -110,11 +113,11 @@ export async function generateCertificatePdf(certificateId: string): Promise<{ p
   };
 
   const rows: RowSource[] = (items ?? []).map((it) => ({
-    // @ts-expect-error nested type from select
-    asset: it.assets,
+    asset: it.assets as unknown as RowSource["asset"],
     result: it.result,
     notes: it.notes,
   }));
+
 
   // Logo as signed URL if possible
   let logoUrl: string | null = null;
