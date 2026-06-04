@@ -52,12 +52,42 @@ function PlanDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("maintenance_plans")
-        .select("*, asset_types(code, name_i18n), checklist_templates(code, name, current_version)")
+        .select("*, asset_types(code, name_i18n), checklist_templates(code, name, current_version), certificate_templates(id, code, name)")
         .eq("id", id)
         .single();
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: certTemplates = [] } = useQuery({
+    queryKey: ["certificate-templates-pick", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("certificate_templates")
+        .select("id, code, name, is_default")
+        .eq("company_id", activeCompanyId!)
+        .is("deleted_at", null)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const setCertTemplate = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const { error } = await supabase
+        .from("maintenance_plans")
+        .update({ certificate_template_id: templateId })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Plantilla de certificado actualizada");
+      qc.invalidateQueries({ queryKey: ["plan", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const { data: planAssets = [] } = useQuery({
@@ -163,6 +193,31 @@ function PlanDetail() {
             <Row label="Tipo activo">
               {plan.asset_types ? (plan.asset_types.name_i18n as { es?: string })?.es ?? plan.asset_types.code : "—"}
             </Row>
+            <div className="space-y-1.5 border-b py-1.5 last:border-0">
+              <Label className="text-xs uppercase text-muted-foreground">Modelo de certificado</Label>
+              {canManage ? (
+                <Select
+                  value={plan.certificate_template_id ?? "__default__"}
+                  onValueChange={(v) => setCertTemplate.mutate(v === "__default__" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Usar plantilla por defecto</SelectItem>
+                    {certTemplates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.code} — {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm">
+                  {plan.certificate_templates?.name ?? "Plantilla por defecto"}
+                </p>
+              )}
+            </div>
             {plan.notes && (
               <div>
                 <Label className="text-xs uppercase text-muted-foreground">Notas</Label>

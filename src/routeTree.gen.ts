@@ -28,6 +28,7 @@ import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authent
 import { Route as AuthenticatedAppDashboardRouteImport } from './routes/_authenticated/_app.dashboard'
 import { Route as AuthenticatedAppChecklistTemplatesRouteImport } from './routes/_authenticated/_app.checklist-templates'
 import { Route as AuthenticatedAppCertificatesRouteImport } from './routes/_authenticated/_app.certificates'
+import { Route as AuthenticatedAppCertificateTemplatesRouteImport } from './routes/_authenticated/_app.certificate-templates'
 import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
 import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
 import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
@@ -35,6 +36,7 @@ import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './rou
 import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
 import { Route as AuthenticatedAppChecklistTemplatesIndexRouteImport } from './routes/_authenticated/_app.checklist-templates.index'
 import { Route as AuthenticatedAppCertificatesIndexRouteImport } from './routes/_authenticated/_app.certificates.index'
+import { Route as AuthenticatedAppCertificateTemplatesIndexRouteImport } from './routes/_authenticated/_app.certificate-templates.index'
 import { Route as AuthenticatedAppAssetsIndexRouteImport } from './routes/_authenticated/_app.assets.index'
 import { Route as ApiPublicQrTokenRouteImport } from './routes/api/public/qr.$token'
 import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
@@ -42,6 +44,7 @@ import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes
 import { Route as AuthenticatedAppIncidentsIdRouteImport } from './routes/_authenticated/_app.incidents.$id'
 import { Route as AuthenticatedAppChecklistTemplatesIdRouteImport } from './routes/_authenticated/_app.checklist-templates.$id'
 import { Route as AuthenticatedAppCertificatesIdRouteImport } from './routes/_authenticated/_app.certificates.$id'
+import { Route as AuthenticatedAppCertificateTemplatesIdRouteImport } from './routes/_authenticated/_app.certificate-templates.$id'
 import { Route as AuthenticatedAppAssetsIdRouteImport } from './routes/_authenticated/_app.assets.$id'
 
 const SignupRoute = SignupRouteImport.update({
@@ -149,6 +152,12 @@ const AuthenticatedAppCertificatesRoute =
     path: '/certificates',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppCertificateTemplatesRoute =
+  AuthenticatedAppCertificateTemplatesRouteImport.update({
+    id: '/certificate-templates',
+    path: '/certificate-templates',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppAssetsRoute = AuthenticatedAppAssetsRouteImport.update({
   id: '/assets',
   path: '/assets',
@@ -189,6 +198,12 @@ const AuthenticatedAppCertificatesIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedAppCertificatesRoute,
+  } as any)
+const AuthenticatedAppCertificateTemplatesIndexRoute =
+  AuthenticatedAppCertificateTemplatesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCertificateTemplatesRoute,
   } as any)
 const AuthenticatedAppAssetsIndexRoute =
   AuthenticatedAppAssetsIndexRouteImport.update({
@@ -231,6 +246,12 @@ const AuthenticatedAppCertificatesIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAppCertificatesRoute,
   } as any)
+const AuthenticatedAppCertificateTemplatesIdRoute =
+  AuthenticatedAppCertificateTemplatesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppCertificateTemplatesRoute,
+  } as any)
 const AuthenticatedAppAssetsIdRoute =
   AuthenticatedAppAssetsIdRouteImport.update({
     id: '/$id',
@@ -246,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/qr/$token': typeof QrTokenRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
+  '/certificate-templates': typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
   '/certificates': typeof AuthenticatedAppCertificatesRouteWithChildren
   '/checklist-templates': typeof AuthenticatedAppChecklistTemplatesRouteWithChildren
   '/dashboard': typeof AuthenticatedAppDashboardRoute
@@ -259,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/certificate-templates/$id': typeof AuthenticatedAppCertificateTemplatesIdRoute
   '/certificates/$id': typeof AuthenticatedAppCertificatesIdRoute
   '/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
@@ -266,6 +289,7 @@ export interface FileRoutesByFullPath {
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets/': typeof AuthenticatedAppAssetsIndexRoute
+  '/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
   '/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
@@ -287,6 +311,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedAppSettingsRoute
   '/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/certificate-templates/$id': typeof AuthenticatedAppCertificateTemplatesIdRoute
   '/certificates/$id': typeof AuthenticatedAppCertificatesIdRoute
   '/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
@@ -294,6 +319,7 @@ export interface FileRoutesByTo {
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets': typeof AuthenticatedAppAssetsIndexRoute
+  '/certificate-templates': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates': typeof AuthenticatedAppCertificatesIndexRoute
   '/checklist-templates': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/incidents': typeof AuthenticatedAppIncidentsIndexRoute
@@ -311,6 +337,7 @@ export interface FileRoutesById {
   '/qr/$token': typeof QrTokenRoute
   '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
+  '/_authenticated/_app/certificate-templates': typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
   '/_authenticated/_app/certificates': typeof AuthenticatedAppCertificatesRouteWithChildren
   '/_authenticated/_app/checklist-templates': typeof AuthenticatedAppChecklistTemplatesRouteWithChildren
   '/_authenticated/_app/dashboard': typeof AuthenticatedAppDashboardRoute
@@ -324,6 +351,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/settings': typeof AuthenticatedAppSettingsRoute
   '/_authenticated/onboarding/company': typeof AuthenticatedOnboardingCompanyRoute
   '/_authenticated/_app/assets/$id': typeof AuthenticatedAppAssetsIdRoute
+  '/_authenticated/_app/certificate-templates/$id': typeof AuthenticatedAppCertificateTemplatesIdRoute
   '/_authenticated/_app/certificates/$id': typeof AuthenticatedAppCertificatesIdRoute
   '/_authenticated/_app/checklist-templates/$id': typeof AuthenticatedAppChecklistTemplatesIdRoute
   '/_authenticated/_app/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
@@ -331,6 +359,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
   '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
+  '/_authenticated/_app/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/_authenticated/_app/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
   '/_authenticated/_app/checklist-templates/': typeof AuthenticatedAppChecklistTemplatesIndexRoute
   '/_authenticated/_app/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
@@ -347,6 +376,7 @@ export interface FileRouteTypes {
     | '/qr/$token'
     | '/asset-types'
     | '/assets'
+    | '/certificate-templates'
     | '/certificates'
     | '/checklist-templates'
     | '/dashboard'
@@ -360,6 +390,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/onboarding/company'
     | '/assets/$id'
+    | '/certificate-templates/$id'
     | '/certificates/$id'
     | '/checklist-templates/$id'
     | '/incidents/$id'
@@ -367,6 +398,7 @@ export interface FileRouteTypes {
     | '/maintenance/$id'
     | '/api/public/qr/$token'
     | '/assets/'
+    | '/certificate-templates/'
     | '/certificates/'
     | '/checklist-templates/'
     | '/incidents/'
@@ -388,6 +420,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/onboarding/company'
     | '/assets/$id'
+    | '/certificate-templates/$id'
     | '/certificates/$id'
     | '/checklist-templates/$id'
     | '/incidents/$id'
@@ -395,6 +428,7 @@ export interface FileRouteTypes {
     | '/maintenance/$id'
     | '/api/public/qr/$token'
     | '/assets'
+    | '/certificate-templates'
     | '/certificates'
     | '/checklist-templates'
     | '/incidents'
@@ -411,6 +445,7 @@ export interface FileRouteTypes {
     | '/qr/$token'
     | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
+    | '/_authenticated/_app/certificate-templates'
     | '/_authenticated/_app/certificates'
     | '/_authenticated/_app/checklist-templates'
     | '/_authenticated/_app/dashboard'
@@ -424,6 +459,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/settings'
     | '/_authenticated/onboarding/company'
     | '/_authenticated/_app/assets/$id'
+    | '/_authenticated/_app/certificate-templates/$id'
     | '/_authenticated/_app/certificates/$id'
     | '/_authenticated/_app/checklist-templates/$id'
     | '/_authenticated/_app/incidents/$id'
@@ -431,6 +467,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/maintenance/$id'
     | '/api/public/qr/$token'
     | '/_authenticated/_app/assets/'
+    | '/_authenticated/_app/certificate-templates/'
     | '/_authenticated/_app/certificates/'
     | '/_authenticated/_app/checklist-templates/'
     | '/_authenticated/_app/incidents/'
@@ -582,6 +619,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCertificatesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
+    '/_authenticated/_app/certificate-templates': {
+      id: '/_authenticated/_app/certificate-templates'
+      path: '/certificate-templates'
+      fullPath: '/certificate-templates'
+      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_app/assets': {
       id: '/_authenticated/_app/assets'
       path: '/assets'
@@ -630,6 +674,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/certificates/'
       preLoaderRoute: typeof AuthenticatedAppCertificatesIndexRouteImport
       parentRoute: typeof AuthenticatedAppCertificatesRoute
+    }
+    '/_authenticated/_app/certificate-templates/': {
+      id: '/_authenticated/_app/certificate-templates/'
+      path: '/'
+      fullPath: '/certificate-templates/'
+      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCertificateTemplatesRoute
     }
     '/_authenticated/_app/assets/': {
       id: '/_authenticated/_app/assets/'
@@ -680,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCertificatesIdRouteImport
       parentRoute: typeof AuthenticatedAppCertificatesRoute
     }
+    '/_authenticated/_app/certificate-templates/$id': {
+      id: '/_authenticated/_app/certificate-templates/$id'
+      path: '/$id'
+      fullPath: '/certificate-templates/$id'
+      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedAppCertificateTemplatesRoute
+    }
     '/_authenticated/_app/assets/$id': {
       id: '/_authenticated/_app/assets/$id'
       path: '/$id'
@@ -704,6 +762,24 @@ const AuthenticatedAppAssetsRouteChildren: AuthenticatedAppAssetsRouteChildren =
 const AuthenticatedAppAssetsRouteWithChildren =
   AuthenticatedAppAssetsRoute._addFileChildren(
     AuthenticatedAppAssetsRouteChildren,
+  )
+
+interface AuthenticatedAppCertificateTemplatesRouteChildren {
+  AuthenticatedAppCertificateTemplatesIdRoute: typeof AuthenticatedAppCertificateTemplatesIdRoute
+  AuthenticatedAppCertificateTemplatesIndexRoute: typeof AuthenticatedAppCertificateTemplatesIndexRoute
+}
+
+const AuthenticatedAppCertificateTemplatesRouteChildren: AuthenticatedAppCertificateTemplatesRouteChildren =
+  {
+    AuthenticatedAppCertificateTemplatesIdRoute:
+      AuthenticatedAppCertificateTemplatesIdRoute,
+    AuthenticatedAppCertificateTemplatesIndexRoute:
+      AuthenticatedAppCertificateTemplatesIndexRoute,
+  }
+
+const AuthenticatedAppCertificateTemplatesRouteWithChildren =
+  AuthenticatedAppCertificateTemplatesRoute._addFileChildren(
+    AuthenticatedAppCertificateTemplatesRouteChildren,
   )
 
 interface AuthenticatedAppCertificatesRouteChildren {
@@ -795,6 +871,7 @@ const AuthenticatedAppMaintenancePlansRouteWithChildren =
 interface AuthenticatedAppRouteChildren {
   AuthenticatedAppAssetTypesRoute: typeof AuthenticatedAppAssetTypesRoute
   AuthenticatedAppAssetsRoute: typeof AuthenticatedAppAssetsRouteWithChildren
+  AuthenticatedAppCertificateTemplatesRoute: typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
   AuthenticatedAppCertificatesRoute: typeof AuthenticatedAppCertificatesRouteWithChildren
   AuthenticatedAppChecklistTemplatesRoute: typeof AuthenticatedAppChecklistTemplatesRouteWithChildren
   AuthenticatedAppDashboardRoute: typeof AuthenticatedAppDashboardRoute
@@ -811,6 +888,8 @@ interface AuthenticatedAppRouteChildren {
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
   AuthenticatedAppAssetTypesRoute: AuthenticatedAppAssetTypesRoute,
   AuthenticatedAppAssetsRoute: AuthenticatedAppAssetsRouteWithChildren,
+  AuthenticatedAppCertificateTemplatesRoute:
+    AuthenticatedAppCertificateTemplatesRouteWithChildren,
   AuthenticatedAppCertificatesRoute:
     AuthenticatedAppCertificatesRouteWithChildren,
   AuthenticatedAppChecklistTemplatesRoute:
@@ -858,13 +937,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

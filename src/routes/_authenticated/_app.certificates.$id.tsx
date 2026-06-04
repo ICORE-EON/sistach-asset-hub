@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil, Download, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
+import { generateCertificatePdf, getCertificatePdfDownloadUrl } from "@/lib/certificate-generator";
 
 export const Route = createFileRoute("/_authenticated/_app/certificates/$id")({
   head: () => ({ meta: [{ title: "Certificado" }] }),
@@ -90,6 +91,26 @@ function CertificateDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const regenerate = useMutation({
+    mutationFn: async () => {
+      await generateCertificatePdf(id);
+    },
+    onSuccess: () => {
+      toast.success("PDF generado");
+      qc.invalidateQueries({ queryKey: ["certificate", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const download = useMutation({
+    mutationFn: async () => {
+      if (!cert?.pdf_url) throw new Error("Sin PDF disponible");
+      const url = await getCertificatePdfDownloadUrl(cert.pdf_url);
+      window.open(url, "_blank");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const [editNotesOpen, setEditNotesOpen] = useState(false);
 
   if (!cert) return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
@@ -115,10 +136,22 @@ function CertificateDetail() {
           </div>
         </div>
         {canManage && cert.status === "issued" && (
-          <Button variant="outline" onClick={() => revoke.mutate()} disabled={revoke.isPending}>
-            <Ban className="mr-2 h-4 w-4" />
-            Revocar
-          </Button>
+          <div className="flex gap-2">
+            {cert.pdf_url && (
+              <Button variant="outline" onClick={() => download.mutate()} disabled={download.isPending}>
+                <Download className="mr-2 h-4 w-4" />
+                Descargar PDF
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => regenerate.mutate()} disabled={regenerate.isPending}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {cert.pdf_url ? "Regenerar PDF" : "Generar PDF"}
+            </Button>
+            <Button variant="outline" onClick={() => revoke.mutate()} disabled={revoke.isPending}>
+              <Ban className="mr-2 h-4 w-4" />
+              Revocar
+            </Button>
+          </div>
         )}
       </div>
 

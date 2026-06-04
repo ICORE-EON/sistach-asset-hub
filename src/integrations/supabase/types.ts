@@ -480,6 +480,87 @@ export type Database = {
           },
         ]
       }
+      certificate_templates: {
+        Row: {
+          code: string
+          columns: Json
+          company_id: string
+          created_at: string
+          deleted_at: string | null
+          footer_text: string
+          id: string
+          intro_text: string
+          is_default: boolean
+          language: string
+          name: string
+          notes: string | null
+          paper_size: string
+          regulation_text: string
+          show_company_stamp: boolean
+          show_logo: boolean
+          show_signature: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          columns?: Json
+          company_id: string
+          created_at?: string
+          deleted_at?: string | null
+          footer_text?: string
+          id?: string
+          intro_text?: string
+          is_default?: boolean
+          language?: string
+          name: string
+          notes?: string | null
+          paper_size?: string
+          regulation_text?: string
+          show_company_stamp?: boolean
+          show_logo?: boolean
+          show_signature?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          columns?: Json
+          company_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          footer_text?: string
+          id?: string
+          intro_text?: string
+          is_default?: boolean
+          language?: string
+          name?: string
+          notes?: string | null
+          paper_size?: string
+          regulation_text?: string
+          show_company_stamp?: boolean
+          show_logo?: boolean
+          show_signature?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       certificates: {
         Row: {
           code: string
@@ -1706,6 +1787,7 @@ export type Database = {
         Row: {
           active: boolean
           asset_type_id: string | null
+          certificate_template_id: string | null
           checklist_template_id: string
           code: string
           company_id: string
@@ -1721,6 +1803,7 @@ export type Database = {
         Insert: {
           active?: boolean
           asset_type_id?: string | null
+          certificate_template_id?: string | null
           checklist_template_id: string
           code: string
           company_id: string
@@ -1736,6 +1819,7 @@ export type Database = {
         Update: {
           active?: boolean
           asset_type_id?: string | null
+          certificate_template_id?: string | null
           checklist_template_id?: string
           code?: string
           company_id?: string
@@ -1754,6 +1838,13 @@ export type Database = {
             columns: ["asset_type_id"]
             isOneToOne: false
             referencedRelation: "asset_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plans_certificate_template_id_fkey"
+            columns: ["certificate_template_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_templates"
             referencedColumns: ["id"]
           },
           {

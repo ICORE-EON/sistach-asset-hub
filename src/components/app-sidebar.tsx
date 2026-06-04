@@ -44,6 +44,7 @@ const docsItems = [
 const adminItems = [
   { title: "Plantillas checklist", url: "/checklist-templates", icon: ClipboardList },
   { title: "Planes mant.", url: "/maintenance-plans", icon: CalendarClock },
+  { title: "Plantillas certif.", url: "/certificate-templates", icon: FileBadge },
   { title: "Tipos de activo", url: "/asset-types", icon: Tag },
   { title: "Ubicaciones", url: "/locations", icon: MapPin },
   { title: "Administración", url: "/settings", icon: Settings },
