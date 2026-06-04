@@ -193,6 +193,31 @@ function PlanDetail() {
             <Row label="Tipo activo">
               {plan.asset_types ? (plan.asset_types.name_i18n as { es?: string })?.es ?? plan.asset_types.code : "—"}
             </Row>
+            <div className="space-y-1.5 border-b py-1.5 last:border-0">
+              <Label className="text-xs uppercase text-muted-foreground">Modelo de certificado</Label>
+              {canManage ? (
+                <Select
+                  value={plan.certificate_template_id ?? "__default__"}
+                  onValueChange={(v) => setCertTemplate.mutate(v === "__default__" ? null : v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">Usar plantilla por defecto</SelectItem>
+                    {certTemplates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.code} — {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm">
+                  {plan.certificate_templates?.name ?? "Plantilla por defecto"}
+                </p>
+              )}
+            </div>
             {plan.notes && (
               <div>
                 <Label className="text-xs uppercase text-muted-foreground">Notas</Label>
