@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { generateCertificatePdf } from "@/lib/certificate-generator";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/$id")({
   head: () => ({ meta: [{ title: "Sesión de mantenimiento" }] }),
@@ -755,6 +756,14 @@ function CloseSessionDialog({
         }));
         const { error: ciErr } = await supabase.from("certificate_items").insert(certItems);
         if (ciErr) throw ciErr;
+      }
+
+      // 4. Generate PDF (best effort — don't block close if it fails)
+      try {
+        await generateCertificatePdf(cert.id);
+      } catch (e) {
+        console.error("PDF generation failed", e);
+        toast.warning("Certificado emitido, pero no se pudo generar el PDF. Podrás regenerarlo desde el detalle.");
       }
 
       return cert;
