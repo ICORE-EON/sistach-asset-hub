@@ -154,6 +154,91 @@ function drawTable(
   return { ...cur, y: cur.y - 8 };
 }
 
+function drawGenericTable(
+  ctx: DrawCtx,
+  headers: string[],
+  weights: number[],
+  rows: string[][],
+): DrawCtx {
+  const tableWidth = PAGE_W - MARGIN * 2;
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  const colWidths = weights.map((w) => (tableWidth * w) / totalWeight);
+  const headerSize = 9;
+  const cellSize = 9;
+  const headerH = 20;
+  const cellPadding = 4;
+
+  let cur = ensureSpace(ctx, headerH + 4);
+  cur.page.drawRectangle({
+    x: MARGIN,
+    y: cur.y - headerH,
+    width: tableWidth,
+    height: headerH,
+    color: rgb(0.98, 0.92, 0.92),
+  });
+  let hx = MARGIN;
+  headers.forEach((label, idx) => {
+    cur.page.drawText(sanitize(label), {
+      x: hx + cellPadding,
+      y: cur.y - headerH + 6,
+      size: headerSize,
+      font: cur.bold,
+      color: rgb(0.4, 0.08, 0.08),
+    });
+    hx += colWidths[idx];
+  });
+  cur = { ...cur, y: cur.y - headerH };
+
+  for (const row of rows) {
+    const cells = row.map((v) => sanitize(v || ""));
+    const wrapped = cells.map((text, idx) =>
+      wrapText(text, cur.font, cellSize, colWidths[idx] - cellPadding * 2),
+    );
+    const lines = Math.max(1, ...wrapped.map((w) => w.length));
+    const rowH = lines * (cellSize * 1.25) + cellPadding * 2;
+
+    cur = ensureSpace(cur, rowH);
+    cur.page.drawRectangle({
+      x: MARGIN,
+      y: cur.y - rowH,
+      width: tableWidth,
+      height: rowH,
+      borderColor: rgb(0.85, 0.7, 0.7),
+      borderWidth: 0.5,
+    });
+    let cx = MARGIN;
+    cells.forEach((_, idx) => {
+      wrapped[idx].forEach((line, li) => {
+        cur.page.drawText(line, {
+          x: cx + cellPadding,
+          y: cur.y - cellPadding - cellSize * (li + 1) + 2,
+          size: cellSize,
+          font: cur.font,
+          color: rgb(0.15, 0.15, 0.2),
+        });
+      });
+      cx += colWidths[idx];
+    });
+    cur = { ...cur, y: cur.y - rowH };
+  }
+
+  return { ...cur, y: cur.y - 8 };
+}
+
+const SEVERITY_LABELS: Record<string, string> = {
+  low: "Baja",
+  medium: "Media",
+  high: "Alta",
+  critical: "Crítica",
+};
+
+function severityLabel(s: string | null | undefined): string {
+  if (!s) return "";
+  return SEVERITY_LABELS[s] ?? s;
+}
+
+
+
 async function embedDataUrl(pdf: PDFDocument, dataUrl: string): Promise<PDFImage | null> {
   try {
     const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.+)$/i);
