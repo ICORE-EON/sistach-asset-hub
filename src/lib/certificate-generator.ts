@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { buildCertificatePdf } from "./certificate-pdf";
+import { buildCertificatePdf, type IncidentRow } from "./certificate-pdf";
 import { DEFAULT_CERTIFICATE_TEMPLATE } from "./certificate-templates/default";
 import type { CertificateTemplate, TemplateColumn, TemplateVariables } from "./certificate-templates/types";
 import type { RowSource } from "./certificate-templates/render";
