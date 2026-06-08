@@ -244,13 +244,49 @@ export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Ar
 
   // Regulation
   if (rendered.regulation.trim()) {
-    ctx = drawParagraph(ctx, rendered.regulation, 9);
-    ctx = { ...ctx, y: ctx.y - 6 };
+    ctx = { ...ctx, y: ctx.y - 4 };
+    ctx = ensureSpace(ctx, 14);
+    ctx.page.drawText(sanitize("Normativa aplicable:"), {
+      x: MARGIN,
+      y: ctx.y - 10,
+      size: 10,
+      font: bold,
+      color: rgb(0.08, 0.1, 0.2),
+    });
+    ctx = { ...ctx, y: ctx.y - 16 };
+    ctx = drawParagraph(ctx, rendered.regulation, 10);
+    ctx = { ...ctx, y: ctx.y - 8 };
   }
 
-  // Table
+  // Equipment table
   if (input.template.columns.length > 0 && input.rows.length > 0) {
     ctx = drawTable(ctx, input.template.columns, input.rows);
+  }
+
+  // Incidents table
+  if (input.incidents && input.incidents.length > 0) {
+    ctx = { ...ctx, y: ctx.y - 8 };
+    ctx = ensureSpace(ctx, 18);
+    ctx.page.drawText(sanitize("Incidencias detectadas"), {
+      x: MARGIN,
+      y: ctx.y - 12,
+      size: 12,
+      font: bold,
+      color: rgb(0.55, 0.1, 0.1),
+    });
+    ctx = { ...ctx, y: ctx.y - 18 };
+    ctx = drawGenericTable(
+      ctx,
+      ["Tipo", "Código", "Ubicación", "Severidad", "Incidencia"],
+      [2, 2, 2, 1.5, 4],
+      input.incidents.map((i) => [
+        i.asset_type ?? "",
+        i.asset_code ?? "",
+        i.location ?? "",
+        severityLabel(i.severity),
+        i.description ?? "",
+      ]),
+    );
   }
 
   // Footer text
