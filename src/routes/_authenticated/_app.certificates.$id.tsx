@@ -76,6 +76,49 @@ function CertificateDetail() {
     },
   });
 
+  // Resolve which certificate template will be applied (mirrors generator logic)
+  const { data: resolvedTemplate } = useQuery({
+    queryKey: ["certificate-resolved-template", id, cert?.id],
+    enabled: !!cert,
+    queryFn: async () => {
+      const sid = items.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
+      let planTplId: string | null = null;
+      if (sid) {
+        const { data: s } = await supabase
+          .from("maintenance_sessions")
+          .select("plan_id")
+          .eq("id", sid)
+          .maybeSingle();
+        if (s?.plan_id) {
+          const { data: p } = await supabase
+            .from("maintenance_plans")
+            .select("certificate_template_id")
+            .eq("id", s.plan_id)
+            .maybeSingle();
+          planTplId = p?.certificate_template_id ?? null;
+        }
+      }
+      if (planTplId) {
+        const { data: tpl } = await supabase
+          .from("certificate_templates")
+          .select("id, name")
+          .eq("id", planTplId)
+          .maybeSingle();
+        if (tpl) return { source: "plan" as const, id: tpl.id, name: tpl.name };
+      }
+      const { data: def } = await supabase
+        .from("certificate_templates")
+        .select("id, name")
+        .eq("company_id", cert!.company_id)
+        .eq("is_default", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (def) return { source: "default" as const, id: def.id, name: def.name };
+      return { source: "builtin" as const, id: null, name: "Plantilla genérica integrada" };
+    },
+  });
+
+
   const revoke = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
