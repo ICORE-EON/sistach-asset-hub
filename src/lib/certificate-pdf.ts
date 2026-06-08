@@ -182,10 +182,19 @@ async function embedUrl(pdf: PDFDocument, url: string): Promise<PDFImage | null>
   }
 }
 
+export interface IncidentRow {
+  asset_type?: string | null;
+  asset_code?: string | null;
+  location?: string | null;
+  severity?: string | null;
+  description?: string | null;
+}
+
 export interface BuildPdfInput {
   template: CertificateTemplate;
   vars: Partial<TemplateVariables>;
   rows: RowSource[];
+  incidents?: IncidentRow[];
   logoUrl?: string | null;
   signatureDataUrl?: string | null;
 }
