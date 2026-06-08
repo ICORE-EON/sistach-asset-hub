@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QrTokenRouteImport } from './routes/qr.$token'
+import { Route as AcceptInvitationTokenRouteImport } from './routes/accept-invitation.$token'
 import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authenticated/select-company'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
@@ -69,6 +70,11 @@ const IndexRoute = IndexRouteImport.update({
 const QrTokenRoute = QrTokenRouteImport.update({
   id: '/qr/$token',
   path: '/qr/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptInvitationTokenRoute = AcceptInvitationTokenRouteImport.update({
+  id: '/accept-invitation/$token',
+  path: '/accept-invitation/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSelectCompanyRoute =
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
@@ -301,6 +308,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/select-company': typeof AuthenticatedSelectCompanyRoute
+  '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
   '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/select-company'
+    | '/accept-invitation/$token'
     | '/qr/$token'
     | '/asset-types'
     | '/assets'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/select-company'
+    | '/accept-invitation/$token'
     | '/qr/$token'
     | '/asset-types'
     | '/dashboard'
@@ -442,6 +453,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_authenticated/_app'
     | '/_authenticated/select-company'
+    | '/accept-invitation/$token'
     | '/qr/$token'
     | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
@@ -480,6 +492,7 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  AcceptInvitationTokenRoute: typeof AcceptInvitationTokenRoute
   QrTokenRoute: typeof QrTokenRoute
   ApiPublicQrTokenRoute: typeof ApiPublicQrTokenRoute
 }
@@ -519,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/qr/$token'
       fullPath: '/qr/$token'
       preLoaderRoute: typeof QrTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accept-invitation/$token': {
+      id: '/accept-invitation/$token'
+      path: '/accept-invitation/$token'
+      fullPath: '/accept-invitation/$token'
+      preLoaderRoute: typeof AcceptInvitationTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/select-company': {
@@ -931,6 +951,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  AcceptInvitationTokenRoute: AcceptInvitationTokenRoute,
   QrTokenRoute: QrTokenRoute,
   ApiPublicQrTokenRoute: ApiPublicQrTokenRoute,
 }

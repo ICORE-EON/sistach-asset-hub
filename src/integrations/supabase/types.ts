@@ -963,6 +963,63 @@ export type Database = {
           },
         ]
       }
+      company_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       company_members: {
         Row: {
           active: boolean
@@ -2519,6 +2576,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_company_invitation: { Args: { p_token: string }; Returns: string }
       audit_logs_ensure_partitions: {
         Args: { p_months_ahead?: number }
         Returns: number
@@ -2559,6 +2617,18 @@ export type Database = {
       }
       current_company_id: { Args: never; Returns: string }
       generate_expiry_notifications: { Args: never; Returns: number }
+      get_invitation_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          accepted_at: string
+          company_id: string
+          company_name: string
+          email: string
+          expires_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
       has_role_in: {
         Args: {
           p_company_id: string
@@ -2566,9 +2636,44 @@ export type Database = {
         }
         Returns: boolean
       }
+      invite_company_member: {
+        Args: {
+          p_company_id: string
+          p_email: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: {
+          accepted_at: string | null
+          accepted_by: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "company_invitations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       next_code: {
         Args: { p_company_id: string; p_prefix: string; p_scope: string }
         Returns: string
+      }
+      set_company_counter: {
+        Args: {
+          p_company_id: string
+          p_scope: string
+          p_value: number
+          p_year: number
+        }
+        Returns: undefined
       }
       user_company_ids: { Args: never; Returns: string[] }
       user_has_membership: { Args: { p_company_id: string }; Returns: boolean }
