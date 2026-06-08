@@ -558,3 +558,104 @@ function Preview({ form }: { form: TemplateForm }) {
     </div>
   );
 }
+
+function LogoCard({
+  templateId,
+  companyId,
+  logoUrl,
+  disabled,
+  onChange,
+}: {
+  templateId: string;
+  companyId: string;
+  logoUrl: string | null;
+  disabled: boolean;
+  onChange: (v: string | null) => void;
+}) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!logoUrl) {
+      setSignedUrl(null);
+      return;
+    }
+    supabase.storage
+      .from("company-logos")
+      .createSignedUrl(logoUrl, 300)
+      .then(({ data }) => {
+        if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [logoUrl]);
+
+  const handleFile = async (file: File) => {
+    if (!companyId) {
+      toast.error("Falta el ID de empresa");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen no puede superar 2 MB");
+      return;
+    }
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
+    const path = `${companyId}/templates/${templateId}.${ext}`;
+    setUploading(true);
+    const { error } = await supabase.storage
+      .from("company-logos")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    setUploading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    onChange(path);
+    toast.success("Logo subido. Recuerda guardar la plantilla.");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Logo del certificado</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Logo específico de esta plantilla. Si se deja vacío y &quot;Mostrar logo&quot; está activo, se usa el logo de la empresa.
+        </p>
+        {signedUrl ? (
+          <div className="flex items-center gap-4">
+            <img src={signedUrl} alt="Logo" className="h-20 rounded border bg-white object-contain p-2" />
+            {!disabled && (
+              <Button variant="outline" size="sm" onClick={() => onChange(null)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Quitar logo
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Sin logo personalizado.</p>
+        )}
+        {!disabled && (
+          <div>
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+              }}
+              className="text-sm"
+            />
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">Subiendo…</p>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
