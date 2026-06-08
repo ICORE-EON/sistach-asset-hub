@@ -87,6 +87,7 @@ interface TemplateForm {
   show_logo: boolean;
   show_signature: boolean;
   show_company_stamp: boolean;
+  logo_url: string | null;
 }
 
 function TemplateEditor() {
@@ -127,6 +128,7 @@ function TemplateEditor() {
       show_logo: tpl.show_logo,
       show_signature: tpl.show_signature,
       show_company_stamp: tpl.show_company_stamp,
+      logo_url: (tpl as unknown as { logo_url?: string | null }).logo_url ?? null,
     });
   }, [tpl]);
 
@@ -148,7 +150,8 @@ function TemplateEditor() {
           show_logo: form.show_logo,
           show_signature: form.show_signature,
           show_company_stamp: form.show_company_stamp,
-        })
+          logo_url: form.logo_url,
+        } as never)
         .eq("id", id);
       if (error) throw error;
     },
@@ -302,6 +305,16 @@ function TemplateEditor() {
               </div>
             </CardContent>
           </Card>
+
+          <LogoCard
+            templateId={id}
+            companyId={(tpl as unknown as { company_id?: string } | undefined)?.company_id ?? ""}
+            logoUrl={form.logo_url}
+            disabled={!canManage}
+            onChange={(v) => update("logo_url", v)}
+          />
+
+
 
           <Card>
             <CardHeader>
@@ -482,7 +495,10 @@ function Preview({ form }: { form: TemplateForm }) {
       <h2 className="mb-4 text-2xl font-bold">{rendered.title}</h2>
       <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed">{rendered.intro}</p>
       {rendered.regulation && (
-        <p className="mb-4 whitespace-pre-wrap text-xs text-slate-600">{rendered.regulation}</p>
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-slate-800">Normativa aplicable:</p>
+          <p className="whitespace-pre-wrap text-sm text-slate-700">{rendered.regulation}</p>
+        </div>
       )}
       {form.columns.length > 0 && (
         <table className="mb-4 w-full border-collapse text-xs">
@@ -508,7 +524,31 @@ function Preview({ form }: { form: TemplateForm }) {
           </tbody>
         </table>
       )}
+      <div className="mb-4">
+        <p className="mb-1 text-sm font-semibold text-red-800">Incidencias detectadas (ejemplo)</p>
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="bg-red-50">
+              {["Tipo", "Código", "Ubicación", "Severidad", "Incidencia"].map((h) => (
+                <th key={h} className="border border-red-200 px-2 py-1.5 text-left font-semibold text-red-900">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-red-200 px-2 py-1.5">Extintor CO2</td>
+              <td className="border border-red-200 px-2 py-1.5">EXT-001</td>
+              <td className="border border-red-200 px-2 py-1.5">Magatzem</td>
+              <td className="border border-red-200 px-2 py-1.5">Alta</td>
+              <td className="border border-red-200 px-2 py-1.5">Manómetro fuera de rango — requiere recarga</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p className="whitespace-pre-wrap text-sm">{rendered.footer}</p>
+
       {form.show_signature && (
         <div className="mt-6">
           <p className="text-sm font-semibold">Firma:</p>
@@ -518,3 +558,104 @@ function Preview({ form }: { form: TemplateForm }) {
     </div>
   );
 }
+
+function LogoCard({
+  templateId,
+  companyId,
+  logoUrl,
+  disabled,
+  onChange,
+}: {
+  templateId: string;
+  companyId: string;
+  logoUrl: string | null;
+  disabled: boolean;
+  onChange: (v: string | null) => void;
+}) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!logoUrl) {
+      setSignedUrl(null);
+      return;
+    }
+    supabase.storage
+      .from("company-logos")
+      .createSignedUrl(logoUrl, 300)
+      .then(({ data }) => {
+        if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [logoUrl]);
+
+  const handleFile = async (file: File) => {
+    if (!companyId) {
+      toast.error("Falta el ID de empresa");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("La imagen no puede superar 2 MB");
+      return;
+    }
+    const ext = (file.name.split(".").pop() || "png").toLowerCase();
+    const path = `${companyId}/templates/${templateId}.${ext}`;
+    setUploading(true);
+    const { error } = await supabase.storage
+      .from("company-logos")
+      .upload(path, file, { upsert: true, contentType: file.type });
+    setUploading(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    onChange(path);
+    toast.success("Logo subido. Recuerda guardar la plantilla.");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Logo del certificado</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Logo específico de esta plantilla. Si se deja vacío y &quot;Mostrar logo&quot; está activo, se usa el logo de la empresa.
+        </p>
+        {signedUrl ? (
+          <div className="flex items-center gap-4">
+            <img src={signedUrl} alt="Logo" className="h-20 rounded border bg-white object-contain p-2" />
+            {!disabled && (
+              <Button variant="outline" size="sm" onClick={() => onChange(null)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Quitar logo
+              </Button>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Sin logo personalizado.</p>
+        )}
+        {!disabled && (
+          <div>
+            <input
+              type="file"
+              accept="image/png,image/jpeg"
+              disabled={uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+              }}
+              className="text-sm"
+            />
+            {uploading && <p className="mt-1 text-xs text-muted-foreground">Subiendo…</p>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+

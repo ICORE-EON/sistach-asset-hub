@@ -1,0 +1,1 @@
+ALTER TABLE public.certificate_templates ADD COLUMN IF NOT EXISTS logo_url text NULL;

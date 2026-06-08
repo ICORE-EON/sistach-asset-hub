@@ -492,6 +492,7 @@ export type Database = {
           intro_text: string
           is_default: boolean
           language: string
+          logo_url: string | null
           name: string
           notes: string | null
           paper_size: string
@@ -513,6 +514,7 @@ export type Database = {
           intro_text?: string
           is_default?: boolean
           language?: string
+          logo_url?: string | null
           name: string
           notes?: string | null
           paper_size?: string
@@ -534,6 +536,7 @@ export type Database = {
           intro_text?: string
           is_default?: boolean
           language?: string
+          logo_url?: string | null
           name?: string
           notes?: string | null
           paper_size?: string

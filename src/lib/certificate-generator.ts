@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { buildCertificatePdf } from "./certificate-pdf";
+import { buildCertificatePdf, type IncidentRow } from "./certificate-pdf";
 import { DEFAULT_CERTIFICATE_TEMPLATE } from "./certificate-templates/default";
 import type { CertificateTemplate, TemplateColumn, TemplateVariables } from "./certificate-templates/types";
 import type { RowSource } from "./certificate-templates/render";
@@ -118,10 +118,58 @@ export async function generateCertificatePdf(certificateId: string): Promise<{ p
     notes: it.notes,
   }));
 
+  // Load incidents from the session's maintenance_items
+  let incidents: IncidentRow[] = [];
+  if (sessionId) {
+    const { data: mItems = [] } = await supabase
+      .from("maintenance_items")
+      .select("id")
+      .eq("session_id", sessionId);
+    const itemIds = (mItems ?? []).map((m) => m.id);
+    if (itemIds.length > 0) {
+      const { data: incs = [] } = await supabase
+        .from("incidents")
+        .select(
+          "title, description, severity, asset_id, assets(code, asset_types(name_i18n, code), locations(name))",
+        )
+        .in("source_maintenance_item_id", itemIds);
+      incidents = (incs ?? []).map((i) => {
+        const a = i.assets as unknown as {
+          code?: string | null;
+          asset_types?: { name_i18n?: Record<string, string> | null; code?: string | null } | null;
+          locations?: { name?: string | null } | null;
+        } | null;
+        const typeName =
+          a?.asset_types?.name_i18n?.es ??
+          a?.asset_types?.name_i18n?.en ??
+          a?.asset_types?.name_i18n?.ca ??
+          a?.asset_types?.code ??
+          "";
+        const desc = [i.title, i.description].filter(Boolean).join(" — ");
+        return {
+          asset_type: typeName,
+          asset_code: a?.code ?? "",
+          location: a?.locations?.name ?? "",
+          severity: i.severity,
+          description: desc,
+        };
+      });
+    }
+  }
 
-  // Logo as signed URL if possible
+  // Resolve logo: template logo wins; fall back to company logo
   let logoUrl: string | null = null;
-  if (company?.logo_url) {
+  const tplLogo = (template as CertificateTemplate).logo_url ?? null;
+  if (tplLogo) {
+    try {
+      const { data: signed } = await supabase.storage
+        .from("company-logos")
+        .createSignedUrl(tplLogo, 60);
+      logoUrl = signed?.signedUrl ?? tplLogo;
+    } catch {
+      logoUrl = tplLogo;
+    }
+  } else if (company?.logo_url) {
     try {
       const { data: signed } = await supabase.storage
         .from("company-logos")
@@ -141,6 +189,7 @@ export async function generateCertificatePdf(certificateId: string): Promise<{ p
     },
     vars,
     rows,
+    incidents,
     logoUrl,
     signatureDataUrl: cert.signature_image_url ?? null,
   });

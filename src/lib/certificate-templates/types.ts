@@ -30,6 +30,7 @@ export interface CertificateTemplate {
   show_company_stamp: boolean;
   paper_size: "A4";
   is_default?: boolean;
+  logo_url?: string | null;
 }
 
 export const COLUMN_SOURCE_LABELS: Record<ColumnSource, string> = {
