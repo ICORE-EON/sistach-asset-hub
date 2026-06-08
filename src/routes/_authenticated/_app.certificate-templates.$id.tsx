@@ -128,6 +128,7 @@ function TemplateEditor() {
       show_logo: tpl.show_logo,
       show_signature: tpl.show_signature,
       show_company_stamp: tpl.show_company_stamp,
+      logo_url: (tpl as unknown as { logo_url?: string | null }).logo_url ?? null,
     });
   }, [tpl]);
 
