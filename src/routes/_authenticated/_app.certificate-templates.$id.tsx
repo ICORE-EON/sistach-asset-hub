@@ -306,6 +306,16 @@ function TemplateEditor() {
             </CardContent>
           </Card>
 
+          <LogoCard
+            templateId={id}
+            companyId={(tpl as unknown as { company_id?: string } | undefined)?.company_id ?? ""}
+            logoUrl={form.logo_url}
+            disabled={!canManage}
+            onChange={(v) => update("logo_url", v)}
+          />
+
+
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Contenido</CardTitle>
