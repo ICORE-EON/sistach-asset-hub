@@ -88,6 +88,20 @@ function TemplatesList() {
         )}
       </div>
 
+      {!isLoading && templates.length > 0 && !templates.some((t) => t.is_default) && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Ninguna plantilla está marcada como predeterminada.</p>
+            <p className="text-xs">
+              Los certificados de planes que no tengan una plantilla asignada usarán una plantilla genérica integrada
+              (sin normativa ni logo). Marca una como predeterminada o asígnala al plan de mantenimiento correspondiente.
+            </p>
+          </div>
+        </div>
+      )}
+
+
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
