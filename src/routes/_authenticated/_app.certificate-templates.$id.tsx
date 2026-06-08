@@ -87,6 +87,7 @@ interface TemplateForm {
   show_logo: boolean;
   show_signature: boolean;
   show_company_stamp: boolean;
+  logo_url: string | null;
 }
 
 function TemplateEditor() {
