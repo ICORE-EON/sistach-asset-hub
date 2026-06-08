@@ -1,67 +1,66 @@
+## Diagnóstico
 
-# Mejoras al certificado PDF
+He revisado el certificado que estás viendo (`CERT-2026-0005`) y los datos en la base de datos. Lo que está pasando:
 
-## 1. Texto de "Normativa / texto adicional" en el PDF
+**1. Por qué no sale la normativa en el PDF**
 
-El renderizador ya pinta `regulation_text` entre la introducción y la tabla, pero queda como un párrafo pequeño y discreto. Lo haremos más visible:
+La plantilla que editaste ("Certificado revisión trimestral extintores") **no está asignada a este certificado**. Motivos:
+- El plan de mantenimiento de la sesión no tiene plantilla asignada (`certificate_template_id` está vacío).
+- Tu plantilla no está marcada como "Plantilla por defecto de la empresa" (`is_default = false`).
 
-- Mismo tamaño que la introducción (10 pt) en lugar de 9 pt.
-- Etiqueta opcional en negrita encima ("Normativa aplicable:") si el texto no empieza ya por mayúsculas largas.
-- Margen vertical mayor antes y después para separarlo bien de la tabla.
+Por eso el generador cae al tercer nivel del fallback y usa la plantilla genérica integrada (`DEFAULT_CERTIFICATE_TEMPLATE`), que tiene `regulation_text` vacío. El código de PDF sí pinta la normativa correctamente — simplemente la plantilla efectiva no tiene texto.
 
-Cambio aislado en `src/lib/certificate-pdf.ts` (función `buildCertificatePdf`).
+La vista previa que ves dentro del editor sí usa tu plantilla con su normativa, por eso parece que "funciona en preview pero no en PDF".
 
-## 2. Tabla de incidencias detectadas
+**2. Por qué no sale el logo**
 
-Tras la tabla de equipos revisados, añadir un bloque **"Incidencias detectadas"** con las incidencias abiertas/cerradas durante la sesión que generó el certificado.
+- Tu plantilla no tiene logo subido (`logo_url` vacío en `certificate_templates`).
+- La empresa tampoco tiene logo (`companies.logo_url` vacío).
+- **Y efectivamente no existe ninguna UI para subir el logo de la empresa** todavía. El campo existe en BD pero no se expone en Ajustes ni en onboarding. La única forma actual es el subidor por plantilla en el editor de plantillas.
 
-**Datos:** se cargan las incidencias cuyo `source_maintenance_item_id` pertenece a algún item de la sesión, o cuyo `asset_id` está en la lista de activos revisados de ese certificado y `created_at >= session.started_at`. En la práctica: tomar `incidents` con `source_maintenance_item_id IN (maintenance_items de la sesión)` — es el caso natural ya que se crean al cerrar la sesión.
+## Plan
 
-**Columnas fijas** (no configurables, simplifican el modelo):
-- Tipo de activo
-- Código del activo
-- Ubicación
-- Severidad (badge textual)
-- Descripción de la incidencia
+### A. Hacer que la plantilla correcta se aplique al certificado
 
-Si no hay incidencias, se omite el bloque por completo (no se pinta el título).
+Sin tocar la lógica de fallback, mejorar la UX para que el usuario vea qué plantilla se usará y pueda corregirlo en un clic:
 
-**Cambios:**
-- `src/lib/certificate-generator.ts`: nueva consulta a `incidents` filtrando por los `maintenance_items` de la sesión del certificado; pasar `incidents[]` a `buildCertificatePdf`.
-- `src/lib/certificate-pdf.ts`: nueva sección con título "Incidencias detectadas" + tabla con columnas predefinidas, reutilizando el helper `drawTable` (con un mapeo aparte que no usa `TemplateColumn`).
-- Vista previa del editor (`_app.certificate-templates.$id.tsx`): mostrar un bloque de incidencias de ejemplo para que el usuario vea cómo queda.
+1. **Listado de plantillas (`_app.certificate-templates.index.tsx`)**: añadir un aviso visible cuando ninguna plantilla esté marcada como predeterminada ("Ninguna plantilla está marcada como predeterminada de la empresa — los certificados sin plantilla específica usarán la genérica integrada").
 
-## 3. Logo por plantilla
+2. **Detalle de certificado (`_app.certificates.$id.tsx`)**: mostrar qué plantilla se ha resuelto para ese certificado (plan / por defecto / genérica integrada) y un enlace para ir a editarla o cambiarla.
 
-Añadir un logo propio a cada plantilla. Se usa como prioridad sobre el logo de la empresa:
+3. **Solución inmediata para tu caso**: marcar tu plantilla actual como `is_default = true` (lo puede hacer el propio usuario desde el editor con el checkbox que ya existe), o asignarla al plan de mantenimiento desde el detalle del plan. Después → **Regenerar PDF** desde el detalle del certificado.
 
-1. `template.logo_url` si está definido.
-2. `company.logo_url` si la plantilla tiene `show_logo = true` y no tiene logo propio.
-3. Nada.
+### B. Subida del logo de empresa
 
-**Cambios de datos** (migración):
-- `ALTER TABLE certificate_templates ADD COLUMN logo_url text NULL`.
+Añadir un bloque "Logo de la empresa" en **Ajustes** (`_app.settings.tsx`):
 
-**Storage:** se reutiliza el bucket `company-logos` con ruta `{company_id}/templates/{template_id}.{ext}` (mismas policies, ya validan `company_id`).
+- Tarjeta con vista previa del logo actual (firmando URL del bucket `company-logos`).
+- Botón "Subir logo" (PNG/JPG, máx. 2 MB) → sube a `company-logos` con ruta `{company_id}/company-logo.{ext}` y actualiza `companies.logo_url`.
+- Botón "Quitar logo".
+- Permisos: solo `administrator` / `system_manager`.
+- Reutilizar el patrón del `LogoCard` que ya existe en el editor de plantillas.
 
-**UI** en el editor de plantilla:
-- Nueva sección "Logo del certificado" debajo de "Datos generales".
-- Vista previa del logo actual (signed URL) + botón **Subir logo** (`input file`, imágenes png/jpg, max ~1 MB) + botón **Quitar logo**.
-- El checkbox "Mostrar logo" se mantiene y controla si se imprime cualquier logo (propio o de empresa).
+El generador de PDF ya tiene el fallback `template.logo_url → company.logo_url`, así que en cuanto subas el logo de empresa aparecerá en cualquier certificado cuya plantilla tenga `show_logo = true` y no tenga logo propio.
 
-**Generador** (`certificate-generator.ts`): resolver `logoUrl` primero desde `template.logo_url` (signed URL), si null y `show_logo`, caer al `company.logo_url`.
+### C. (Opcional, recomendado) Confirmar el flujo
+
+Después de los cambios, te indico los pasos exactos para que el certificado actual salga correcto:
+1. Subir logo de empresa en Ajustes.
+2. Marcar tu plantilla como predeterminada (o asignarla al plan).
+3. Pulsar **Regenerar PDF** en el certificado.
+
+## Detalles técnicos
+
+- **Sin migraciones**: `companies.logo_url` ya existe.
+- **Bucket**: reutilizar `company-logos` (mismo que las plantillas). La ruta `{company_id}/company-logo.{ext}` es compatible con la policy existente que filtra por `company_id` como primer segmento.
+- **Archivos a tocar**:
+  - `src/routes/_authenticated/_app.settings.tsx` — añadir `CompanyLogoCard`.
+  - `src/routes/_authenticated/_app.certificates.$id.tsx` — mostrar plantilla resuelta + aviso.
+  - `src/routes/_authenticated/_app.certificate-templates.index.tsx` — aviso "no hay predeterminada".
+- **Sin cambios** en `certificate-pdf.ts` ni en `certificate-generator.ts` — la lógica ya es correcta.
 
 ## Fuera de alcance
 
-- Reordenar la posición del bloque de incidencias o el de equipos (queda fijo: equipos → incidencias).
-- Editor visual de la tabla de incidencias (columnas fijas).
-- Migrar plantillas existentes para añadir un logo automáticamente.
-
-## Técnico (resumen de archivos)
-
-- Migración: `ALTER TABLE certificate_templates ADD COLUMN logo_url text`.
-- `src/lib/certificate-templates/types.ts`: añadir `logo_url?: string | null`.
-- `src/lib/certificate-pdf.ts`: render más visible de normativa + sección de incidencias; aceptar `incidents` y `templateLogoUrl` en input.
-- `src/lib/certificate-generator.ts`: cargar incidencias de la sesión, resolver logo (plantilla → empresa).
-- `src/routes/_authenticated/_app.certificate-templates.$id.tsx`: UI de subir/quitar logo + preview con bloque de incidencias de ejemplo.
-- Persistir `logo_url` en el `update` de la mutación de guardar.
+- Cambiar el orden del fallback de plantillas.
+- Migrar plantillas existentes para marcar una como predeterminada automáticamente.
+- Editor visual de la posición/tamaño del logo en el PDF.
