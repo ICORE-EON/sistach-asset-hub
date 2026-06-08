@@ -267,9 +267,35 @@ function CertificateDetail() {
               tone="amber"
             />
             <SummaryRow label="Incidencias abiertas" value={incidents.filter((i) => i.status !== "closed").length} />
+            {resolvedTemplate && (
+              <div className="border-t pt-2">
+                <p className="text-xs text-muted-foreground">Plantilla aplicada</p>
+                {resolvedTemplate.id ? (
+                  <Link
+                    to="/certificate-templates/$id"
+                    params={{ id: resolvedTemplate.id }}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    {resolvedTemplate.name}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    {resolvedTemplate.name}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {resolvedTemplate.source === "plan"
+                    ? "Asignada al plan de mantenimiento"
+                    : resolvedTemplate.source === "default"
+                    ? "Plantilla por defecto de la empresa"
+                    : "Sin plantilla configurada — ni en el plan ni como predeterminada"}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
 
       <Card>
         <CardHeader>
