@@ -495,7 +495,10 @@ function Preview({ form }: { form: TemplateForm }) {
       <h2 className="mb-4 text-2xl font-bold">{rendered.title}</h2>
       <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed">{rendered.intro}</p>
       {rendered.regulation && (
-        <p className="mb-4 whitespace-pre-wrap text-xs text-slate-600">{rendered.regulation}</p>
+        <div className="mb-4">
+          <p className="text-sm font-semibold text-slate-800">Normativa aplicable:</p>
+          <p className="whitespace-pre-wrap text-sm text-slate-700">{rendered.regulation}</p>
+        </div>
       )}
       {form.columns.length > 0 && (
         <table className="mb-4 w-full border-collapse text-xs">
@@ -521,7 +524,31 @@ function Preview({ form }: { form: TemplateForm }) {
           </tbody>
         </table>
       )}
+      <div className="mb-4">
+        <p className="mb-1 text-sm font-semibold text-red-800">Incidencias detectadas (ejemplo)</p>
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr className="bg-red-50">
+              {["Tipo", "Código", "Ubicación", "Severidad", "Incidencia"].map((h) => (
+                <th key={h} className="border border-red-200 px-2 py-1.5 text-left font-semibold text-red-900">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="border border-red-200 px-2 py-1.5">Extintor CO2</td>
+              <td className="border border-red-200 px-2 py-1.5">EXT-001</td>
+              <td className="border border-red-200 px-2 py-1.5">Magatzem</td>
+              <td className="border border-red-200 px-2 py-1.5">Alta</td>
+              <td className="border border-red-200 px-2 py-1.5">Manómetro fuera de rango — requiere recarga</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p className="whitespace-pre-wrap text-sm">{rendered.footer}</p>
+
       {form.show_signature && (
         <div className="mt-6">
           <p className="text-sm font-semibold">Firma:</p>
