@@ -292,34 +292,46 @@ export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Ar
   const page = newPage(pdf);
   let ctx: DrawCtx = { pdf, page, font, bold, y: PAGE_H - MARGIN };
 
-  // Logo (top right)
+  // Logo (top right) — reserve vertical space so it never overlaps text
+  let logoBottom = PAGE_H - MARGIN;
   if (input.template.show_logo && input.logoUrl) {
     const img = await embedUrl(pdf, input.logoUrl);
     if (img) {
-      const maxH = 50;
-      const scale = maxH / img.height;
+      const maxH = 60;
+      const maxW = 120;
+      const scale = Math.min(maxH / img.height, maxW / img.width);
       const w = img.width * scale;
+      const h = img.height * scale;
+      const top = PAGE_H - MARGIN;
       ctx.page.drawImage(img, {
         x: PAGE_W - MARGIN - w,
-        y: PAGE_H - MARGIN - maxH,
+        y: top - h,
         width: w,
-        height: maxH,
+        height: h,
       });
+      logoBottom = top - h - 12; // gap below logo before content starts
     }
   }
 
   const rendered = renderTemplate(input.template, input.vars);
 
-  // Title
+  // Title — start below the logo so they never overlap
+  if (ctx.y > logoBottom) ctx = { ...ctx, y: logoBottom };
   ctx = ensureSpace(ctx, 30);
-  ctx.page.drawText(sanitize(rendered.title), {
-    x: MARGIN,
-    y: ctx.y - 20,
-    size: 18,
-    font: bold,
-    color: rgb(0.08, 0.1, 0.2),
-  });
-  ctx = { ...ctx, y: ctx.y - 32 };
+  const titleSize = 18;
+  const titleLines = wrapText(sanitize(rendered.title), bold, titleSize, PAGE_W - MARGIN * 2);
+  for (const line of titleLines) {
+    ctx = ensureSpace(ctx, titleSize + 4);
+    ctx.page.drawText(line, {
+      x: MARGIN,
+      y: ctx.y - titleSize,
+      size: titleSize,
+      font: bold,
+      color: rgb(0.08, 0.1, 0.2),
+    });
+    ctx = { ...ctx, y: ctx.y - (titleSize + 6) };
+  }
+  ctx = { ...ctx, y: ctx.y - 8 };
 
   // Intro
   if (rendered.intro.trim()) {
