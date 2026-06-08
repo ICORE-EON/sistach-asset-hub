@@ -1,79 +1,67 @@
 
-# Plantillas de certificado + generación de PDF
+# Mejoras al certificado PDF
 
-## Objetivo
+## 1. Texto de "Normativa / texto adicional" en el PDF
 
-Permitir definir un **modelo de certificado por plan de mantenimiento** (con un modelo genérico de fallback) y generar automáticamente el PDF al cerrar una sesión, siguiendo el formato del ejemplo (extintores/BIE) y adaptable a otros tipos (botiquines, etc.).
+El renderizador ya pinta `regulation_text` entre la introducción y la tabla, pero queda como un párrafo pequeño y discreto. Lo haremos más visible:
 
-## 1. Modelo de datos (migración)
+- Mismo tamaño que la introducción (10 pt) en lugar de 9 pt.
+- Etiqueta opcional en negrita encima ("Normativa aplicable:") si el texto no empieza ya por mayúsculas largas.
+- Margen vertical mayor antes y después para separarlo bien de la tabla.
 
-Nueva tabla `certificate_templates`:
+Cambio aislado en `src/lib/certificate-pdf.ts` (función `buildCertificatePdf`).
 
-- `id`, `company_id`, `code` (único por empresa), `name`, `is_default` (bool — la plantilla genérica de la empresa).
-- `title`: título del certificado (p. ej. *"Certificat de Revisió Trimestral dels Extintors"*).
-- `intro_text`: párrafo introductorio con variables `{{issuer_name}}`, `{{issuer_role}}`, `{{company_name}}`, `{{company_cif}}`, `{{company_address}}`, `{{location_name}}`, `{{issued_on}}`, `{{regulation}}`.
-- `regulation_text`: cita normativa (RD 513/2017, UNE, etc.).
-- `columns` (jsonb): definición de columnas de la tabla de items. Cada columna `{ key, label, source }` donde `source` puede ser `asset.code`, `asset.name`, `asset_type.name`, `location.name`, `metadata.<x>`, `result`, `notes`.
-- `footer_text`: texto antes de la firma.
-- `show_signature`, `show_company_stamp`, `show_logo` (bools).
-- `language` (`ca` / `es` / `en`), `paper_size` (`A4`).
-- timestamps + `deleted_at`.
+## 2. Tabla de incidencias detectadas
 
-Ampliar `maintenance_plans`:
-- `certificate_template_id uuid NULL` → FK a `certificate_templates`. Si null, se usa la `is_default` de la empresa; si tampoco, plantilla **built-in** hardcodeada.
+Tras la tabla de equipos revisados, añadir un bloque **"Incidencias detectadas"** con las incidencias abiertas/cerradas durante la sesión que generó el certificado.
 
-RLS y GRANTs estándar (lectura para miembros, escritura para `can_manage_assets`). Seed de una plantilla genérica al crear empresa (opcional, vía función o al primer uso).
+**Datos:** se cargan las incidencias cuyo `source_maintenance_item_id` pertenece a algún item de la sesión, o cuyo `asset_id` está en la lista de activos revisados de ese certificado y `created_at >= session.started_at`. En la práctica: tomar `incidents` con `source_maintenance_item_id IN (maintenance_items de la sesión)` — es el caso natural ya que se crean al cerrar la sesión.
 
-## 2. UI — gestión de plantillas
+**Columnas fijas** (no configurables, simplifican el modelo):
+- Tipo de activo
+- Código del activo
+- Ubicación
+- Severidad (badge textual)
+- Descripción de la incidencia
 
-Nueva sección **"Plantillas de certificado"** en el sidebar de Sistema (solo admin/system_manager):
+Si no hay incidencias, se omite el bloque por completo (no se pinta el título).
 
-- `/certificate-templates` → listado (código, nombre, default, idioma, planes que la usan, acciones).
-- `/certificate-templates/$id` → editor con:
-  - Datos generales (código, nombre, idioma, marcar como default).
-  - Editor de **título** e **introducción** con chips de variables insertables.
-  - Editor de **normativa** y **pie**.
-  - **Columnas de la tabla**: lista reordenable con `label` + `source` (select con las fuentes soportadas).
-  - **Vista previa** en vivo con datos de ejemplo.
-  - Toggles de logo / firma / sello.
+**Cambios:**
+- `src/lib/certificate-generator.ts`: nueva consulta a `incidents` filtrando por los `maintenance_items` de la sesión del certificado; pasar `incidents[]` a `buildCertificatePdf`.
+- `src/lib/certificate-pdf.ts`: nueva sección con título "Incidencias detectadas" + tabla con columnas predefinidas, reutilizando el helper `drawTable` (con un mapeo aparte que no usa `TemplateColumn`).
+- Vista previa del editor (`_app.certificate-templates.$id.tsx`): mostrar un bloque de incidencias de ejemplo para que el usuario vea cómo queda.
 
-En el detalle del plan (`/maintenance-plans/$id`) añadir un selector **"Modelo de certificado"** (lista de plantillas + opción *"Usar plantilla por defecto"*).
+## 3. Logo por plantilla
 
-## 3. Generación de PDF al cerrar sesión
+Añadir un logo propio a cada plantilla. Se usa como prioridad sobre el logo de la empresa:
 
-Server function `generateCertificatePdf` (`createServerFn` + `requireSupabaseAuth`):
+1. `template.logo_url` si está definido.
+2. `company.logo_url` si la plantilla tiene `show_logo = true` y no tiene logo propio.
+3. Nada.
 
-1. Carga sesión, plan, plantilla resuelta (plan → default empresa → built-in), empresa (logo, datos), items + assets + ubicación.
-2. Renderiza HTML con la plantilla (sustituye variables, monta la tabla con las columnas configuradas).
-3. Convierte a PDF con **pdf-lib** (compatible con Cloudflare Workers — `puppeteer`/`chromium` están vetados en el runtime). Layout sencillo: cabecera con logo, título, párrafos, tabla, fecha+ubicación, imagen de firma, pie.
-4. Sube a bucket `signed-certificates` en `company/{company_id}/cert/{cert_id}.pdf`.
-5. Actualiza `certificates.pdf_url` y `pdf_hash_sha256`, y crea un `documents` con categoría `certificate_pdf` vinculado.
+**Cambios de datos** (migración):
+- `ALTER TABLE certificate_templates ADD COLUMN logo_url text NULL`.
 
-En `close.mutationFn` (sesión de mantenimiento), tras crear el `certificate` y los `certificate_items`, llamar a esta server fn. Si falla, el certificado queda creado sin PDF y se muestra acción **"Generar PDF"** en el detalle.
+**Storage:** se reutiliza el bucket `company-logos` con ruta `{company_id}/templates/{template_id}.{ext}` (mismas policies, ya validan `company_id`).
 
-En `/certificates/$id`: botón **"Regenerar PDF"** (admin/system_manager) y **"Descargar PDF"**.
+**UI** en el editor de plantilla:
+- Nueva sección "Logo del certificado" debajo de "Datos generales".
+- Vista previa del logo actual (signed URL) + botón **Subir logo** (`input file`, imágenes png/jpg, max ~1 MB) + botón **Quitar logo**.
+- El checkbox "Mostrar logo" se mantiene y controla si se imprime cualquier logo (propio o de empresa).
 
-## 4. Plantilla built-in (fallback)
+**Generador** (`certificate-generator.ts`): resolver `logoUrl` primero desde `template.logo_url` (signed URL), si null y `show_logo`, caer al `company.logo_url`.
 
-Definir en `src/lib/certificate-templates/default.ts` una plantilla equivalente al ejemplo adjunto pero genérica:
-- Título: *"Certificado de mantenimiento"*.
-- Intro: *"{{issuer_name}} | {{issuer_role}}, en representación de {{company_name}} (CIF {{company_cif}}), certifica haber realizado el mantenimiento de los siguientes equipos ubicados en {{location_name}} con el resultado indicado."*
-- Columnas: Tipo, Código, Ubicación, Resultado, Observaciones.
-- Pie: *"Firmado en {{location_name}}, a {{issued_on}}."*
+## Fuera de alcance
 
-## 5. Fuera de alcance
+- Reordenar la posición del bloque de incidencias o el de equipos (queda fijo: equipos → incidencias).
+- Editor visual de la tabla de incidencias (columnas fijas).
+- Migrar plantillas existentes para añadir un logo automáticamente.
 
-- Editor WYSIWYG completo (usamos campos estructurados + variables).
-- Firma electrónica cualificada / sellos de tiempo.
-- Plantillas por idioma múltiple en un mismo registro (una plantilla = un idioma; se duplica si hace falta).
+## Técnico (resumen de archivos)
 
-## Técnico
-
-- Migración: tabla `certificate_templates` + columna en `maintenance_plans` + GRANTs + RLS + policies.
-- Nuevas rutas: `_app.certificate-templates.tsx` (layout), `.index.tsx`, `.$id.tsx`.
-- Componente: `CertificateTemplateEditor`, `CertificatePreview`.
-- Lib: `src/lib/certificate-templates/render.ts` (resolución variables + columnas), `src/lib/certificate-templates/default.ts` (built-in), `src/lib/certificate-pdf.ts` (composición pdf-lib).
-- Server fn: `src/lib/certificates.functions.ts` con `generateCertificatePdf`.
-- Sidebar: añadir entrada en `adminItems`.
-- Cambios en `_app.maintenance.$id.tsx` (`close.mutationFn`) y `_app.certificates.$id.tsx` (botones PDF).
-- Dependencia nueva: `pdf-lib` (compatible Workers).
+- Migración: `ALTER TABLE certificate_templates ADD COLUMN logo_url text`.
+- `src/lib/certificate-templates/types.ts`: añadir `logo_url?: string | null`.
+- `src/lib/certificate-pdf.ts`: render más visible de normativa + sección de incidencias; aceptar `incidents` y `templateLogoUrl` en input.
+- `src/lib/certificate-generator.ts`: cargar incidencias de la sesión, resolver logo (plantilla → empresa).
+- `src/routes/_authenticated/_app.certificate-templates.$id.tsx`: UI de subir/quitar logo + preview con bloque de incidencias de ejemplo.
+- Persistir `logo_url` en el `update` de la mutación de guardar.
