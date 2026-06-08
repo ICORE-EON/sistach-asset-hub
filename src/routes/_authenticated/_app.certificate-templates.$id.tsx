@@ -150,7 +150,8 @@ function TemplateEditor() {
           show_logo: form.show_logo,
           show_signature: form.show_signature,
           show_company_stamp: form.show_company_stamp,
-        })
+          logo_url: form.logo_url,
+        } as never)
         .eq("id", id);
       if (error) throw error;
     },
