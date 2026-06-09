@@ -309,7 +309,7 @@ function ImportWizard({
       // insertar filas en chunks
       for (let i = 0; i < rowsPayload.length; i += 200) {
         const chunk = rowsPayload.slice(i, i + 200);
-        const { error: rErr } = await supabase.from("import_rows").insert(chunk);
+        const { error: rErr } = await supabase.from("import_rows").insert(chunk as never);
         if (rErr) throw rErr;
       }
       // errores
@@ -323,7 +323,7 @@ function ImportWizard({
       );
       if (errPayload.length) {
         for (let i = 0; i < errPayload.length; i += 200) {
-          await supabase.from("import_errors").insert(errPayload.slice(i, i + 200));
+          await supabase.from("import_errors").insert(errPayload.slice(i, i + 200) as never);
         }
       }
 
