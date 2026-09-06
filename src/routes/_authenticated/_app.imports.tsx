@@ -99,7 +99,7 @@ function ImportsPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Importación masiva</h1>
             <p className="text-sm text-muted-foreground">
-              Carga activos y ubicaciones desde CSV o Excel
+              Carga activos, ubicaciones y contenido de botiquines desde CSV o Excel
             </p>
           </div>
         </div>
@@ -526,7 +526,7 @@ function ImportWizard({
         {step === "done" && finalCounts && (
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-3 gap-3">
-              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Insertados" value={finalCounts.ok} tone="ok" />
+              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Procesados" value={finalCounts.ok} tone="ok" />
               <SummaryTile icon={<CopyIcon className="h-4 w-4" />} label="Duplicados" value={finalCounts.dup} tone="muted" />
               <SummaryTile icon={<AlertCircle className="h-4 w-4" />} label="Errores" value={finalCounts.err} tone="err" />
             </div>
