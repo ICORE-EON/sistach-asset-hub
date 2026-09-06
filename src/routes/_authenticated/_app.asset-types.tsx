@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
+import { fetchAssetFamilies } from "@/lib/asset-families";
 
 export const Route = createFileRoute("/_authenticated/_app/asset-types")({
   head: () => ({ meta: [{ title: "Tipos de activo" }] }),
@@ -68,6 +69,28 @@ function AssetTypesPage() {
       if (error) throw error;
       return data;
     },
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["asset-families", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+  });
+
+  const setFamily = useMutation({
+    mutationFn: async ({ typeId, familyId }: { typeId: string; familyId: string }) => {
+      const { error } = await supabase
+        .from("asset_types")
+        .update({ family_id: familyId })
+        .eq("id", typeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Familia actualizada");
+      qc.invalidateQueries({ queryKey: ["asset-types-admin"] });
+      qc.invalidateQueries({ queryKey: ["asset-types-family"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
@@ -121,6 +144,7 @@ function AssetTypesPage() {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Familia</TableHead>
               <TableHead>Categoría</TableHead>
               <TableHead>Origen</TableHead>
               <TableHead className="w-[60px]"></TableHead>
@@ -129,7 +153,7 @@ function AssetTypesPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
@@ -138,6 +162,32 @@ function AssetTypesPage() {
                 <TableRow key={t.id}>
                   <TableCell className="font-mono text-xs">{t.code}</TableCell>
                   <TableCell className="font-medium">{i18nName(t.name_i18n, t.code)}</TableCell>
+                  <TableCell>
+                    {canManage ? (
+                      <Select
+                        value={t.family_id ?? ""}
+                        onValueChange={(v) => setFamily.mutate({ typeId: t.id, familyId: v })}
+                      >
+                        <SelectTrigger className="h-8 w-[190px]">
+                          <SelectValue placeholder="Sin familia" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {families.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {i18nName(f.name_i18n, f.code)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-sm">
+                        {i18nName(
+                          families.find((f) => f.id === t.family_id)?.name_i18n,
+                          families.find((f) => f.id === t.family_id)?.code ?? "—",
+                        )}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm capitalize">{t.category}</TableCell>
                   <TableCell>
                     {t.is_system ? (
@@ -177,6 +227,13 @@ function CreateTypeDialog({ onCreated }: { onCreated: () => void }) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("other");
+  const [familyId, setFamilyId] = useState("");
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["asset-families", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+  });
 
   const create = useMutation({
     mutationFn: async () => {
@@ -187,6 +244,7 @@ function CreateTypeDialog({ onCreated }: { onCreated: () => void }) {
         code: code.toUpperCase(),
         name_i18n: { es: name },
         category,
+        family_id: familyId || null,
         is_system: false,
       });
       if (error) throw error;
@@ -211,6 +269,21 @@ function CreateTypeDialog({ onCreated }: { onCreated: () => void }) {
         <div className="space-y-2">
           <Label>Nombre *</Label>
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Extintor portátil 6kg" />
+        </div>
+        <div className="space-y-2">
+          <Label>Familia</Label>
+          <Select value={familyId} onValueChange={setFamilyId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona familia" />
+            </SelectTrigger>
+            <SelectContent>
+              {families.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {i18nName(f.name_i18n, f.code)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-2">
           <Label>Categoría</Label>
