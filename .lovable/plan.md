@@ -51,7 +51,7 @@ Frontend:
 - Nueva ruta `_app.asset-families.tsx` (CRUD + asignación de tipos) y entrada en el sidebar; `_app.asset-types.tsx` gana columna/selector de familia.
 - `_app.maintenance-plans.index.tsx` y `.$id.tsx`: selección por familia, vista previa agrupada por tipo, mapa tipo→plantilla de checklist.
 - `_app.maintenance.index.tsx`: creación de tareas usando la versión publicada del checklist correspondiente a cada tipo.
-- `_app.maintenance.$id.tsx`: agrupación por tipo, contadores y cierre con resumen de resultado.
+- `_app.maintenance.$id.tsx`: navegación en tres niveles (ubicación → tipo → equipo) con contadores por nivel y cierre con resumen de resultado.
 - `src/lib/certificate-generator.ts` y `certificate-pdf.ts`: resolución de plantilla por familia, agrupación por tipo, sección de no revisados.
 - `_app.assets.$id.tsx`: pestaña de historial (sesiones, incidencias, certificados).
 - Textos en español, componentes existentes de `@/components/ui`.
