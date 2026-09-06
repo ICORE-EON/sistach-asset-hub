@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { FirstAidKitPanel } from "@/components/first-aid-kit-panel";
+import { AssetHistoryPanel } from "@/components/asset-history-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/assets/$id")({
   head: () => ({ meta: [{ title: "Detalle de activo" }] }),
@@ -349,7 +350,9 @@ function AssetDetail() {
         )}
 
         <div className="lg:col-span-3">
-          <AttachmentsPanel entity="asset" entityId={id} defaultCategory="asset_manual" />
+          <AssetHistoryPanel assetId={id} />
+
+      <AttachmentsPanel entity="asset" entityId={id} defaultCategory="asset_manual" />
         </div>
       </div>
     </div>
