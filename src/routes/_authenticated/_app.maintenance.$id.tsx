@@ -293,6 +293,7 @@ function SessionDetail() {
       {closeOpen && (
         <CloseSessionDialog
           sessionId={id}
+          pendingCount={pendingCount}
           open={closeOpen}
           onOpenChange={setCloseOpen}
           onClosed={() => qc.invalidateQueries({ queryKey: ["session", id] })}
@@ -661,11 +662,13 @@ function QuestionInput({
 
 function CloseSessionDialog({
   sessionId,
+  pendingCount,
   open,
   onOpenChange,
   onClosed,
 }: {
   sessionId: string;
+  pendingCount: number;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onClosed: () => void;
@@ -721,7 +724,7 @@ function CloseSessionDialog({
       // 1. Load session + plan + items to build the certificate
       const { data: session, error: sErr } = await supabase
         .from("maintenance_sessions")
-        .select("*, maintenance_plans(name, interval_months)")
+        .select("*, maintenance_plans(name, interval_months, asset_families(requires_certificate))")
         .eq("id", sessionId)
         .single();
       if (sErr) throw sErr;
@@ -732,7 +735,29 @@ function CloseSessionDialog({
         .eq("session_id", sessionId);
       if (iErr) throw iErr;
 
-      // 2. Close the session
+      // 2. Mark pending items as skipped
+      const pendingIds = items.filter((i) => i.result === "pending").map((i) => i.id);
+      if (pendingIds.length > 0) {
+        const { error: skipErr } = await supabase
+          .from("maintenance_items")
+          .update({ result: "skipped" })
+          .in("id", pendingIds);
+        if (skipErr) throw skipErr;
+        for (const it of items) if (it.result === "pending") it.result = "skipped";
+      }
+
+      const hasIncidents = items.some(
+        (i) => i.result === "with_incident" || i.result === "fail",
+      );
+      const outcome = hasIncidents
+        ? pendingIds.length > 0
+          ? "incomplete_with_incidents"
+          : "with_incidents"
+        : pendingIds.length > 0
+          ? "incomplete"
+          : "ok";
+
+      // 3. Close the session
       const { error } = await supabase
         .from("maintenance_sessions")
         .update({
@@ -741,9 +766,18 @@ function CloseSessionDialog({
           signer_name: signerName.trim(),
           signer_role: signerRole.trim() || null,
           signature_image_url: signature,
+          metadata: {
+            ...((session.metadata as Record<string, unknown>) ?? {}),
+            outcome,
+            skipped_count: pendingIds.length,
+          },
         })
         .eq("id", sessionId);
       if (error) throw error;
+
+      if (session.maintenance_plans?.asset_families?.requires_certificate === false) {
+        return null;
+      }
 
       // 3. Generate certificate
       const { data: code, error: codeErr } = await supabase.rpc("next_code", {
@@ -763,7 +797,9 @@ function CloseSessionDialog({
 
       const okCount = items.filter((i) => i.result === "ok").length;
       const failCount = items.filter((i) => i.result === "with_incident" || i.result === "fail").length;
-      const summary = `${okCount} activo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}.`;
+      const summary = `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
+        pendingIds.length > 0 ? `, ${pendingIds.length} sin revisar` : ""
+      }.`;
 
       const { data: cert, error: certErr } = await supabase
         .from("certificates")
@@ -796,6 +832,7 @@ function CloseSessionDialog({
               return "failed";
             case "na":
             case "n/a":
+            case "skipped":
               return "na";
             default:
               return "ok";
@@ -824,7 +861,11 @@ function CloseSessionDialog({
       return cert;
     },
     onSuccess: (cert) => {
-      toast.success(`Sesión cerrada. Certificado ${cert.code} emitido.`);
+      toast.success(
+        cert
+          ? `Sesión cerrada. Certificado ${cert.code} emitido.`
+          : "Sesión cerrada. Esta familia no requiere certificado.",
+      );
       onClosed();
       onOpenChange(false);
     },
@@ -838,6 +879,12 @@ function CloseSessionDialog({
           <DialogTitle>Cerrar y firmar sesión</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {pendingCount > 0 && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              Quedan {pendingCount} equipo(s) sin revisar. Se marcarán como no revisados y
+              constarán así en el certificado.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Firmante *</Label>
