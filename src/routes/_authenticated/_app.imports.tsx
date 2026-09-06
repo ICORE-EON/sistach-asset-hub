@@ -475,7 +475,7 @@ function ImportWizard({
                           variant={
                             p.validation.status === "ok"
                               ? "default"
-                              : p.validation.status === "duplicate"
+                              : p.validation.status === "update" || p.validation.status === "duplicate"
                               ? "outline"
                               : "destructive"
                           }
