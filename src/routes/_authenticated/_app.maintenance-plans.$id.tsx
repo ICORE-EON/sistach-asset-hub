@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2, Power } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Power, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -33,6 +35,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FREQUENCIES } from "./_app.maintenance-plans.index";
+import {
+  describeScopeLocations,
+  fetchCompanyLocations,
+  fetchScopeAssets,
+  type ScopeAsset,
+} from "@/lib/maintenance-scope";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/$id")({
   head: () => ({ meta: [{ title: "Detalle plan" }] }),
