@@ -110,22 +110,70 @@ function PlanDetail() {
     },
   });
 
-  const { data: availableAssets = [] } = useQuery({
-    queryKey: ["available-assets", id, plan?.asset_type_id, activeCompanyId],
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations-scope", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+  });
+
+  // Todos los activos de la familia (para el diálogo de añadir manualmente)
+  const { data: familyAssets = [] } = useQuery({
+    queryKey: ["family-assets", activeCompanyId, plan?.asset_type_id],
     enabled: !!activeCompanyId && !!plan,
-    queryFn: async () => {
-      const assigned = planAssets.map((pa) => pa.asset_id);
-      let q = supabase
-        .from("assets")
-        .select("id, code, name")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null);
-      if (plan?.asset_type_id) q = q.eq("asset_type_id", plan.asset_type_id);
-      if (assigned.length) q = q.not("id", "in", `(${assigned.join(",")})`);
-      const { data, error } = await q.order("code");
+    queryFn: () =>
+      fetchScopeAssets({
+        companyId: activeCompanyId!,
+        assetTypeId: plan?.asset_type_id ?? null,
+        locationIds: [],
+        includeSublocations: true,
+        locations,
+      }),
+  });
+
+  // Activos que encajan con el alcance guardado del plan
+  const { data: scopedAssets = [] } = useQuery({
+    queryKey: [
+      "scoped-assets",
+      activeCompanyId,
+      plan?.asset_type_id,
+      plan?.scope_location_ids,
+      plan?.scope_include_sublocations,
+    ],
+    enabled: !!activeCompanyId && plan?.scope_mode === "scoped",
+    queryFn: () =>
+      fetchScopeAssets({
+        companyId: activeCompanyId!,
+        assetTypeId: plan?.asset_type_id ?? null,
+        locationIds: (plan?.scope_location_ids as string[] | null) ?? [],
+        includeSublocations: plan?.scope_include_sublocations ?? true,
+        locations,
+      }),
+  });
+
+  const linkedIds = useMemo(() => new Set(planAssets.map((pa) => pa.asset_id)), [planAssets]);
+  const missingAssets = useMemo(
+    () => scopedAssets.filter((a) => !linkedIds.has(a.id)),
+    [scopedAssets, linkedIds],
+  );
+  const availableAssets = useMemo(
+    () => familyAssets.filter((a) => !linkedIds.has(a.id)),
+    [familyAssets, linkedIds],
+  );
+
+  const addAssets = useMutation({
+    mutationFn: async (assetIds: string[]) => {
+      if (!assetIds.length) throw new Error("Selecciona al menos un equipo");
+      const { error } = await supabase
+        .from("maintenance_plan_assets")
+        .insert(assetIds.map((assetId) => ({ plan_id: id, asset_id: assetId })));
       if (error) throw error;
-      return data;
+      return assetIds.length;
     },
+    onSuccess: (n) => {
+      toast.success(`${n} equipo(s) añadidos`);
+      qc.invalidateQueries({ queryKey: ["plan-assets", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleActive = useMutation({
