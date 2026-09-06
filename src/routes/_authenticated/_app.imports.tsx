@@ -451,8 +451,9 @@ function ImportWizard({
 
         {step === "preview" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Válidas" value={stats.ok} tone="ok" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Nuevas" value={stats.ok} tone="ok" />
+              <SummaryTile icon={<RefreshCw className="h-4 w-4" />} label="Actualizar" value={stats.upd} tone="muted" />
               <SummaryTile icon={<CopyIcon className="h-4 w-4" />} label="Duplicados" value={stats.dup} tone="muted" />
               <SummaryTile icon={<AlertCircle className="h-4 w-4" />} label="Errores" value={stats.err} tone="err" />
             </div>
