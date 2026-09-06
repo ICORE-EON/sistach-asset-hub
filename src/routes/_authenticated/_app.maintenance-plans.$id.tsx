@@ -249,6 +249,15 @@ function PlanDetail() {
             <Row label="Tipo activo">
               {plan.asset_types ? (plan.asset_types.name_i18n as { es?: string })?.es ?? plan.asset_types.code : "—"}
             </Row>
+            <Row label="Alcance">
+              {plan.scope_mode === "scoped"
+                ? describeScopeLocations(
+                    locations,
+                    (plan.scope_location_ids as string[] | null) ?? [],
+                    plan.scope_include_sublocations ?? true,
+                  )
+                : "Equipos concretos"}
+            </Row>
             <div className="space-y-1.5 border-b py-1.5 last:border-0">
               <Label className="text-xs uppercase text-muted-foreground">Modelo de certificado</Label>
               {canManage ? (
