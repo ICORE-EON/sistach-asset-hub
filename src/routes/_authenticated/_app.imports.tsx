@@ -240,13 +240,14 @@ function ImportWizard({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
-    let ok = 0, err = 0, dup = 0;
+    let ok = 0, err = 0, dup = 0, upd = 0;
     for (const r of preview) {
       if (r.validation.status === "ok") ok++;
+      else if (r.validation.status === "update") upd++;
       else if (r.validation.status === "duplicate") dup++;
       else err++;
     }
-    return { ok, err, dup };
+    return { ok, err, dup, upd, applicable: ok + upd };
   }, [preview]);
 
   const validate = useMutation({
@@ -255,7 +256,12 @@ function ImportWizard({
       const parsed = await parseFile(file);
       if (parsed.rows.length === 0) throw new Error("El archivo no contiene filas");
       const ctx = await loadContext(companyId);
-      const seen = { assetCodes: new Set<string>(), assetSerials: new Set<string>(), locCodes: new Set<string>() };
+      const seen = {
+        assetCodes: new Set<string>(),
+        assetSerials: new Set<string>(),
+        locCodes: new Set<string>(),
+        kitProducts: new Set<string>(),
+      };
       const rows: PreviewRow[] = parsed.rows.map((raw, i) => ({
         row_number: i + 2, // +1 header +1 base-1
         raw,
