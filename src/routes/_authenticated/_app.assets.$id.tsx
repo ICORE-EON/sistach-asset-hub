@@ -52,7 +52,7 @@ function AssetDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assets")
-        .select("*, asset_types(code, name_i18n), locations(name, code)")
+        .select("*, asset_types(code, name_i18n, category), locations(name, code)")
         .eq("id", id)
         .single();
       if (error) throw error;
