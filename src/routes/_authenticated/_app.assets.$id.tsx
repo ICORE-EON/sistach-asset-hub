@@ -341,6 +341,12 @@ function AssetDetail() {
           </CardContent>
         </Card>
 
+        {asset.asset_types?.category === "first_aid_kit" && (
+          <div className="lg:col-span-3">
+            <FirstAidKitPanel assetId={id} canManage={canManage} />
+          </div>
+        )}
+
         <div className="lg:col-span-3">
           <AttachmentsPanel entity="asset" entityId={id} defaultCategory="asset_manual" />
         </div>
