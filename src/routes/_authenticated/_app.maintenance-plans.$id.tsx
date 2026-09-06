@@ -307,17 +307,39 @@ function PlanDetail() {
                   </Button>
                 </DialogTrigger>
                 <AssignAssetsDialog
-                  planId={id}
                   candidates={availableAssets}
-                  onDone={() => {
+                  onAdd={async (ids) => {
+                    await addAssets.mutateAsync(ids);
                     setOpen(false);
-                    qc.invalidateQueries({ queryKey: ["plan-assets", id] });
                   }}
                 />
               </Dialog>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {canManage && missingAssets.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="flex items-start gap-2 text-sm">
+                  <Sparkles className="mt-0.5 h-4 w-4 text-primary" />
+                  <div>
+                    <p className="font-medium">
+                      {missingAssets.length} equipo(s) encajan con este plan y no están incluidos
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {missingAssets.slice(0, 5).map((a) => a.code).join(", ")}
+                      {missingAssets.length > 5 ? "…" : ""}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  disabled={addAssets.isPending}
+                  onClick={() => addAssets.mutate(missingAssets.map((a) => a.id))}
+                >
+                  Añadir los {missingAssets.length}
+                </Button>
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
