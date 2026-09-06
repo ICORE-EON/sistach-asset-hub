@@ -211,37 +211,100 @@ function CreatePlanDialog({
   const [templateId, setTemplateId] = useState("");
   const [frequency, setFrequency] = useState("quarterly");
   const [notes, setNotes] = useState("");
+  const [scopeMode, setScopeMode] = useState<"scoped" | "manual">("scoped");
+  const [locationIds, setLocationIds] = useState<string[]>([]);
+  const [includeSub, setIncludeSub] = useState(true);
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [manualPicked, setManualPicked] = useState<string[]>([]);
 
   const filteredTemplates = assetTypeId
     ? templates.filter((t) => t.asset_type_id === assetTypeId)
     : templates;
+
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations-scope", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+  });
+
+  const { data: candidates = [], isFetching: loadingCandidates } = useQuery({
+    queryKey: ["scope-assets", activeCompanyId, assetTypeId, scopeMode, locationIds, includeSub],
+    enabled: !!activeCompanyId,
+    queryFn: () =>
+      fetchScopeAssets({
+        companyId: activeCompanyId!,
+        assetTypeId: assetTypeId || null,
+        locationIds: scopeMode === "scoped" ? locationIds : [],
+        includeSublocations: includeSub,
+        locations,
+      }),
+  });
+
+  const visible =
+    scopeMode === "manual" && search
+      ? candidates.filter((a) =>
+          `${a.code} ${a.name ?? ""}`.toLowerCase().includes(search.toLowerCase()),
+        )
+      : candidates;
+
+  const selectedIds =
+    scopeMode === "scoped"
+      ? candidates.filter((a) => !excluded.includes(a.id)).map((a) => a.id)
+      : manualPicked;
+
+  const toggleLocation = (id: string) =>
+    setLocationIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleAsset = (id: string) => {
+    if (scopeMode === "scoped") {
+      setExcluded((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    } else {
+      setManualPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    }
+  };
 
   const create = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error("Sin empresa activa");
       if (!code || !name || !templateId) throw new Error("Completa los campos obligatorios");
       const freq = FREQUENCIES.find((f) => f.value === frequency);
-      const { error } = await supabase.from("maintenance_plans").insert({
-        company_id: activeCompanyId,
-        code: code.toUpperCase(),
-        name,
-        asset_type_id: assetTypeId || null,
-        checklist_template_id: templateId,
-        frequency,
-        interval_months: freq?.months ?? null,
-        notes: notes || null,
-      });
+      const { data: plan, error } = await supabase
+        .from("maintenance_plans")
+        .insert({
+          company_id: activeCompanyId,
+          code: code.toUpperCase(),
+          name,
+          asset_type_id: assetTypeId || null,
+          checklist_template_id: templateId,
+          frequency,
+          interval_months: freq?.months ?? null,
+          notes: notes || null,
+          scope_mode: scopeMode,
+          scope_location_ids: scopeMode === "scoped" ? locationIds : [],
+          scope_include_sublocations: includeSub,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (selectedIds.length) {
+        const { error: linkErr } = await supabase.from("maintenance_plan_assets").insert(
+          selectedIds.map((assetId) => ({ plan_id: plan.id, asset_id: assetId })),
+        );
+        if (linkErr) throw linkErr;
+      }
+      return selectedIds.length;
     },
-    onSuccess: () => {
-      toast.success("Plan creado");
+    onSuccess: (n) => {
+      toast.success(n ? `Plan creado con ${n} equipo(s)` : "Plan creado");
       onCreated();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Nuevo plan de mantenimiento</DialogTitle>
       </DialogHeader>
@@ -272,8 +335,8 @@ function CreatePlanDialog({
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Revisión trimestral de extintores" />
         </div>
         <div className="space-y-2">
-          <Label>Tipo de activo</Label>
-          <Select value={assetTypeId} onValueChange={(v) => { setAssetTypeId(v); setTemplateId(""); }}>
+          <Label>Familia / tipo de activo</Label>
+          <Select value={assetTypeId} onValueChange={(v) => { setAssetTypeId(v); setTemplateId(""); setExcluded([]); setManualPicked([]); }}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona" />
             </SelectTrigger>
@@ -301,6 +364,92 @@ function CreatePlanDialog({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="space-y-3 rounded-lg border p-3">
+          <Label className="text-xs uppercase text-muted-foreground">Alcance</Label>
+          <RadioGroup
+            value={scopeMode}
+            onValueChange={(v) => { setScopeMode(v as "scoped" | "manual"); setExcluded([]); setManualPicked([]); }}
+            className="gap-2"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="scoped" id="scope-scoped" />
+              <Label htmlFor="scope-scoped" className="font-normal">
+                Por familia y ubicación (todos los equipos de esa familia)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="manual" id="scope-manual" />
+              <Label htmlFor="scope-manual" className="font-normal">
+                Equipos concretos
+              </Label>
+            </div>
+          </RadioGroup>
+
+          {scopeMode === "scoped" ? (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Ubicaciones ({locationIds.length ? `${locationIds.length} seleccionadas` : "todas"})
+              </p>
+              <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-md border p-2">
+                {locations.length === 0 ? (
+                  <p className="py-2 text-center text-xs text-muted-foreground">No hay ubicaciones</p>
+                ) : (
+                  locations.map((l) => (
+                    <label key={l.id} className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={locationIds.includes(l.id)}
+                        onCheckedChange={() => toggleLocation(l.id)}
+                      />
+                      <span>{l.name}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{l.code}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={includeSub} onCheckedChange={(c) => setIncludeSub(!!c)} />
+                Incluir sububicaciones
+              </label>
+            </div>
+          ) : (
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar equipo por código o nombre…"
+            />
+          )}
+
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              {loadingCandidates
+                ? "Calculando equipos…"
+                : `Se añadirán ${selectedIds.length} equipo(s)`}
+            </p>
+            <div className="max-h-48 space-y-1.5 overflow-y-auto rounded-md border p-2">
+              {visible.length === 0 ? (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  No hay equipos que coincidan.
+                </p>
+              ) : (
+                visible.map((a) => (
+                  <label key={a.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={selectedIds.includes(a.id)}
+                      onCheckedChange={() => toggleAsset(a.id)}
+                    />
+                    <span className="font-mono text-xs">{a.code}</span>
+                    <span className="truncate">{a.name ?? "(sin nombre)"}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {a.locations?.name ?? "Sin ubicación"}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label>Notas</Label>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
