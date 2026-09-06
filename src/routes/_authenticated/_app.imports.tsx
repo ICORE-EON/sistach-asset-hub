@@ -553,10 +553,10 @@ function ImportWizard({
                 Volver
               </Button>
               <Button
-                disabled={stats.ok === 0 || runImport.isPending}
+                disabled={stats.applicable === 0 || runImport.isPending}
                 onClick={() => runImport.mutate()}
               >
-                Importar {stats.ok} fila{stats.ok === 1 ? "" : "s"}
+                Importar {stats.applicable} fila{stats.applicable === 1 ? "" : "s"}
               </Button>
             </>
           )}
