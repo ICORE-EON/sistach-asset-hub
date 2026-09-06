@@ -36,7 +36,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchCompanyLocations, fetchScopeAssets } from "@/lib/maintenance-scope";
+import { fetchCompanyLocations, fetchScopeAssets, groupAssets } from "@/lib/maintenance-scope";
+import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/")({
   head: () => ({ meta: [{ title: "Planes de mantenimiento" }] }),
@@ -63,7 +64,7 @@ function PlansList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("maintenance_plans")
-        .select("*, asset_types(code, name_i18n), checklist_templates(code, name)")
+        .select("*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name)")
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
         .order("code");
@@ -142,6 +143,7 @@ function PlansList() {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Familia</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Plantilla</TableHead>
               <TableHead>Frecuencia</TableHead>
@@ -152,13 +154,13 @@ function PlansList() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : plans.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                   Aún no hay planes. {templates.length === 0 && "Necesitas al menos una plantilla publicada."}
                 </TableCell>
               </TableRow>
@@ -170,6 +172,11 @@ function PlansList() {
                     <Link to="/maintenance-plans/$id" params={{ id: p.id }} className="hover:underline">
                       {p.name}
                     </Link>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {p.asset_families
+                      ? i18nName(p.asset_families.name_i18n, p.asset_families.code)
+                      : "—"}
                   </TableCell>
                   <TableCell className="text-sm">
                     {p.asset_types ? i18nName(p.asset_types.name_i18n, p.asset_types.code) : "—"}
