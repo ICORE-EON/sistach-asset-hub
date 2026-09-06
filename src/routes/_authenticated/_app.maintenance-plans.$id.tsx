@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2, Power } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Power, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -33,6 +35,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FREQUENCIES } from "./_app.maintenance-plans.index";
+import {
+  describeScopeLocations,
+  fetchCompanyLocations,
+  fetchScopeAssets,
+  type ScopeAsset,
+} from "@/lib/maintenance-scope";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/$id")({
   head: () => ({ meta: [{ title: "Detalle plan" }] }),
@@ -102,22 +110,70 @@ function PlanDetail() {
     },
   });
 
-  const { data: availableAssets = [] } = useQuery({
-    queryKey: ["available-assets", id, plan?.asset_type_id, activeCompanyId],
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations-scope", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+  });
+
+  // Todos los activos de la familia (para el diálogo de añadir manualmente)
+  const { data: familyAssets = [] } = useQuery({
+    queryKey: ["family-assets", activeCompanyId, plan?.asset_type_id],
     enabled: !!activeCompanyId && !!plan,
-    queryFn: async () => {
-      const assigned = planAssets.map((pa) => pa.asset_id);
-      let q = supabase
-        .from("assets")
-        .select("id, code, name")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null);
-      if (plan?.asset_type_id) q = q.eq("asset_type_id", plan.asset_type_id);
-      if (assigned.length) q = q.not("id", "in", `(${assigned.join(",")})`);
-      const { data, error } = await q.order("code");
+    queryFn: () =>
+      fetchScopeAssets({
+        companyId: activeCompanyId!,
+        assetTypeId: plan?.asset_type_id ?? null,
+        locationIds: [],
+        includeSublocations: true,
+        locations,
+      }),
+  });
+
+  // Activos que encajan con el alcance guardado del plan
+  const { data: scopedAssets = [] } = useQuery({
+    queryKey: [
+      "scoped-assets",
+      activeCompanyId,
+      plan?.asset_type_id,
+      plan?.scope_location_ids,
+      plan?.scope_include_sublocations,
+    ],
+    enabled: !!activeCompanyId && plan?.scope_mode === "scoped",
+    queryFn: () =>
+      fetchScopeAssets({
+        companyId: activeCompanyId!,
+        assetTypeId: plan?.asset_type_id ?? null,
+        locationIds: (plan?.scope_location_ids as string[] | null) ?? [],
+        includeSublocations: plan?.scope_include_sublocations ?? true,
+        locations,
+      }),
+  });
+
+  const linkedIds = useMemo(() => new Set(planAssets.map((pa) => pa.asset_id)), [planAssets]);
+  const missingAssets = useMemo(
+    () => scopedAssets.filter((a) => !linkedIds.has(a.id)),
+    [scopedAssets, linkedIds],
+  );
+  const availableAssets = useMemo(
+    () => familyAssets.filter((a) => !linkedIds.has(a.id)),
+    [familyAssets, linkedIds],
+  );
+
+  const addAssets = useMutation({
+    mutationFn: async (assetIds: string[]) => {
+      if (!assetIds.length) throw new Error("Selecciona al menos un equipo");
+      const { error } = await supabase
+        .from("maintenance_plan_assets")
+        .insert(assetIds.map((assetId) => ({ plan_id: id, asset_id: assetId })));
       if (error) throw error;
-      return data;
+      return assetIds.length;
     },
+    onSuccess: (n) => {
+      toast.success(`${n} equipo(s) añadidos`);
+      qc.invalidateQueries({ queryKey: ["plan-assets", id] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleActive = useMutation({
@@ -193,6 +249,15 @@ function PlanDetail() {
             <Row label="Tipo activo">
               {plan.asset_types ? (plan.asset_types.name_i18n as { es?: string })?.es ?? plan.asset_types.code : "—"}
             </Row>
+            <Row label="Alcance">
+              {plan.scope_mode === "scoped"
+                ? describeScopeLocations(
+                    locations,
+                    (plan.scope_location_ids as string[] | null) ?? [],
+                    plan.scope_include_sublocations ?? true,
+                  )
+                : "Equipos concretos"}
+            </Row>
             <div className="space-y-1.5 border-b py-1.5 last:border-0">
               <Label className="text-xs uppercase text-muted-foreground">Modelo de certificado</Label>
               {canManage ? (
@@ -242,17 +307,39 @@ function PlanDetail() {
                   </Button>
                 </DialogTrigger>
                 <AssignAssetsDialog
-                  planId={id}
                   candidates={availableAssets}
-                  onDone={() => {
+                  onAdd={async (ids) => {
+                    await addAssets.mutateAsync(ids);
                     setOpen(false);
-                    qc.invalidateQueries({ queryKey: ["plan-assets", id] });
                   }}
                 />
               </Dialog>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {canManage && missingAssets.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="flex items-start gap-2 text-sm">
+                  <Sparkles className="mt-0.5 h-4 w-4 text-primary" />
+                  <div>
+                    <p className="font-medium">
+                      {missingAssets.length} equipo(s) encajan con este plan y no están incluidos
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {missingAssets.slice(0, 5).map((a) => a.code).join(", ")}
+                      {missingAssets.length > 5 ? "…" : ""}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  disabled={addAssets.isPending}
+                  onClick={() => addAssets.mutate(missingAssets.map((a) => a.id))}
+                >
+                  Añadir los {missingAssets.length}
+                </Button>
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -306,55 +393,115 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function AssignAssetsDialog({
-  planId,
   candidates,
-  onDone,
+  onAdd,
 }: {
-  planId: string;
-  candidates: Array<{ id: string; code: string; name: string | null }>;
-  onDone: () => void;
+  candidates: ScopeAsset[];
+  onAdd: (ids: string[]) => Promise<unknown>;
 }) {
-  const [selected, setSelected] = useState<string>("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("__all__");
+  const [saving, setSaving] = useState(false);
 
-  const add = useMutation({
-    mutationFn: async () => {
-      if (!selected) throw new Error("Selecciona un activo");
-      const { error } = await supabase.from("maintenance_plan_assets").insert({
-        plan_id: planId,
-        asset_id: selected,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Activo añadido");
-      onDone();
-    },
-    onError: (e: Error) => toast.error(e.message),
+  const locationOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of candidates) {
+      if (a.location_id) map.set(a.location_id, a.locations?.name ?? a.location_id);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [candidates]);
+
+  const visible = candidates.filter((a) => {
+    if (locationFilter !== "__all__" && a.location_id !== locationFilter) return false;
+    if (!search) return true;
+    return `${a.code} ${a.name ?? ""}`.toLowerCase().includes(search.toLowerCase());
   });
 
+  const allVisibleSelected = visible.length > 0 && visible.every((a) => selected.includes(a.id));
+
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Añadir activo al plan</DialogTitle>
+        <DialogTitle>Añadir equipos al plan</DialogTitle>
       </DialogHeader>
-      <div className="space-y-2">
-        <Label>Activo</Label>
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger>
-            <SelectValue placeholder={candidates.length ? "Selecciona" : "No hay activos disponibles"} />
-          </SelectTrigger>
-          <SelectContent>
-            {candidates.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.code} — {a.name ?? "(sin nombre)"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por código o nombre…"
+            className="min-w-[180px] flex-1"
+          />
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas las ubicaciones</SelectItem>
+              {locationOptions.map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={allVisibleSelected}
+            onCheckedChange={(c) =>
+              setSelected((prev) =>
+                c
+                  ? [...new Set([...prev, ...visible.map((a) => a.id)])]
+                  : prev.filter((id) => !visible.some((a) => a.id === id)),
+              )
+            }
+          />
+          Seleccionar todos los visibles ({visible.length})
+        </label>
+
+        <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-md border p-2">
+          {visible.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No hay equipos disponibles.
+            </p>
+          ) : (
+            visible.map((a) => (
+              <label key={a.id} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={selected.includes(a.id)}
+                  onCheckedChange={() =>
+                    setSelected((prev) =>
+                      prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id],
+                    )
+                  }
+                />
+                <span className="font-mono text-xs">{a.code}</span>
+                <span className="truncate">{a.name ?? "(sin nombre)"}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {a.locations?.name ?? "Sin ubicación"}
+                </span>
+              </label>
+            ))
+          )}
+        </div>
       </div>
       <DialogFooter>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !selected}>
-          {add.isPending ? "Añadiendo…" : "Añadir"}
+        <Button
+          disabled={saving || selected.length === 0}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await onAdd(selected);
+              setSelected([]);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? "Añadiendo…" : `Añadir ${selected.length || ""}`.trim()}
         </Button>
       </DialogFooter>
     </DialogContent>

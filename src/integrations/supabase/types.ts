@@ -1975,6 +1975,9 @@ export type Database = {
           interval_months: number | null
           name: string
           notes: string | null
+          scope_include_sublocations: boolean
+          scope_location_ids: string[]
+          scope_mode: string
           updated_at: string
         }
         Insert: {
@@ -1991,6 +1994,9 @@ export type Database = {
           interval_months?: number | null
           name: string
           notes?: string | null
+          scope_include_sublocations?: boolean
+          scope_location_ids?: string[]
+          scope_mode?: string
           updated_at?: string
         }
         Update: {
@@ -2007,6 +2013,9 @@ export type Database = {
           interval_months?: number | null
           name?: string
           notes?: string | null
+          scope_include_sublocations?: boolean
+          scope_location_ids?: string[]
+          scope_mode?: string
           updated_at?: string
         }
         Relationships: [
