@@ -128,7 +128,7 @@ function ImportsPage() {
                   onClick={() =>
                     downloadFile(
                       `plantilla-${k}.csv`,
-                      buildCsv(def.template.headers, [def.template.sample]),
+                      buildCsv(def.template.headers, def.template.samples),
                     )
                   }
                 >
