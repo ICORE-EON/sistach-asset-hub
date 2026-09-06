@@ -32,6 +32,7 @@ import { Route as AuthenticatedAppCertificatesRouteImport } from './routes/_auth
 import { Route as AuthenticatedAppCertificateTemplatesRouteImport } from './routes/_authenticated/_app.certificate-templates'
 import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
 import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
+import { Route as AuthenticatedAppAssetFamiliesRouteImport } from './routes/_authenticated/_app.asset-families'
 import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
 import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './routes/_authenticated/_app.maintenance-plans.index'
 import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
@@ -175,6 +176,12 @@ const AuthenticatedAppAssetTypesRoute =
     path: '/asset-types',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
+const AuthenticatedAppAssetFamiliesRoute =
+  AuthenticatedAppAssetFamiliesRouteImport.update({
+    id: '/asset-families',
+    path: '/asset-families',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 const AuthenticatedAppMaintenanceIndexRoute =
   AuthenticatedAppMaintenanceIndexRouteImport.update({
     id: '/',
@@ -272,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
+  '/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/certificate-templates': typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
@@ -310,6 +318,7 @@ export interface FileRoutesByTo {
   '/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
+  '/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/documents': typeof AuthenticatedAppDocumentsRoute
@@ -344,6 +353,7 @@ export interface FileRoutesById {
   '/_authenticated/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
   '/qr/$token': typeof QrTokenRoute
+  '/_authenticated/_app/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
   '/_authenticated/_app/certificate-templates': typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/select-company'
     | '/accept-invitation/$token'
     | '/qr/$token'
+    | '/asset-families'
     | '/asset-types'
     | '/assets'
     | '/certificate-templates'
@@ -422,6 +433,7 @@ export interface FileRouteTypes {
     | '/select-company'
     | '/accept-invitation/$token'
     | '/qr/$token'
+    | '/asset-families'
     | '/asset-types'
     | '/dashboard'
     | '/documents'
@@ -455,6 +467,7 @@ export interface FileRouteTypes {
     | '/_authenticated/select-company'
     | '/accept-invitation/$token'
     | '/qr/$token'
+    | '/_authenticated/_app/asset-families'
     | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
     | '/_authenticated/_app/certificate-templates'
@@ -658,6 +671,13 @@ declare module '@tanstack/react-router' {
       path: '/asset-types'
       fullPath: '/asset-types'
       preLoaderRoute: typeof AuthenticatedAppAssetTypesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/asset-families': {
+      id: '/_authenticated/_app/asset-families'
+      path: '/asset-families'
+      fullPath: '/asset-families'
+      preLoaderRoute: typeof AuthenticatedAppAssetFamiliesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/_app/maintenance/': {
@@ -889,6 +909,7 @@ const AuthenticatedAppMaintenancePlansRouteWithChildren =
   )
 
 interface AuthenticatedAppRouteChildren {
+  AuthenticatedAppAssetFamiliesRoute: typeof AuthenticatedAppAssetFamiliesRoute
   AuthenticatedAppAssetTypesRoute: typeof AuthenticatedAppAssetTypesRoute
   AuthenticatedAppAssetsRoute: typeof AuthenticatedAppAssetsRouteWithChildren
   AuthenticatedAppCertificateTemplatesRoute: typeof AuthenticatedAppCertificateTemplatesRouteWithChildren
@@ -906,6 +927,7 @@ interface AuthenticatedAppRouteChildren {
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
+  AuthenticatedAppAssetFamiliesRoute: AuthenticatedAppAssetFamiliesRoute,
   AuthenticatedAppAssetTypesRoute: AuthenticatedAppAssetTypesRoute,
   AuthenticatedAppAssetsRoute: AuthenticatedAppAssetsRouteWithChildren,
   AuthenticatedAppCertificateTemplatesRoute:
