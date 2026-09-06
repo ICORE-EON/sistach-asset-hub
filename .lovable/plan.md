@@ -1,66 +1,62 @@
-## Diagnóstico
+# Importación masiva del contenido de los botiquines
 
-He revisado el certificado que estás viendo (`CERT-2026-0005`) y los datos en la base de datos. Lo que está pasando:
+Sí se puede hacer. La base de datos ya tiene una tabla preparada para guardar el contenido de cada botiquín (producto, cantidad, lote, fecha de caducidad y notas), vinculada al activo botiquín. Lo que falta es la pantalla de importación y la de consulta/edición.
 
-**1. Por qué no sale la normativa en el PDF**
+## Cómo funcionará
 
-La plantilla que editaste ("Certificado revisión trimestral extintores") **no está asignada a este certificado**. Motivos:
-- El plan de mantenimiento de la sesión no tiene plantilla asignada (`certificate_template_id` está vacío).
-- Tu plantilla no está marcada como "Plantilla por defecto de la empresa" (`is_default = false`).
+El proceso será en dos pasos:
 
-Por eso el generador cae al tercer nivel del fallback y usa la plantilla genérica integrada (`DEFAULT_CERTIFICATE_TEMPLATE`), que tiene `regulation_text` vacío. El código de PDF sí pinta la normativa correctamente — simplemente la plantilla efectiva no tiene texto.
+1. **Importas los botiquines como activos** (ya funciona hoy). Cada botiquín es un activo con su código propio, por ejemplo `BOT-001`, `BOT-002`.
+2. **Importas el contenido** con un único archivo que incluye una fila por producto y por botiquín.
 
-La vista previa que ves dentro del editor sí usa tu plantilla con su normativa, por eso parece que "funciona en preview pero no en PDF".
+### Plantilla del nuevo archivo
 
-**2. Por qué no sale el logo**
+Columnas: `kit_asset_code`, `product_code`, `product_name`, `quantity`, `unit`, `batch_code`, `expires_on`, `notes`
 
-- Tu plantilla no tiene logo subido (`logo_url` vacío en `certificate_templates`).
-- La empresa tampoco tiene logo (`companies.logo_url` vacío).
-- **Y efectivamente no existe ninguna UI para subir el logo de la empresa** todavía. El campo existe en BD pero no se expone en Ajustes ni en onboarding. La única forma actual es el subidor por plantilla en el editor de plantillas.
+Ejemplo:
 
-## Plan
+```text
+kit_asset_code,product_code,product_name,quantity,unit,batch_code,expires_on,notes
+BOT-001,ALCOHOL,Alcohol 70º,1,ud,L240115,2026-03-15,
+BOT-001,AIGUA_OXIGENADA,Aigua oxigenada,1,ud,L240220,2026-05-30,
+BOT-001,GASES_ESTERILS,Gases estèrils,10,ud,,2027-01-31,
+```
 
-### A. Hacer que la plantilla correcta se aplique al certificado
+La plantilla descargable vendrá ya rellenada con los 12 productos estándar (Alcohol, Aigua oxigenada, Antisèptic, Gases estèrils, Cotó hidròfil, Benes, Esparadrap, Apòsits adhesius, Tisores, Pinces, Guants d'un sol ús, Suero fisiològic) para un botiquín de ejemplo, de forma que solo haya que copiar el bloque y cambiar el código de botiquín. Aun así se admite cualquier otro producto: el catálogo no es cerrado.
 
-Sin tocar la lógica de fallback, mejorar la UX para que el usuario vea qué plantilla se usará y pueda corregirlo en un clic:
+### Reglas de validación
 
-1. **Listado de plantillas (`_app.certificate-templates.index.tsx`)**: añadir un aviso visible cuando ninguna plantilla esté marcada como predeterminada ("Ninguna plantilla está marcada como predeterminada de la empresa — los certificados sin plantilla específica usarán la genérica integrada").
+- `kit_asset_code` obligatorio y debe existir como activo de la empresa. Si no existe, la fila sale como error.
+- `product_name` obligatorio. `product_code` opcional (si va vacío se genera a partir del nombre).
+- `quantity` numérico, por defecto 1.
+- `expires_on` acepta `AAAA-MM-DD` o `DD/MM/AAAA`; opcional (tisoras y pinces no caducan).
+- **Duplicados: se actualizan.** Si ese producto ya existe en ese botiquín, se refrescan cantidad, unidad, lote, fecha de caducidad y notas en lugar de crear una fila nueva. Así puedes reimportar el mismo archivo después de cada revisión.
 
-2. **Detalle de certificado (`_app.certificates.$id.tsx`)**: mostrar qué plantilla se ha resuelto para ese certificado (plan / por defecto / genérica integrada) y un enlace para ir a editarla o cambiarla.
+### Pantalla del botiquín
 
-3. **Solución inmediata para tu caso**: marcar tu plantilla actual como `is_default = true` (lo puede hacer el propio usuario desde el editor con el checkbox que ya existe), o asignarla al plan de mantenimiento desde el detalle del plan. Después → **Regenerar PDF** desde el detalle del certificado.
+En la ficha del activo aparecerá una pestaña **Contenido del botiquín** (solo cuando el activo sea de tipo botiquín) con la lista de productos, su caducidad y un semáforo: caducado en rojo, próximo a caducar en ámbar, correcto en verde. Desde ahí se podrá añadir, editar y borrar productos a mano, sin necesidad de importar.
 
-### B. Subida del logo de empresa
+### Revisión en mantenimientos
 
-Añadir un bloque "Logo de la empresa" en **Ajustes** (`_app.settings.tsx`):
+Para el checklist de revisión hay dos caminos posibles. Propongo el segundo:
 
-- Tarjeta con vista previa del logo actual (firmando URL del bucket `company-logos`).
-- Botón "Subir logo" (PNG/JPG, máx. 2 MB) → sube a `company-logos` con ruta `{company_id}/company-logo.{ext}` y actualiza `companies.logo_url`.
-- Botón "Quitar logo".
-- Permisos: solo `administrator` / `system_manager`.
-- Reutilizar el patrón del `LogoCard` que ya existe en el editor de plantillas.
+- Preguntas sueltas en la plantilla de checklist (una por producto). Funciona, pero hay que repetir 12 preguntas y no guarda fechas de caducidad de forma estructurada.
+- **Un tipo de pregunta nueva "Revisión de botiquín"**: al abrir la sesión de mantenimiento del botiquín, el checklist despliega automáticamente los productos guardados de ese botiquín, y por cada uno se marca presente/ausente y se confirma o corrige la fecha de caducidad. Al guardar, se actualizan las caducidades reales del botiquín y se marca fallo si falta algún producto o alguno está caducado.
 
-El generador de PDF ya tiene el fallback `template.logo_url → company.logo_url`, así que en cuanto subas el logo de empresa aparecerá en cualquier certificado cuya plantilla tenga `show_logo = true` y no tenga logo propio.
-
-### C. (Opcional, recomendado) Confirmar el flujo
-
-Después de los cambios, te indico los pasos exactos para que el certificado actual salga correcto:
-1. Subir logo de empresa en Ajustes.
-2. Marcar tu plantilla como predeterminada (o asignarla al plan).
-3. Pulsar **Regenerar PDF** en el certificado.
+Esto último es una segunda fase; en esta primera entrega dejo lista la importación y la ficha de contenido.
 
 ## Detalles técnicos
 
-- **Sin migraciones**: `companies.logo_url` ya existe.
-- **Bucket**: reutilizar `company-logos` (mismo que las plantillas). La ruta `{company_id}/company-logo.{ext}` es compatible con la policy existente que filtra por `company_id` como primer segmento.
-- **Archivos a tocar**:
-  - `src/routes/_authenticated/_app.settings.tsx` — añadir `CompanyLogoCard`.
-  - `src/routes/_authenticated/_app.certificates.$id.tsx` — mostrar plantilla resuelta + aviso.
-  - `src/routes/_authenticated/_app.certificate-templates.index.tsx` — aviso "no hay predeterminada".
-- **Sin cambios** en `certificate-pdf.ts` ni en `certificate-generator.ts` — la lógica ya es correcta.
+- Nueva entidad `first_aid_kit_contents` en `src/lib/import/entities.ts`:
+  - `loadContext` amplía a un mapa `assetCode -> assetId` y a las claves existentes `kit_asset_id + product_code`.
+  - `validateRow` resuelve `kit_asset_code`, normaliza `product_code` (uppercase, sin acentos, guiones bajos), parsea `quantity` y `expires_on`.
+  - Se añade estado `update` (además de `ok` / `duplicate` / `error`) para las filas que actualizan un producto existente; `insertNormalized` hace `upsert` sobre la clave (`kit_asset_id`, `product_code`).
+  - Requiere un índice único en `(kit_asset_id, product_code)` — se añade vía migración junto con el `on conflict`.
+- La UI de `_app.imports.tsx` ya es genérica: solo hay que añadir la nueva entrada al selector, el resumen contará también "Actualizados".
+- Ficha de activo: nueva pestaña en `_app.assets.$id.tsx` con tabla CRUD sobre `first_aid_kit_contents`, visible cuando el tipo de activo tenga categoría/código de botiquín.
+- Sin cambios en las políticas de acceso: la tabla ya tiene reglas por empresa.
 
-## Fuera de alcance
+## Fuera de alcance de esta entrega
 
-- Cambiar el orden del fallback de plantillas.
-- Migrar plantillas existentes para marcar una como predeterminada automáticamente.
-- Editor visual de la posición/tamaño del logo en el PDF.
+- El tipo de pregunta "Revisión de botiquín" en los checklists de mantenimiento (segunda fase).
+- Alertas automáticas de productos caducados en el panel de inicio.
