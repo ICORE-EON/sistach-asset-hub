@@ -393,55 +393,115 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function AssignAssetsDialog({
-  planId,
   candidates,
-  onDone,
+  onAdd,
 }: {
-  planId: string;
-  candidates: Array<{ id: string; code: string; name: string | null }>;
-  onDone: () => void;
+  candidates: ScopeAsset[];
+  onAdd: (ids: string[]) => Promise<unknown>;
 }) {
-  const [selected, setSelected] = useState<string>("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("__all__");
+  const [saving, setSaving] = useState(false);
 
-  const add = useMutation({
-    mutationFn: async () => {
-      if (!selected) throw new Error("Selecciona un activo");
-      const { error } = await supabase.from("maintenance_plan_assets").insert({
-        plan_id: planId,
-        asset_id: selected,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Activo añadido");
-      onDone();
-    },
-    onError: (e: Error) => toast.error(e.message),
+  const locationOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of candidates) {
+      if (a.location_id) map.set(a.location_id, a.locations?.name ?? a.location_id);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [candidates]);
+
+  const visible = candidates.filter((a) => {
+    if (locationFilter !== "__all__" && a.location_id !== locationFilter) return false;
+    if (!search) return true;
+    return `${a.code} ${a.name ?? ""}`.toLowerCase().includes(search.toLowerCase());
   });
 
+  const allVisibleSelected = visible.length > 0 && visible.every((a) => selected.includes(a.id));
+
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Añadir activo al plan</DialogTitle>
+        <DialogTitle>Añadir equipos al plan</DialogTitle>
       </DialogHeader>
-      <div className="space-y-2">
-        <Label>Activo</Label>
-        <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger>
-            <SelectValue placeholder={candidates.length ? "Selecciona" : "No hay activos disponibles"} />
-          </SelectTrigger>
-          <SelectContent>
-            {candidates.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.code} — {a.name ?? "(sin nombre)"}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por código o nombre…"
+            className="min-w-[180px] flex-1"
+          />
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todas las ubicaciones</SelectItem>
+              {locationOptions.map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox
+            checked={allVisibleSelected}
+            onCheckedChange={(c) =>
+              setSelected((prev) =>
+                c
+                  ? [...new Set([...prev, ...visible.map((a) => a.id)])]
+                  : prev.filter((id) => !visible.some((a) => a.id === id)),
+              )
+            }
+          />
+          Seleccionar todos los visibles ({visible.length})
+        </label>
+
+        <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-md border p-2">
+          {visible.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No hay equipos disponibles.
+            </p>
+          ) : (
+            visible.map((a) => (
+              <label key={a.id} className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={selected.includes(a.id)}
+                  onCheckedChange={() =>
+                    setSelected((prev) =>
+                      prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id],
+                    )
+                  }
+                />
+                <span className="font-mono text-xs">{a.code}</span>
+                <span className="truncate">{a.name ?? "(sin nombre)"}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {a.locations?.name ?? "Sin ubicación"}
+                </span>
+              </label>
+            ))
+          )}
+        </div>
       </div>
       <DialogFooter>
-        <Button onClick={() => add.mutate()} disabled={add.isPending || !selected}>
-          {add.isPending ? "Añadiendo…" : "Añadir"}
+        <Button
+          disabled={saving || selected.length === 0}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await onAdd(selected);
+              setSelected([]);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? "Añadiendo…" : `Añadir ${selected.length || ""}`.trim()}
         </Button>
       </DialogFooter>
     </DialogContent>
