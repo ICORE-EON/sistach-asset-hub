@@ -309,7 +309,10 @@ function ImportWizard({
         row_number: p.row_number,
         raw: p.raw,
         normalized: p.validation.normalized ?? null,
-        status: p.validation.status === "ok" ? "pending" : p.validation.status,
+        status:
+          p.validation.status === "ok" || p.validation.status === "update"
+            ? "pending"
+            : p.validation.status,
         dedupe_key: p.validation.dedupe_key ?? null,
       }));
       // insertar filas en chunks
