@@ -41,6 +41,7 @@ import {
   fetchScopeAssets,
   type ScopeAsset,
 } from "@/lib/maintenance-scope";
+import { fetchAssetTypes } from "@/lib/asset-families";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/$id")({
   head: () => ({ meta: [{ title: "Detalle plan" }] }),
@@ -60,7 +61,7 @@ function PlanDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("maintenance_plans")
-        .select("*, asset_types(code, name_i18n), checklist_templates(code, name, current_version), certificate_templates(id, code, name)")
+        .select("*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name, current_version), certificate_templates(id, code, name)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -116,14 +117,27 @@ function PlanDetail() {
     queryFn: () => fetchCompanyLocations(activeCompanyId!),
   });
 
+  const { data: allTypes = [] } = useQuery({
+    queryKey: ["asset-types-family", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchAssetTypes(activeCompanyId!),
+  });
+
+  const familyTypeIds = useMemo(() => {
+    if (plan?.asset_family_id) {
+      return allTypes.filter((t) => t.family_id === plan.asset_family_id).map((t) => t.id);
+    }
+    return plan?.asset_type_id ? [plan.asset_type_id] : [];
+  }, [allTypes, plan?.asset_family_id, plan?.asset_type_id]);
+
   // Todos los activos de la familia (para el diálogo de añadir manualmente)
   const { data: familyAssets = [] } = useQuery({
-    queryKey: ["family-assets", activeCompanyId, plan?.asset_type_id],
-    enabled: !!activeCompanyId && !!plan,
+    queryKey: ["family-assets", activeCompanyId, familyTypeIds],
+    enabled: !!activeCompanyId && !!plan && familyTypeIds.length > 0,
     queryFn: () =>
       fetchScopeAssets({
         companyId: activeCompanyId!,
-        assetTypeId: plan?.asset_type_id ?? null,
+        assetTypeIds: familyTypeIds,
         locationIds: [],
         includeSublocations: true,
         locations,
@@ -135,15 +149,15 @@ function PlanDetail() {
     queryKey: [
       "scoped-assets",
       activeCompanyId,
-      plan?.asset_type_id,
+      familyTypeIds,
       plan?.scope_location_ids,
       plan?.scope_include_sublocations,
     ],
-    enabled: !!activeCompanyId && plan?.scope_mode === "scoped",
+    enabled: !!activeCompanyId && plan?.scope_mode === "scoped" && familyTypeIds.length > 0,
     queryFn: () =>
       fetchScopeAssets({
         companyId: activeCompanyId!,
-        assetTypeId: plan?.asset_type_id ?? null,
+        assetTypeIds: familyTypeIds,
         locationIds: (plan?.scope_location_ids as string[] | null) ?? [],
         includeSublocations: plan?.scope_include_sublocations ?? true,
         locations,
@@ -246,6 +260,11 @@ function PlanDetail() {
               {FREQUENCIES.find((f) => f.value === plan.frequency)?.label ?? plan.frequency}
             </Row>
             <Row label="Plantilla">{plan.checklist_templates?.name ?? "—"}</Row>
+            <Row label="Familia">
+              {plan.asset_families
+                ? (plan.asset_families.name_i18n as { es?: string })?.es ?? plan.asset_families.code
+                : "—"}
+            </Row>
             <Row label="Tipo activo">
               {plan.asset_types ? (plan.asset_types.name_i18n as { es?: string })?.es ?? plan.asset_types.code : "—"}
             </Row>

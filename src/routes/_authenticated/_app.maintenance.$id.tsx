@@ -78,7 +78,7 @@ function SessionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("maintenance_items")
-        .select("*, assets(id, code, name, manufacturer, model)")
+        .select("*, assets(id, code, name, manufacturer, model, location_id, locations(name), asset_type_id, asset_types(code, name_i18n))")
         .eq("session_id", id)
         .order("created_at");
       if (error) throw error;
@@ -99,6 +99,38 @@ function SessionDetail() {
       return data?.certificates ?? null;
     },
   });
+
+  const itemGroups = useMemo(() => {
+    type It = (typeof items)[number];
+    const locMap = new Map<string, { locationId: string; locationName: string; types: Map<string, { typeId: string; typeName: string; items: It[] }> }>();
+    for (const it of items) {
+      const locId = it.assets?.location_id ?? "__none__";
+      const locName = it.assets?.locations?.name ?? "Sin ubicación";
+      if (!locMap.has(locId)) locMap.set(locId, { locationId: locId, locationName: locName, types: new Map() });
+      const loc = locMap.get(locId)!;
+      const typeId = it.assets?.asset_type_id ?? "__none__";
+      const n = it.assets?.asset_types?.name_i18n as
+        | { es?: string; ca?: string; en?: string }
+        | null
+        | undefined;
+      const typeName = n?.es ?? n?.ca ?? n?.en ?? it.assets?.asset_types?.code ?? "Sin tipo";
+      if (!loc.types.has(typeId)) loc.types.set(typeId, { typeId, typeName, items: [] });
+      loc.types.get(typeId)!.items.push(it);
+    }
+    return [...locMap.values()]
+      .sort((a, b) => a.locationName.localeCompare(b.locationName))
+      .map((loc) => {
+        const types = [...loc.types.values()]
+          .sort((a, b) => a.typeName.localeCompare(b.typeName))
+          .map((t) => ({ ...t, done: t.items.filter((i) => i.result !== "pending").length }));
+        return {
+          ...loc,
+          types,
+          total: types.reduce((n2, t) => n2 + t.items.length, 0),
+          done: types.reduce((n2, t) => n2 + t.done, 0),
+        };
+      });
+  }, [items]);
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const activeItem = useMemo(
@@ -125,6 +157,7 @@ function SessionDetail() {
 
   if (!session) return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
 
+  const pendingCount = items.filter((i) => i.result === "pending").length;
   const status = STATUS_LABELS[session.status] ?? { label: session.status, variant: "outline" as const };
   const isLocked = session.status === "closed" || session.status === "cancelled";
   const editable = canRun && !isLocked;
@@ -159,7 +192,7 @@ function SessionDetail() {
             </Button>
           )}
           {session.status === "in_progress" && canRun && (
-            <Button onClick={() => setCloseOpen(true)} disabled={completedCount < totalCount}>
+            <Button onClick={() => setCloseOpen(true)}>
               <Lock className="mr-2 h-4 w-4" />
               Cerrar y firmar
             </Button>
@@ -172,28 +205,50 @@ function SessionDetail() {
           <CardHeader>
             <CardTitle className="text-sm">Activos</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="space-y-4">
             {items.length === 0 ? (
               <p className="text-xs text-muted-foreground">Sin activos.</p>
             ) : (
-              items.map((it) => (
-                <button
-                  key={it.id}
-                  onClick={() => setSelectedItemId(it.id)}
-                  className={`flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition ${
-                    activeItem?.id === it.id ? "bg-muted" : "hover:bg-muted/50"
-                  }`}
-                >
-                  <ItemStatusIcon result={it.result} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">
-                      {it.assets?.name ?? it.assets?.code ?? "—"}
+              itemGroups.map((g) => (
+                <div key={g.locationId} className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {g.locationName}
                     </p>
-                    <p className="truncate font-mono text-xs text-muted-foreground">
-                      {it.assets?.code}
-                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {g.done}/{g.total}
+                    </span>
                   </div>
-                </button>
+                  {g.types.map((t) => (
+                    <div key={t.typeId} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 pl-1">
+                        <p className="text-xs font-medium">{t.typeName}</p>
+                        <span className="text-[11px] text-muted-foreground">
+                          {t.done}/{t.items.length}
+                        </span>
+                      </div>
+                      {t.items.map((it) => (
+                        <button
+                          key={it.id}
+                          onClick={() => setSelectedItemId(it.id)}
+                          className={`flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition ${
+                            activeItem?.id === it.id ? "bg-muted" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <ItemStatusIcon result={it.result} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">
+                              {it.assets?.name ?? it.assets?.code ?? "—"}
+                            </p>
+                            <p className="truncate font-mono text-xs text-muted-foreground">
+                              {it.assets?.code}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               ))
             )}
           </CardContent>
@@ -238,6 +293,7 @@ function SessionDetail() {
       {closeOpen && (
         <CloseSessionDialog
           sessionId={id}
+          pendingCount={pendingCount}
           open={closeOpen}
           onOpenChange={setCloseOpen}
           onClosed={() => qc.invalidateQueries({ queryKey: ["session", id] })}
@@ -606,11 +662,13 @@ function QuestionInput({
 
 function CloseSessionDialog({
   sessionId,
+  pendingCount,
   open,
   onOpenChange,
   onClosed,
 }: {
   sessionId: string;
+  pendingCount: number;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onClosed: () => void;
@@ -666,7 +724,7 @@ function CloseSessionDialog({
       // 1. Load session + plan + items to build the certificate
       const { data: session, error: sErr } = await supabase
         .from("maintenance_sessions")
-        .select("*, maintenance_plans(name, interval_months)")
+        .select("*, maintenance_plans(name, interval_months, asset_families(requires_certificate))")
         .eq("id", sessionId)
         .single();
       if (sErr) throw sErr;
@@ -677,7 +735,29 @@ function CloseSessionDialog({
         .eq("session_id", sessionId);
       if (iErr) throw iErr;
 
-      // 2. Close the session
+      // 2. Mark pending items as skipped
+      const pendingIds = items.filter((i) => i.result === "pending").map((i) => i.id);
+      if (pendingIds.length > 0) {
+        const { error: skipErr } = await supabase
+          .from("maintenance_items")
+          .update({ result: "skipped" })
+          .in("id", pendingIds);
+        if (skipErr) throw skipErr;
+        for (const it of items) if (it.result === "pending") it.result = "skipped";
+      }
+
+      const hasIncidents = items.some(
+        (i) => i.result === "with_incident" || i.result === "fail",
+      );
+      const outcome = hasIncidents
+        ? pendingIds.length > 0
+          ? "incomplete_with_incidents"
+          : "with_incidents"
+        : pendingIds.length > 0
+          ? "incomplete"
+          : "ok";
+
+      // 3. Close the session
       const { error } = await supabase
         .from("maintenance_sessions")
         .update({
@@ -686,9 +766,18 @@ function CloseSessionDialog({
           signer_name: signerName.trim(),
           signer_role: signerRole.trim() || null,
           signature_image_url: signature,
+          metadata: {
+            ...((session.metadata as Record<string, unknown>) ?? {}),
+            outcome,
+            skipped_count: pendingIds.length,
+          },
         })
         .eq("id", sessionId);
       if (error) throw error;
+
+      if (session.maintenance_plans?.asset_families?.requires_certificate === false) {
+        return null;
+      }
 
       // 3. Generate certificate
       const { data: code, error: codeErr } = await supabase.rpc("next_code", {
@@ -708,7 +797,9 @@ function CloseSessionDialog({
 
       const okCount = items.filter((i) => i.result === "ok").length;
       const failCount = items.filter((i) => i.result === "with_incident" || i.result === "fail").length;
-      const summary = `${okCount} activo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}.`;
+      const summary = `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
+        pendingIds.length > 0 ? `, ${pendingIds.length} sin revisar` : ""
+      }.`;
 
       const { data: cert, error: certErr } = await supabase
         .from("certificates")
@@ -741,6 +832,7 @@ function CloseSessionDialog({
               return "failed";
             case "na":
             case "n/a":
+            case "skipped":
               return "na";
             default:
               return "ok";
@@ -769,7 +861,11 @@ function CloseSessionDialog({
       return cert;
     },
     onSuccess: (cert) => {
-      toast.success(`Sesión cerrada. Certificado ${cert.code} emitido.`);
+      toast.success(
+        cert
+          ? `Sesión cerrada. Certificado ${cert.code} emitido.`
+          : "Sesión cerrada. Esta familia no requiere certificado.",
+      );
       onClosed();
       onOpenChange(false);
     },
@@ -783,6 +879,12 @@ function CloseSessionDialog({
           <DialogTitle>Cerrar y firmar sesión</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {pendingCount > 0 && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              Quedan {pendingCount} equipo(s) sin revisar. Se marcarán como no revisados y
+              constarán así en el certificado.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Firmante *</Label>

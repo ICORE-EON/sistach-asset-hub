@@ -169,6 +169,7 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
   const [planId, setPlanId] = useState<string>("");
   const [scheduledFor, setScheduledFor] = useState("");
   const [technicianName, setTechnicianName] = useState("");
+  const [locationId, setLocationId] = useState("");
 
   const { data: plans = [] } = useQuery({
     queryKey: ["plans-for-session", companyId],
@@ -176,7 +177,7 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("maintenance_plans")
-        .select("id, code, name, checklist_template_id, checklist_templates(name, current_version)")
+        .select("id, code, name, checklist_template_id, asset_family_id, asset_families(code, name_i18n), checklist_templates(name, current_version)")
         .eq("company_id", companyId)
         .eq("active", true)
         .is("deleted_at", null)
@@ -186,32 +187,70 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
     },
   });
 
+  const { data: planLocations = [] } = useQuery({
+    queryKey: ["plan-locations", planId],
+    enabled: !!planId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("maintenance_plan_assets")
+        .select("assets(location_id, locations(name))")
+        .eq("plan_id", planId);
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const row of data ?? []) {
+        const loc = row.assets?.location_id;
+        if (loc) map.set(loc, row.assets?.locations?.name ?? "Ubicación");
+      }
+      return [...map.entries()].map(([id, name]) => ({ id, name }));
+    },
+  });
+
   const create = useMutation({
     mutationFn: async () => {
       if (!planId) throw new Error("Selecciona un plan");
       const plan = plans.find((p) => p.id === planId);
       if (!plan) throw new Error("Plan no encontrado");
 
-      // Versión publicada actual del template
-      const { data: ver, error: verErr } = await supabase
-        .from("checklist_template_versions")
-        .select("id, version")
-        .eq("template_id", plan.checklist_template_id)
-        .eq("is_published", true)
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (verErr) throw verErr;
-      if (!ver) throw new Error("La plantilla del plan no tiene versión publicada");
-
-      // Activos asignados al plan
+      // Activos asignados al plan (con su tipo y ubicación)
       const { data: planAssets, error: paErr } = await supabase
         .from("maintenance_plan_assets")
-        .select("asset_id")
+        .select("asset_id, assets(id, asset_type_id, location_id)")
         .eq("plan_id", planId);
       if (paErr) throw paErr;
-      if (!planAssets || planAssets.length === 0)
-        throw new Error("El plan no tiene activos asignados");
+      let rows = (planAssets ?? []).filter((pa) => pa.assets);
+      if (locationId) rows = rows.filter((pa) => pa.assets?.location_id === locationId);
+      if (rows.length === 0) throw new Error("El plan no tiene equipos para esta selección");
+
+      // Plantilla de checklist por tipo de activo
+      const { data: typeMap, error: tmErr } = await supabase
+        .from("maintenance_plan_type_templates")
+        .select("asset_type_id, checklist_template_id")
+        .eq("plan_id", planId);
+      if (tmErr) throw tmErr;
+      const templateByType = new Map<string, string>(
+        (typeMap ?? []).map((t) => [t.asset_type_id, t.checklist_template_id]),
+      );
+      const templateIds = [
+        ...new Set(
+          rows.map(
+            (pa) => templateByType.get(pa.assets!.asset_type_id) ?? plan.checklist_template_id,
+          ),
+        ),
+      ];
+
+      const { data: vers, error: verErr } = await supabase
+        .from("checklist_template_versions")
+        .select("id, version, template_id")
+        .in("template_id", templateIds)
+        .eq("is_published", true)
+        .order("version", { ascending: false });
+      if (verErr) throw verErr;
+      const versionByTemplate = new Map<string, string>();
+      for (const v of vers ?? []) {
+        if (!versionByTemplate.has(v.template_id)) versionByTemplate.set(v.template_id, v.id);
+      }
+      if (templateIds.some((t) => !versionByTemplate.has(t)))
+        throw new Error("Hay tipos de activo cuya plantilla no tiene versión publicada");
 
       // Código
       const { data: code, error: codeErr } = await supabase.rpc("next_code", {
@@ -227,6 +266,7 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
           company_id: companyId,
           code,
           plan_id: planId,
+          location_id: locationId || null,
           scheduled_for: scheduledFor || null,
           technician_name: technicianName || null,
           status: "draft",
@@ -235,12 +275,16 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
         .single();
       if (sessErr) throw sessErr;
 
-      const items = planAssets.map((pa) => ({
-        session_id: session.id,
-        asset_id: pa.asset_id,
-        checklist_template_version_id: ver.id,
-        result: "pending",
-      }));
+      const items = rows.map((pa) => {
+        const templateId =
+          templateByType.get(pa.assets!.asset_type_id) ?? plan.checklist_template_id;
+        return {
+          session_id: session.id,
+          asset_id: pa.asset_id,
+          checklist_template_version_id: versionByTemplate.get(templateId)!,
+          result: "pending",
+        };
+      });
       const { error: itemsErr } = await supabase.from("maintenance_items").insert(items);
       if (itemsErr) throw itemsErr;
 
@@ -251,6 +295,7 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
       qc.invalidateQueries({ queryKey: ["maintenance-sessions"] });
       setOpen(false);
       setPlanId("");
+      setLocationId("");
       setScheduledFor("");
       setTechnicianName("");
       window.location.assign(`/maintenance/${id}`);
@@ -286,6 +331,24 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
               </SelectContent>
             </Select>
           </div>
+          {planLocations.length > 1 && (
+            <div className="space-y-2">
+              <Label>Ubicación</Label>
+              <Select value={locationId || "__all__"} onValueChange={(v) => setLocationId(v === "__all__" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas las ubicaciones del plan</SelectItem>
+                  {planLocations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Fecha programada</Label>

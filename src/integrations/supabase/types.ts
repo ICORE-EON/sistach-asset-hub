@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_families: {
+        Row: {
+          active: boolean
+          code: string
+          color: string | null
+          company_id: string | null
+          created_at: string
+          id: string
+          is_system: boolean
+          name_i18n: Json
+          requires_certificate: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name_i18n?: Json
+          requires_certificate?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          color?: string | null
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          name_i18n?: Json
+          requires_certificate?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_families_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_families_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       asset_types: {
         Row: {
           active: boolean
@@ -21,6 +78,7 @@ export type Database = {
           code: string
           company_id: string | null
           created_at: string
+          family_id: string | null
           id: string
           is_system: boolean
           metadata: Json
@@ -33,6 +91,7 @@ export type Database = {
           code: string
           company_id?: string | null
           created_at?: string
+          family_id?: string | null
           id?: string
           is_system?: boolean
           metadata?: Json
@@ -45,6 +104,7 @@ export type Database = {
           code?: string
           company_id?: string | null
           created_at?: string
+          family_id?: string | null
           id?: string
           is_system?: boolean
           metadata?: Json
@@ -65,6 +125,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_kpis"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "asset_types_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "asset_families"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -599,6 +666,7 @@ export type Database = {
       }
       certificate_templates: {
         Row: {
+          asset_family_id: string | null
           code: string
           columns: Json
           company_id: string
@@ -621,6 +689,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          asset_family_id?: string | null
           code: string
           columns?: Json
           company_id: string
@@ -643,6 +712,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          asset_family_id?: string | null
           code?: string
           columns?: Json
           company_id?: string
@@ -665,6 +735,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "certificate_templates_asset_family_id_fkey"
+            columns: ["asset_family_id"]
+            isOneToOne: false
+            referencedRelation: "asset_families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "certificate_templates_company_id_fkey"
             columns: ["company_id"]
@@ -1960,9 +2037,59 @@ export type Database = {
           },
         ]
       }
+      maintenance_plan_type_templates: {
+        Row: {
+          asset_type_id: string
+          checklist_template_id: string
+          created_at: string
+          id: string
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          asset_type_id: string
+          checklist_template_id: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          asset_type_id?: string
+          checklist_template_id?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_plan_type_templates_asset_type_id_fkey"
+            columns: ["asset_type_id"]
+            isOneToOne: false
+            referencedRelation: "asset_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_type_templates_checklist_template_id_fkey"
+            columns: ["checklist_template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_type_templates_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_plans: {
         Row: {
           active: boolean
+          asset_family_id: string | null
           asset_type_id: string | null
           certificate_template_id: string | null
           checklist_template_id: string
@@ -1982,6 +2109,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
           checklist_template_id: string
@@ -2001,6 +2129,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
           checklist_template_id?: string
@@ -2019,6 +2148,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "maintenance_plans_asset_family_id_fkey"
+            columns: ["asset_family_id"]
+            isOneToOne: false
+            referencedRelation: "asset_families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maintenance_plans_asset_type_id_fkey"
             columns: ["asset_type_id"]
@@ -2070,6 +2206,7 @@ export type Database = {
           location_id: string | null
           metadata: Json
           notes: string | null
+          outcome: string | null
           pdf_hash_sha256: string | null
           pdf_url: string | null
           plan_id: string | null
@@ -2099,6 +2236,7 @@ export type Database = {
           location_id?: string | null
           metadata?: Json
           notes?: string | null
+          outcome?: string | null
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
@@ -2128,6 +2266,7 @@ export type Database = {
           location_id?: string | null
           metadata?: Json
           notes?: string | null
+          outcome?: string | null
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
