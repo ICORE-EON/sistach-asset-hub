@@ -32,8 +32,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
+import { fetchCompanyLocations, fetchScopeAssets } from "@/lib/maintenance-scope";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/")({
   head: () => ({ meta: [{ title: "Planes de mantenimiento" }] }),
