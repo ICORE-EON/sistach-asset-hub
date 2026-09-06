@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Copy as CopyIcon,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
