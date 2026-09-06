@@ -9,7 +9,7 @@ async function resolveTemplate(companyId: string, planId: string | null): Promis
   if (planId) {
     const { data: plan } = await supabase
       .from("maintenance_plans")
-      .select("certificate_template_id")
+      .select("certificate_template_id, asset_family_id")
       .eq("id", planId)
       .maybeSingle();
     if (plan?.certificate_template_id) {
@@ -19,6 +19,18 @@ async function resolveTemplate(companyId: string, planId: string | null): Promis
         .eq("id", plan.certificate_template_id)
         .maybeSingle();
       if (tpl) return tpl as unknown as CertificateTemplate;
+    }
+    // 1b. Family template
+    if (plan?.asset_family_id) {
+      const { data: famTpl } = await supabase
+        .from("certificate_templates")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("asset_family_id", plan.asset_family_id)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+      if (famTpl) return famTpl as unknown as CertificateTemplate;
     }
   }
   // 2. Company default
