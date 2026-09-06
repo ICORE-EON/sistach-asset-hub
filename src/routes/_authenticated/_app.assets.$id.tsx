@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { FirstAidKitPanel } from "@/components/first-aid-kit-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/assets/$id")({
   head: () => ({ meta: [{ title: "Detalle de activo" }] }),
@@ -52,7 +53,7 @@ function AssetDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("assets")
-        .select("*, asset_types(code, name_i18n), locations(name, code)")
+        .select("*, asset_types(code, name_i18n, category), locations(name, code)")
         .eq("id", id)
         .single();
       if (error) throw error;
@@ -340,6 +341,12 @@ function AssetDetail() {
             <p className="text-center text-xs text-muted-foreground break-all">{qrUrl}</p>
           </CardContent>
         </Card>
+
+        {asset.asset_types?.category === "first_aid_kit" && (
+          <div className="lg:col-span-3">
+            <FirstAidKitPanel assetId={id} canManage={canManage} />
+          </div>
+        )}
 
         <div className="lg:col-span-3">
           <AttachmentsPanel entity="asset" entityId={id} defaultCategory="asset_manual" />

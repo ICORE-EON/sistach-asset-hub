@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Copy as CopyIcon,
+  RefreshCw,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -98,7 +99,7 @@ function ImportsPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Importación masiva</h1>
             <p className="text-sm text-muted-foreground">
-              Carga activos y ubicaciones desde CSV o Excel
+              Carga activos, ubicaciones y contenido de botiquines desde CSV o Excel
             </p>
           </div>
         </div>
@@ -128,7 +129,7 @@ function ImportsPage() {
                   onClick={() =>
                     downloadFile(
                       `plantilla-${k}.csv`,
-                      buildCsv(def.template.headers, [def.template.sample]),
+                      buildCsv(def.template.headers, def.template.samples),
                     )
                   }
                 >
@@ -240,13 +241,14 @@ function ImportWizard({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const stats = useMemo(() => {
-    let ok = 0, err = 0, dup = 0;
+    let ok = 0, err = 0, dup = 0, upd = 0;
     for (const r of preview) {
       if (r.validation.status === "ok") ok++;
+      else if (r.validation.status === "update") upd++;
       else if (r.validation.status === "duplicate") dup++;
       else err++;
     }
-    return { ok, err, dup };
+    return { ok, err, dup, upd, applicable: ok + upd };
   }, [preview]);
 
   const validate = useMutation({
@@ -255,7 +257,12 @@ function ImportWizard({
       const parsed = await parseFile(file);
       if (parsed.rows.length === 0) throw new Error("El archivo no contiene filas");
       const ctx = await loadContext(companyId);
-      const seen = { assetCodes: new Set<string>(), assetSerials: new Set<string>(), locCodes: new Set<string>() };
+      const seen = {
+        assetCodes: new Set<string>(),
+        assetSerials: new Set<string>(),
+        locCodes: new Set<string>(),
+        kitProducts: new Set<string>(),
+      };
       const rows: PreviewRow[] = parsed.rows.map((raw, i) => ({
         row_number: i + 2, // +1 header +1 base-1
         raw,
@@ -303,7 +310,10 @@ function ImportWizard({
         row_number: p.row_number,
         raw: p.raw,
         normalized: p.validation.normalized ?? null,
-        status: p.validation.status === "ok" ? "pending" : p.validation.status,
+        status:
+          p.validation.status === "ok" || p.validation.status === "update"
+            ? "pending"
+            : p.validation.status,
         dedupe_key: p.validation.dedupe_key ?? null,
       }));
       // insertar filas en chunks
@@ -442,8 +452,9 @@ function ImportWizard({
 
         {step === "preview" && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Válidas" value={stats.ok} tone="ok" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Nuevas" value={stats.ok} tone="ok" />
+              <SummaryTile icon={<RefreshCw className="h-4 w-4" />} label="Actualizar" value={stats.upd} tone="muted" />
               <SummaryTile icon={<CopyIcon className="h-4 w-4" />} label="Duplicados" value={stats.dup} tone="muted" />
               <SummaryTile icon={<AlertCircle className="h-4 w-4" />} label="Errores" value={stats.err} tone="err" />
             </div>
@@ -465,7 +476,7 @@ function ImportWizard({
                           variant={
                             p.validation.status === "ok"
                               ? "default"
-                              : p.validation.status === "duplicate"
+                              : p.validation.status === "update" || p.validation.status === "duplicate"
                               ? "outline"
                               : "destructive"
                           }
@@ -515,7 +526,7 @@ function ImportWizard({
         {step === "done" && finalCounts && (
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-3 gap-3">
-              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Insertados" value={finalCounts.ok} tone="ok" />
+              <SummaryTile icon={<CheckCircle2 className="h-4 w-4" />} label="Procesados" value={finalCounts.ok} tone="ok" />
               <SummaryTile icon={<CopyIcon className="h-4 w-4" />} label="Duplicados" value={finalCounts.dup} tone="muted" />
               <SummaryTile icon={<AlertCircle className="h-4 w-4" />} label="Errores" value={finalCounts.err} tone="err" />
             </div>
@@ -543,10 +554,10 @@ function ImportWizard({
                 Volver
               </Button>
               <Button
-                disabled={stats.ok === 0 || runImport.isPending}
+                disabled={stats.applicable === 0 || runImport.isPending}
                 onClick={() => runImport.mutate()}
               >
-                Importar {stats.ok} fila{stats.ok === 1 ? "" : "s"}
+                Importar {stats.applicable} fila{stats.applicable === 1 ? "" : "s"}
               </Button>
             </>
           )}
