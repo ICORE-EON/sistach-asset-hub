@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { FirstAidKitPanel } from "@/components/first-aid-kit-panel";
 
 export const Route = createFileRoute("/_authenticated/_app/assets/$id")({
   head: () => ({ meta: [{ title: "Detalle de activo" }] }),
