@@ -67,7 +67,9 @@ function ListPage() {
         .is("deleted_at", null)
         .order("code");
       if (error) throw error;
-      return (data ?? []) as unknown as ScopedTemplate[];
+      return (data ?? []) as unknown as Array<
+        ScopedTemplate & { current_version: number | null; active: boolean }
+      >;
     },
   });
 
