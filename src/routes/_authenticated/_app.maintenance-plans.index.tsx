@@ -572,7 +572,7 @@ function CreatePlanDialog({
               Plantilla de checklist por tipo
             </Label>
             {usedTypeIds.map((typeId) => {
-              const opts = templates.filter((t) => t.asset_type_id === typeId);
+              const opts = templatesForType(typeId);
               const typeName = i18nName(
                 types.find((t) => t.id === typeId)?.name_i18n,
                 types.find((t) => t.id === typeId)?.code ?? "—",
