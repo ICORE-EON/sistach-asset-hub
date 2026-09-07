@@ -49,21 +49,28 @@ export type PublishedTemplate = {
   id: string;
   code: string;
   name: string;
-  asset_type_id: string;
+  asset_type_id: string | null;
+  asset_family_id: string | null;
+  asset_type_ids: string[] | null;
+  location_ids: string[] | null;
+  include_sublocations: boolean | null;
 };
 
 export async function fetchPublishedTemplates(companyId: string): Promise<PublishedTemplate[]> {
   const { data, error } = await supabase
     .from("checklist_templates")
-    .select("id, code, name, asset_type_id")
+    .select(
+      "id, code, name, asset_type_id, asset_family_id, asset_type_ids, location_ids, include_sublocations",
+    )
     .eq("company_id", companyId)
     .is("deleted_at", null)
     .eq("active", true)
     .gt("current_version", 0)
     .order("name");
   if (error) throw error;
-  return (data ?? []) as PublishedTemplate[];
+  return (data ?? []) as unknown as PublishedTemplate[];
 }
+
 
 /** Latest published version id for each checklist template. */
 export async function fetchPublishedVersions(

@@ -38,6 +38,8 @@ import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
 import { fetchCompanyLocations, fetchScopeAssets, groupAssets } from "@/lib/maintenance-scope";
 import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
+import { resolveTemplatesForType, type ScopedTemplate } from "@/lib/checklist-scope";
+
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/")({
   head: () => ({ meta: [{ title: "Planes de mantenimiento" }] }),
@@ -79,15 +81,20 @@ function PlansList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("checklist_templates")
-        .select("id, code, name, asset_type_id, current_version")
+        .select(
+          "id, code, name, asset_type_id, current_version, asset_family_id, asset_type_ids, location_ids, include_sublocations",
+        )
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
         .gt("current_version", 0)
         .eq("active", true);
       if (error) throw error;
-      return data;
+      return (data ?? []) as unknown as Array<
+        ScopedTemplate & { code: string; name: string; current_version: number }
+      >;
     },
   });
+
 
   const { data: types = [] } = useQuery({
     queryKey: ["asset-types", activeCompanyId],
@@ -211,7 +218,7 @@ function CreatePlanDialog({
   onCreated,
 }: {
   types: Array<{ id: string; code: string; name_i18n: unknown }>;
-  templates: Array<{ id: string; code: string; name: string; asset_type_id: string }>;
+  templates: Array<ScopedTemplate & { code: string; name: string }>;
   onCreated: () => void;
 }) {
   const { activeCompanyId } = useCompany();
@@ -317,8 +324,17 @@ function CreatePlanDialog({
     }
   };
 
+  const templatesForType = (typeId: string) =>
+    resolveTemplatesForType(templates, {
+      assetTypeId: typeId,
+      familyId,
+      locationIds: scopeMode === "scoped" ? locationIds : [],
+      locations,
+    });
+
   const templateFor = (typeId: string) =>
-    typeTemplates[typeId] ?? templates.find((t) => t.asset_type_id === typeId)?.id ?? "";
+    typeTemplates[typeId] ?? templatesForType(typeId)[0]?.id ?? "";
+
 
   const missingTemplates = usedTypeIds.filter((id) => !templateFor(id));
 
@@ -556,7 +572,7 @@ function CreatePlanDialog({
               Plantilla de checklist por tipo
             </Label>
             {usedTypeIds.map((typeId) => {
-              const opts = templates.filter((t) => t.asset_type_id === typeId);
+              const opts = templatesForType(typeId);
               const typeName = i18nName(
                 types.find((t) => t.id === typeId)?.name_i18n,
                 types.find((t) => t.id === typeId)?.code ?? "—",

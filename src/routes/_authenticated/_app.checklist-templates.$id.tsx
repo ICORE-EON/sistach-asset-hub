@@ -27,6 +27,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { i18nName } from "@/lib/i18n-name";
+import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
+import { fetchCompanyLocations } from "@/lib/maintenance-scope";
+import { describeTemplateScope } from "@/lib/checklist-scope";
 
 export const Route = createFileRoute("/_authenticated/_app/checklist-templates/$id")({
   head: () => ({ meta: [{ title: "Editor de plantilla" }] }),
@@ -184,8 +188,11 @@ function TemplateEditor() {
         )}
       </div>
 
+      <ScopeCard templateId={id} canManage={!!canManage} />
+
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         <Card>
+
           <CardHeader>
             <CardTitle className="text-sm">Versiones</CardTitle>
           </CardHeader>
@@ -435,5 +442,210 @@ function AddQuestionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ScopeCard({ templateId, canManage }: { templateId: string; canManage: boolean }) {
+  const { activeCompanyId } = useCompany();
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+
+  const { data: scope } = useQuery({
+    queryKey: ["template-scope", templateId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("checklist_templates")
+        .select("asset_family_id, asset_type_ids, location_ids, include_sublocations")
+        .eq("id", templateId)
+        .single();
+      if (error) throw error;
+      return data as unknown as {
+        asset_family_id: string | null;
+        asset_type_ids: string[] | null;
+        location_ids: string[] | null;
+        include_sublocations: boolean | null;
+      };
+    },
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["asset-families", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+  });
+  const { data: types = [] } = useQuery({
+    queryKey: ["asset-types-family", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchAssetTypes(activeCompanyId!),
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations-scope", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+  });
+
+  const [familyId, setFamilyId] = useState<string>("");
+  const [typeIds, setTypeIds] = useState<string[]>([]);
+  const [locationIds, setLocationIds] = useState<string[]>([]);
+  const [includeSub, setIncludeSub] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+
+  if (scope && !loaded) {
+    setFamilyId(scope.asset_family_id ?? "");
+    setTypeIds(scope.asset_type_ids ?? []);
+    setLocationIds(scope.location_ids ?? []);
+    setIncludeSub(scope.include_sublocations !== false);
+    setLoaded(true);
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("checklist_templates")
+        .update({
+          asset_family_id: familyId || null,
+          asset_type_ids: typeIds,
+          asset_type_id: typeIds.length === 1 ? typeIds[0] : null,
+          location_ids: locationIds,
+          include_sublocations: includeSub,
+        })
+        .eq("id", templateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Ámbito actualizado");
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["template-scope", templateId] });
+      qc.invalidateQueries({ queryKey: ["checklist-templates"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const familyTypes = types.filter((t) => t.family_id === familyId);
+  const toggle = (list: string[], set: (v: string[]) => void, id: string) =>
+    set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+
+  const description = describeTemplateScope(
+    {
+      id: templateId,
+      code: "",
+      name: "",
+      asset_type_id: null,
+      asset_family_id: familyId || null,
+      asset_type_ids: typeIds,
+      location_ids: locationIds,
+      include_sublocations: includeSub,
+    },
+    {
+      familyName: familyId
+        ? i18nName(
+            families.find((f) => f.id === familyId)?.name_i18n,
+            families.find((f) => f.id === familyId)?.code ?? "—",
+          )
+        : null,
+      typeNames: (ids) =>
+        ids.map((id) => {
+          const t = types.find((x) => x.id === id);
+          return t ? i18nName(t.name_i18n, t.code) : "—";
+        }),
+      locationNames: (ids) => ids.map((id) => locations.find((l) => l.id === id)?.name ?? "—"),
+    },
+  );
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-base">Ámbito de aplicación</CardTitle>
+        {canManage && (
+          <Button variant="outline" size="sm" onClick={() => setEditing((v) => !v)}>
+            {editing ? "Cancelar" : "Editar"}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!editing ? (
+          <div className="grid gap-2 text-sm sm:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Familia</p>
+              <p>{description.family}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Tipos</p>
+              <p>{description.types}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase text-muted-foreground">Centros</p>
+              <p>{description.locations}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Familia de activos</Label>
+              <Select
+                value={familyId}
+                onValueChange={(v) => {
+                  setFamilyId(v);
+                  setTypeIds([]);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-[320px]">
+                  <SelectValue placeholder="Selecciona familia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {families.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {i18nName(f.name_i18n, f.code)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label className="text-xs uppercase text-muted-foreground">
+                Tipos de activo (sin marcar = todos los de la familia)
+              </Label>
+              <div className="max-h-40 space-y-1 overflow-y-auto">
+                {familyTypes.map((t) => (
+                  <label key={t.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={typeIds.includes(t.id)}
+                      onCheckedChange={() => toggle(typeIds, setTypeIds, t.id)}
+                    />
+                    {i18nName(t.name_i18n, t.code)}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border p-3">
+              <Label className="text-xs uppercase text-muted-foreground">
+                Centros (sin marcar = todos)
+              </Label>
+              <div className="max-h-40 space-y-1 overflow-y-auto">
+                {locations.map((l) => (
+                  <label key={l.id} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={locationIds.includes(l.id)}
+                      onCheckedChange={() => toggle(locationIds, setLocationIds, l.id)}
+                    />
+                    {l.name}
+                  </label>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={includeSub} onCheckedChange={(c) => setIncludeSub(!!c)} />
+                Incluir sububicaciones
+              </label>
+            </div>
+
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Guardando…" : "Guardar ámbito"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
