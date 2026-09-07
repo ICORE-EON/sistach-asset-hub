@@ -1000,7 +1000,9 @@ export type Database = {
       checklist_templates: {
         Row: {
           active: boolean
-          asset_type_id: string
+          asset_family_id: string | null
+          asset_type_id: string | null
+          asset_type_ids: string[]
           code: string
           company_id: string
           created_at: string
@@ -1008,12 +1010,16 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           id: string
+          include_sublocations: boolean
+          location_ids: string[]
           name: string
           updated_at: string
         }
         Insert: {
           active?: boolean
-          asset_type_id: string
+          asset_family_id?: string | null
+          asset_type_id?: string | null
+          asset_type_ids?: string[]
           code: string
           company_id: string
           created_at?: string
@@ -1021,12 +1027,16 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           id?: string
+          include_sublocations?: boolean
+          location_ids?: string[]
           name: string
           updated_at?: string
         }
         Update: {
           active?: boolean
-          asset_type_id?: string
+          asset_family_id?: string | null
+          asset_type_id?: string | null
+          asset_type_ids?: string[]
           code?: string
           company_id?: string
           created_at?: string
@@ -1034,10 +1044,19 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           id?: string
+          include_sublocations?: boolean
+          location_ids?: string[]
           name?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "checklist_templates_asset_family_id_fkey"
+            columns: ["asset_family_id"]
+            isOneToOne: false
+            referencedRelation: "asset_families"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "checklist_templates_asset_type_id_fkey"
             columns: ["asset_type_id"]
