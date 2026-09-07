@@ -38,6 +38,8 @@ import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
 import { fetchCompanyLocations, fetchScopeAssets, groupAssets } from "@/lib/maintenance-scope";
 import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
+import { resolveTemplatesForType, type ScopedTemplate } from "@/lib/checklist-scope";
+
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/")({
   head: () => ({ meta: [{ title: "Planes de mantenimiento" }] }),
