@@ -218,7 +218,7 @@ function CreatePlanDialog({
   onCreated,
 }: {
   types: Array<{ id: string; code: string; name_i18n: unknown }>;
-  templates: Array<{ id: string; code: string; name: string; asset_type_id: string }>;
+  templates: Array<ScopedTemplate & { code: string; name: string }>;
   onCreated: () => void;
 }) {
   const { activeCompanyId } = useCompany();
