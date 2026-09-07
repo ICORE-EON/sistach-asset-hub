@@ -324,8 +324,17 @@ function CreatePlanDialog({
     }
   };
 
+  const templatesForType = (typeId: string) =>
+    resolveTemplatesForType(templates, {
+      assetTypeId: typeId,
+      familyId,
+      locationIds: scopeMode === "scoped" ? locationIds : [],
+      locations,
+    });
+
   const templateFor = (typeId: string) =>
-    typeTemplates[typeId] ?? templates.find((t) => t.asset_type_id === typeId)?.id ?? "";
+    typeTemplates[typeId] ?? templatesForType(typeId)[0]?.id ?? "";
+
 
   const missingTemplates = usedTypeIds.filter((id) => !templateFor(id));
 
