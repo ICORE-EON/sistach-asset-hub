@@ -79,15 +79,20 @@ function PlansList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("checklist_templates")
-        .select("id, code, name, asset_type_id, current_version")
+        .select(
+          "id, code, name, asset_type_id, current_version, asset_family_id, asset_type_ids, location_ids, include_sublocations",
+        )
         .eq("company_id", activeCompanyId!)
         .is("deleted_at", null)
         .gt("current_version", 0)
         .eq("active", true);
       if (error) throw error;
-      return data;
+      return (data ?? []) as unknown as Array<
+        ScopedTemplate & { code: string; name: string; current_version: number }
+      >;
     },
   });
+
 
   const { data: types = [] } = useQuery({
     queryKey: ["asset-types", activeCompanyId],
