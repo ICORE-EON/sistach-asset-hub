@@ -184,8 +184,11 @@ function TemplateEditor() {
         )}
       </div>
 
+      <ScopeCard templateId={id} canManage={!!canManage} />
+
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
         <Card>
+
           <CardHeader>
             <CardTitle className="text-sm">Versiones</CardTitle>
           </CardHeader>
