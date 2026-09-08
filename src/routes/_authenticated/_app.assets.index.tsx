@@ -53,7 +53,9 @@ function AssetsList() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [familyFilter, setFamilyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
 
   const role = activeMembership?.role;
@@ -65,9 +67,25 @@ function AssetsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("asset_types")
-        .select("id, code, name_i18n, category, is_system")
+        .select("id, code, name_i18n, category, is_system, family_id")
         .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
         .eq("active", true)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["asset-families", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("asset_families")
+        .select("id, code, name_i18n, color")
+        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
+        .eq("active", true)
+        .order("sort_order")
         .order("code");
       if (error) throw error;
       return data;
@@ -91,7 +109,7 @@ function AssetsList() {
   });
 
   const { data: assets = [], isLoading } = useQuery({
-    queryKey: ["assets", activeCompanyId, statusFilter, typeFilter, q],
+    queryKey: ["assets", activeCompanyId, statusFilter, familyFilter, typeFilter, locationFilter, q],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       let query = supabase
@@ -105,6 +123,15 @@ function AssetsList() {
         .limit(500);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       if (typeFilter !== "all") query = query.eq("asset_type_id", typeFilter);
+      else if (familyFilter !== "all") {
+        const ids = types
+          .filter((t) => t.family_id === familyFilter)
+          .map((t) => t.id);
+        query = ids.length
+          ? query.in("asset_type_id", ids)
+          : query.eq("asset_type_id", "00000000-0000-0000-0000-000000000000");
+      }
+      if (locationFilter !== "all") query = query.eq("location_id", locationFilter);
       if (q.trim()) {
         const term = `%${q.trim()}%`;
         query = query.or(
