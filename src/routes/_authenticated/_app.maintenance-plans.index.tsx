@@ -296,8 +296,14 @@ function PlansList() {
                   Aún no hay planes. {templates.length === 0 && "Necesitas al menos una plantilla publicada."}
                 </TableCell>
               </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  Ningún plan coincide con los filtros.
+                </TableCell>
+              </TableRow>
             ) : (
-              plans.map((p) => (
+              filtered.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-xs">{p.code}</TableCell>
                   <TableCell className="font-medium">
