@@ -146,6 +146,14 @@ function AssetsList() {
 
   const typeMap = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
 
+  const visibleTypes = useMemo(
+    () =>
+      familyFilter === "all"
+        ? types
+        : types.filter((t) => t.family_id === familyFilter),
+    [types, familyFilter],
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -190,15 +198,51 @@ function AssetsList() {
             className="pl-9"
           />
         </div>
+        <Select
+          value={familyFilter}
+          onValueChange={(v) => {
+            setFamilyFilter(v);
+            // Si el tipo seleccionado deja de pertenecer a la familia, se reinicia
+            if (v !== "all") {
+              const t = types.find((x) => x.id === typeFilter);
+              if (typeFilter !== "all" && t && t.family_id !== v) setTypeFilter("all");
+            }
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Familia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las familias</SelectItem>
+            {families.map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {i18nName(f.name_i18n, f.code)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {types.map((t) => (
+            {visibleTypes.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {i18nName(t.name_i18n, t.code)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={locationFilter} onValueChange={setLocationFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Ubicación" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las ubicaciones</SelectItem>
+            {locations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
               </SelectItem>
             ))}
           </SelectContent>
