@@ -57,6 +57,11 @@ function PlansList() {
   const { activeCompanyId, activeMembership } = useCompany();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [familyFilter, setFamilyFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [frequencyFilter, setFrequencyFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
@@ -109,6 +114,47 @@ function PlansList() {
       return data;
     },
   });
+
+  // Opciones de familia y tipo a partir de los planes existentes
+  const familyOptions = [
+    ...new Map(
+      plans
+        .filter((p) => p.asset_families)
+        .map((p) => [p.asset_family_id, i18nName(p.asset_families.name_i18n, p.asset_families.code)]),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const typeOptions = [
+    ...new Map(
+      plans
+        .filter((p) => p.asset_types)
+        .filter((p) => familyFilter === "all" || p.asset_family_id === familyFilter)
+        .map((p) => [p.asset_type_id, i18nName(p.asset_types.name_i18n, p.asset_types.code)]),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const filtered = plans.filter((p) => {
+    if (search) {
+      const t = search.toLowerCase();
+      if (
+        !p.name.toLowerCase().includes(t) &&
+        !p.code.toLowerCase().includes(t)
+      )
+        return false;
+    }
+    if (familyFilter !== "all" && p.asset_family_id !== familyFilter) return false;
+    if (typeFilter !== "all" && p.asset_type_id !== typeFilter) return false;
+    if (frequencyFilter !== "all" && p.frequency !== frequencyFilter) return false;
+    if (statusFilter !== "all" && p.active !== (statusFilter === "active")) return false;
+    return true;
+  });
+
+  const hasFilters =
+    search !== "" ||
+    familyFilter !== "all" ||
+    typeFilter !== "all" ||
+    frequencyFilter !== "all" ||
+    statusFilter !== "all";
 
   return (
     <div className="space-y-6">
