@@ -57,6 +57,11 @@ function PlansList() {
   const { activeCompanyId, activeMembership } = useCompany();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [familyFilter, setFamilyFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [frequencyFilter, setFrequencyFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
@@ -110,6 +115,53 @@ function PlansList() {
     },
   });
 
+  // Opciones de familia y tipo a partir de los planes existentes
+  const familyOptions = [
+    ...new Map(
+      plans
+        .flatMap((p) =>
+          p.asset_families && p.asset_family_id
+            ? [[p.asset_family_id, i18nName(p.asset_families.name_i18n, p.asset_families.code)] as const]
+            : [],
+        ),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const typeOptions = [
+    ...new Map(
+      plans
+        .flatMap((p) =>
+          p.asset_types && p.asset_type_id &&
+          (familyFilter === "all" || p.asset_family_id === familyFilter)
+            ? [[p.asset_type_id, i18nName(p.asset_types.name_i18n, p.asset_types.code)] as const]
+            : [],
+        ),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const filtered = plans.filter((p) => {
+    if (search) {
+      const t = search.toLowerCase();
+      if (
+        !p.name.toLowerCase().includes(t) &&
+        !p.code.toLowerCase().includes(t)
+      )
+        return false;
+    }
+    if (familyFilter !== "all" && p.asset_family_id !== familyFilter) return false;
+    if (typeFilter !== "all" && p.asset_type_id !== typeFilter) return false;
+    if (frequencyFilter !== "all" && p.frequency !== frequencyFilter) return false;
+    if (statusFilter !== "all" && p.active !== (statusFilter === "active")) return false;
+    return true;
+  });
+
+  const hasFilters =
+    search !== "" ||
+    familyFilter !== "all" ||
+    typeFilter !== "all" ||
+    frequencyFilter !== "all" ||
+    statusFilter !== "all";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -144,6 +196,85 @@ function PlansList() {
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre o código…"
+          className="min-w-[200px] flex-1 sm:max-w-xs"
+        />
+        <Select
+          value={familyFilter}
+          onValueChange={(v) => {
+            setFamilyFilter(v);
+            setTypeFilter("all");
+          }}
+        >
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las familias</SelectItem>
+            {familyOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            {typeOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las frecuencias</SelectItem>
+            {FREQUENCIES.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="paused">Pausados</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFamilyFilter("all");
+              setTypeFilter("all");
+              setFrequencyFilter("all");
+              setStatusFilter("all");
+            }}
+          >
+            Limpiar
+          </Button>
+        )}
+      </div>
+
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
@@ -171,8 +302,14 @@ function PlansList() {
                   Aún no hay planes. {templates.length === 0 && "Necesitas al menos una plantilla publicada."}
                 </TableCell>
               </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                  Ningún plan coincide con los filtros.
+                </TableCell>
+              </TableRow>
             ) : (
-              plans.map((p) => (
+              filtered.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-xs">{p.code}</TableCell>
                   <TableCell className="font-medium">
