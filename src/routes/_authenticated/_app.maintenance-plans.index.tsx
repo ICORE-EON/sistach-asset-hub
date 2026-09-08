@@ -190,6 +190,85 @@ function PlansList() {
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por nombre o código…"
+          className="min-w-[200px] flex-1 sm:max-w-xs"
+        />
+        <Select
+          value={familyFilter}
+          onValueChange={(v) => {
+            setFamilyFilter(v);
+            setTypeFilter("all");
+          }}
+        >
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las familias</SelectItem>
+            {familyOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los tipos</SelectItem>
+            {typeOptions.map(([id, name]) => (
+              <SelectItem key={id} value={id}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={frequencyFilter} onValueChange={setFrequencyFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las frecuencias</SelectItem>
+            {FREQUENCIES.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="paused">Pausados</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setFamilyFilter("all");
+              setTypeFilter("all");
+              setFrequencyFilter("all");
+              setStatusFilter("all");
+            }}
+          >
+            Limpiar
+          </Button>
+        )}
+      </div>
+
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
