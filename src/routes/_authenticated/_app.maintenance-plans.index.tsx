@@ -119,17 +119,23 @@ function PlansList() {
   const familyOptions = [
     ...new Map(
       plans
-        .filter((p) => p.asset_families)
-        .map((p) => [p.asset_family_id, i18nName(p.asset_families.name_i18n, p.asset_families.code)]),
+        .flatMap((p) =>
+          p.asset_families && p.asset_family_id
+            ? [[p.asset_family_id, i18nName(p.asset_families.name_i18n, p.asset_families.code)] as const]
+            : [],
+        ),
     ).entries(),
   ].sort((a, b) => a[1].localeCompare(b[1]));
 
   const typeOptions = [
     ...new Map(
       plans
-        .filter((p) => p.asset_types)
-        .filter((p) => familyFilter === "all" || p.asset_family_id === familyFilter)
-        .map((p) => [p.asset_type_id, i18nName(p.asset_types.name_i18n, p.asset_types.code)]),
+        .flatMap((p) =>
+          p.asset_types && p.asset_type_id &&
+          (familyFilter === "all" || p.asset_family_id === familyFilter)
+            ? [[p.asset_type_id, i18nName(p.asset_types.name_i18n, p.asset_types.code)] as const]
+            : [],
+        ),
     ).entries(),
   ].sort((a, b) => a[1].localeCompare(b[1]));
 
