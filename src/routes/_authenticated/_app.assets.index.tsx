@@ -53,7 +53,9 @@ function AssetsList() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [familyFilter, setFamilyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
 
   const role = activeMembership?.role;
@@ -65,9 +67,25 @@ function AssetsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("asset_types")
-        .select("id, code, name_i18n, category, is_system")
+        .select("id, code, name_i18n, category, is_system, family_id")
         .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
         .eq("active", true)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: families = [] } = useQuery({
+    queryKey: ["asset-families", activeCompanyId],
+    enabled: !!activeCompanyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("asset_families")
+        .select("id, code, name_i18n, color")
+        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
+        .eq("active", true)
+        .order("sort_order")
         .order("code");
       if (error) throw error;
       return data;
@@ -91,7 +109,7 @@ function AssetsList() {
   });
 
   const { data: assets = [], isLoading } = useQuery({
-    queryKey: ["assets", activeCompanyId, statusFilter, typeFilter, q],
+    queryKey: ["assets", activeCompanyId, statusFilter, familyFilter, typeFilter, locationFilter, q],
     enabled: !!activeCompanyId,
     queryFn: async () => {
       let query = supabase
@@ -105,6 +123,15 @@ function AssetsList() {
         .limit(500);
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       if (typeFilter !== "all") query = query.eq("asset_type_id", typeFilter);
+      else if (familyFilter !== "all") {
+        const ids = types
+          .filter((t) => t.family_id === familyFilter)
+          .map((t) => t.id);
+        query = ids.length
+          ? query.in("asset_type_id", ids)
+          : query.eq("asset_type_id", "00000000-0000-0000-0000-000000000000");
+      }
+      if (locationFilter !== "all") query = query.eq("location_id", locationFilter);
       if (q.trim()) {
         const term = `%${q.trim()}%`;
         query = query.or(
@@ -118,6 +145,14 @@ function AssetsList() {
   });
 
   const typeMap = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
+
+  const visibleTypes = useMemo(
+    () =>
+      familyFilter === "all"
+        ? types
+        : types.filter((t) => t.family_id === familyFilter),
+    [types, familyFilter],
+  );
 
   return (
     <div className="space-y-6">
@@ -163,15 +198,51 @@ function AssetsList() {
             className="pl-9"
           />
         </div>
+        <Select
+          value={familyFilter}
+          onValueChange={(v) => {
+            setFamilyFilter(v);
+            // Si el tipo seleccionado deja de pertenecer a la familia, se reinicia
+            if (v !== "all") {
+              const t = types.find((x) => x.id === typeFilter);
+              if (typeFilter !== "all" && t && t.family_id !== v) setTypeFilter("all");
+            }
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Familia" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las familias</SelectItem>
+            {families.map((f) => (
+              <SelectItem key={f.id} value={f.id}>
+                {i18nName(f.name_i18n, f.code)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {types.map((t) => (
+            {visibleTypes.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {i18nName(t.name_i18n, t.code)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={locationFilter} onValueChange={setLocationFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Ubicación" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las ubicaciones</SelectItem>
+            {locations.map((l) => (
+              <SelectItem key={l.id} value={l.id}>
+                {l.name}
               </SelectItem>
             ))}
           </SelectContent>
