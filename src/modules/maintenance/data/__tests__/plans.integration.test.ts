@@ -44,13 +44,17 @@ describe.skipIf(!run)("plans repo · integración real", () => {
       const pa = await repo.listPlanAssets(orgId, p.id);
       links += pa.length;
       await expect(repo.listPlanAssets(FOREIGN_ORG, p.id)).rejects.toThrow(/organización activa/);
-      if (p.scope_mode === "scoped" && p.asset_type_id) {
+      const { data: fts } = await client.from("asset_types").select("id").eq("family_id", p.asset_family_id ?? "");
+      const typeIds = p.asset_family_id ? (fts ?? []).map((t) => t.id) : p.asset_type_id ? [p.asset_type_id] : [];
+      if (typeIds.length) {
         const assets = await repo.listScopeAssets(orgId, {
-          assetTypeIds: [p.asset_type_id], locationIds: (p.scope_location_ids as string[]) ?? [],
+          assetTypeIds: typeIds, locationIds: (p.scope_location_ids as string[]) ?? [],
           includeSublocations: p.scope_include_sublocations,
         });
         scoped += assets.length;
-        expect(await repo.listScopeAssets(FOREIGN_ORG, { assetTypeIds: [p.asset_type_id], locationIds: [], includeSublocations: true })).toHaveLength(0);
+        // Every linked asset of a scoped plan is still resolvable by its scope (same rule as before).
+        if (p.scope_mode === "scoped") for (const l of pa) expect(assets.map((a) => a.id)).toContain(l.asset_id);
+        expect(await repo.listScopeAssets(FOREIGN_ORG, { assetTypeIds: typeIds, locationIds: [], includeSublocations: true })).toHaveLength(0);
       }
     }
     console.info(`[IT] planes=${plans.length} vínculos=${links} alcance=${scoped} certificados=${certs.length}`);
