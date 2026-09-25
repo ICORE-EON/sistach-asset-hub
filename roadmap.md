@@ -1,0 +1,12 @@
+# Roadmap – desacoplamiento del módulo de mantenimiento
+
+- [x] Fase 0/1: Vitest, frontera `src/modules/maintenance`, contratos, manifest, dominio puro + tests
+- [ ] Fase 2: adaptadores standalone (tenant, authz, people, sites, assets, docs)
+- [ ] Fase 3: repositorios y servicios por dominio (quitar supabase.* de páginas)
+- [ ] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales
+- [ ] Fase 5: migraciones M1–M7 (org_id, FKs compuestas, tablas de relación, outbox)
+- [ ] Fase 6: person_ref + actor_snapshot, document_version_ref
+- [ ] Fase 7: seguridad (host_has_perm, RPC cierre/reapertura, QR con caducidad y límite)
+- [ ] Fase 8: línea base limpia para ICORE
+- [ ] Fase 9: paquete de exportación
+- Bloqueado (decisiones ICORE): permisos como función SQL, auth.users compartido, motor de importación/firma, prefijo `mnt_` vs esquema
