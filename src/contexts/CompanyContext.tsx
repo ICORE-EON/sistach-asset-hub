@@ -21,10 +21,13 @@ const CompanyContext = createContext<CompanyState | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [activeCompanyId, setActive] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEY);
-  });
+  // Se lee tras hidratar para que servidor y cliente rendericen igual.
+  const [activeCompanyId, setActive] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setActive(localStorage.getItem(STORAGE_KEY));
+    setHydrated(true);
+  }, []);
 
   const { data: memberships = [], isLoading, refetch } = useQuery({
     queryKey: ["memberships", user?.id],
@@ -41,11 +44,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!memberships.length) return;
+    if (!hydrated || !memberships.length) return;
     if (activeCompanyId && memberships.some((m) => m.company_id === activeCompanyId)) return;
     const def = memberships.find((m) => m.is_default) ?? memberships[0];
     setActiveCompanyId(def.company_id);
-  }, [memberships, activeCompanyId]);
+  }, [hydrated, memberships, activeCompanyId]);
 
   const setActiveCompanyId = (id: string) => {
     setActive(id);
@@ -56,7 +59,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   return (
     <CompanyContext.Provider
-      value={{ activeCompanyId, setActiveCompanyId, memberships, activeMembership, loading: isLoading, refetch }}
+      value={{ activeCompanyId, setActiveCompanyId, memberships, activeMembership, loading: isLoading || !hydrated, refetch }}
     >
       {children}
     </CompanyContext.Provider>

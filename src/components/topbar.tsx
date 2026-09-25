@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,10 +60,12 @@ export function Topbar() {
             <BreadcrumbPage>{ROUTE_LABELS[current] ?? current}</BreadcrumbPage>
           </BreadcrumbItem>
           {segments.slice(1).map((seg, i) => (
-            <BreadcrumbItem key={i}>
+            <Fragment key={i}>
               <BreadcrumbSeparator />
-              <BreadcrumbPage className="capitalize">{seg}</BreadcrumbPage>
-            </BreadcrumbItem>
+              <BreadcrumbItem>
+                <BreadcrumbPage className="capitalize">{seg}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </Fragment>
           ))}
         </BreadcrumbList>
       </Breadcrumb>
