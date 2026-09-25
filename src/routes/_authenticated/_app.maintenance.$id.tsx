@@ -233,7 +233,7 @@ function SessionDetail() {
             key={activeItem.id}
             item={activeItem}
             editable={editable && session.status === "in_progress"}
-            companyId={session.company_id}
+            companyId={orgId ?? session.company_id}
             sessionId={id}
           />
         ) : (
