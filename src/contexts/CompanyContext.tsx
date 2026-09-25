@@ -44,11 +44,11 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (!memberships.length) return;
+    if (!hydrated || !memberships.length) return;
     if (activeCompanyId && memberships.some((m) => m.company_id === activeCompanyId)) return;
     const def = memberships.find((m) => m.is_default) ?? memberships[0];
     setActiveCompanyId(def.company_id);
-  }, [memberships, activeCompanyId]);
+  }, [hydrated, memberships, activeCompanyId]);
 
   const setActiveCompanyId = (id: string) => {
     setActive(id);
@@ -59,7 +59,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   return (
     <CompanyContext.Provider
-      value={{ activeCompanyId, setActiveCompanyId, memberships, activeMembership, loading: isLoading, refetch }}
+      value={{ activeCompanyId, setActiveCompanyId, memberships, activeMembership, loading: isLoading || !hydrated, refetch }}
     >
       {children}
     </CompanyContext.Provider>
