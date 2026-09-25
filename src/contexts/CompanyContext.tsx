@@ -21,10 +21,13 @@ const CompanyContext = createContext<CompanyState | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [activeCompanyId, setActive] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_KEY);
-  });
+  // Se lee tras hidratar para que servidor y cliente rendericen igual.
+  const [activeCompanyId, setActive] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setActive(localStorage.getItem(STORAGE_KEY));
+    setHydrated(true);
+  }, []);
 
   const { data: memberships = [], isLoading, refetch } = useQuery({
     queryKey: ["memberships", user?.id],

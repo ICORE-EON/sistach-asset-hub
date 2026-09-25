@@ -82,9 +82,12 @@ function AuthSync() {
   const router = useRouter();
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    // Solo transiciones de identidad: INITIAL_SESSION/TOKEN_REFRESHED invalidaban
+    // el router en mitad de la navegación inicial ("Uncaught undefined" en MatchInnerImpl).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
-      queryClient.invalidateQueries();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
