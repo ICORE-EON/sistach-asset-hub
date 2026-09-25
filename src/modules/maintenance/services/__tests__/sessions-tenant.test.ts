@@ -305,7 +305,7 @@ describe("cross-org guards, transitions and idempotency", () => {
     await expect(sessionService.closeSession(B, "sB2", { ...sig, signerName: " " })).rejects.toThrow("Indica el nombre del firmante");
     await expect(sessionService.closeSession(B, "sB2", { ...sig, signature: null })).rejects.toThrow("Firma para continuar");
     expect(() => sessionService.createSession(B, { requestId: "r", planId: "", locationId: "", scheduledFor: "", technicianName: "" })).toThrow("Selecciona un plan");
-    await expect(sessionService.listSessions(null, "all")).rejects.toThrow(/Sin empresa activa/);
+    expect(() => sessionService.listSessions(null, "all")).toThrow(/Sin empresa activa/);
     const qc = new QueryClient();
     const bind = (org: string) => ({ mutationFn: () => sessionService.startSession(org, "sB") });
     const m = new MutationObserver(qc, bind(A));
