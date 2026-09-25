@@ -291,7 +291,7 @@ describe("cross-org guards, transitions and idempotency", () => {
     (s.maintenance_plans as Row).asset_families = { requires_certificate: true };
     await sessionService.closeSession(B, "sB2", sig);
     expect(legacy.emitSessionCertificate).toHaveBeenCalledTimes(1);
-    expect(legacy.emitSessionCertificate.mock.calls[0][0]).toBe(B);
+    expect((legacy.emitSessionCertificate.mock.calls[0] as unknown as [string])[0]).toBe(B);
     legacy.findSessionCertificate.mockResolvedValueOnce({ id: "c1", code: "CERT-1" });
     expect(await sessionService.closeSession(B, "sB2", sig)).toEqual({ cert: { id: "c1", code: "CERT-1" }, pdfFailed: false });
     expect(legacy.emitSessionCertificate).toHaveBeenCalledTimes(1);
