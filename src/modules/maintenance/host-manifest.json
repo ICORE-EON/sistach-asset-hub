@@ -1,0 +1,15 @@
+{
+  "module": "maintenance",
+  "contractVersion": "1.0.0",
+  "requires": {
+    "tables": [{ "name": "host organization table", "standalone": "public.companies", "pk": "id uuid" }],
+    "functions": [
+      "host_has_perm(org_id uuid, perm text) returns boolean  -- SECURITY DEFINER, search_path='', identity from auth.uid(), fail-closed, EXECUTE only to authenticated",
+      "host_current_person() returns uuid",
+      "host_site_tree(org_id uuid)",
+      "host_register_document_version(...)"
+    ],
+    "optional": ["host outbox table"]
+  },
+  "permissions": ["mnt.view", "mnt.manage_assets", "mnt.run", "mnt.close", "mnt.reopen", "mnt.certify", "mnt.admin"]
+}
