@@ -163,3 +163,68 @@ export type MntDomainEvent =
 ```
 
 En base de datos, el módulo requiere del host una función `host_has_perm(org_id uuid, perm text) returns boolean` (security definer, estable), que usan todas las políticas `mnt_*`. En modo standalone se implementa sobre `company_members`.
+
+## H) Condiciones obligatorias (incorporadas; prevalecen sobre lo anterior si hay conflicto)
+
+**1. Integridad multi-tenant.** `org_id NOT NULL` en todas las tablas `mnt_*`, incluidas hijas (items, responses, questions, versions, certificate_items, status_history, reopen_log, kit_contents, vehicle_mounts) y tablas de unión (`mnt_plan_assets`, `mnt_plan_sites`, `mnt_checklist_template_types`, `mnt_checklist_template_sites`, `mnt_plan_type_templates`). Todos los padres llevan `UNIQUE (org_id, id)` y las hijas, FKs compuestas `(org_id, parent_id) REFERENCES parent(org_id, id)`. Así se impide a nivel de esquema relacionar filas de organizaciones distintas. Las tablas de sistema (familias y tipos globales) se modelan con `org_id` nulo + tabla puente por organización, o se copian por organización; esta decisión se toma en la fase 5.
+
+**2. Organización canónica.** En ICORE, `org_id` referencia mediante FK la tabla de organizaciones de ICORE. El paquete portable declara esa FK como prerrequisito de instalación en el manifest (punto 10); no queda como UUID anónimo. En modo standalone la FK apunta a `companies`.
+
+**3. Autorización.** `AuthzPort.can()` solo sirve para mostrar u ocultar elementos de la interfaz. La autoridad real está en RLS y en las RPC. `host_has_perm(org_id uuid, perm text)`:
+- obtiene la identidad solo de `auth.uid()` y nunca recibe el usuario como parámetro;
+- es `SECURITY DEFINER`, `STABLE`, con `SET search_path = ''` y nombres totalmente cualificados;
+- falla de forma cerrada: devuelve false si `auth.uid()` es nulo, la organización no existe o el permiso es desconocido;
+- tiene `REVOKE ALL FROM PUBLIC, anon` y `GRANT EXECUTE TO authenticated`.
+
+Cerrar, reabrir y emitir certificado solo son posibles mediante RPC transaccionales que comprueban el permiso dentro de la propia función.
+
+**4. Eventos y auditoría.** Se usa un transactional outbox (`mnt_outbox`, o el outbox del host si ICORE lo ofrece, según el manifest). Las RPC de cierre y reapertura de sesión, apertura, cambio de estado y cierre de incidencia, y emisión de certificado escriben la mutación de dominio y el evento en la misma transacción. Un worker del host consume el outbox con clave de idempotencia (`event_id`). Para no duplicar la auditoría, en modo ICORE se retiran los triggers `audit_trigger_fn` de las tablas `mnt_*` y `AuditPort` deja de emitir desde el cliente. En modo standalone los triggers actuales se mantienen hasta la fase de corte.
+
+**5. Secuencia de migraciones (siempre hacia delante):**
+```text
+M1 crear tablas normalizadas + org_id + UNIQUE/FK compuestas (NOT VALID)
+M2 backfill idempotente (INSERT ... ON CONFLICT DO NOTHING)
+M3 reconciliación: vistas/consultas de recuento array vs tabla, referencias huérfanas, filas cross-org -> informe; no se borra nada
+M4 sincronización temporal controlada (trigger de doble escritura) solo si hace falta
+M5 cambiar las lecturas de repositorios al modelo normalizado
+M6 VALIDATE CONSTRAINT + checks de reconciliación en verde
+M7 (migración posterior y separada) retirar arrays, category y asset_type_id legado
+```
+Si algo falla, se corrige con una migración compensatoria nueva, nunca con rollback destructivo. Las migraciones redundantes 20260907192726/192916 se documentan y no se tocan.
+
+**6. Activos: decisión explícita.** Objetivo: registro compartido de activos de ICORE consumido mediante `AssetPort`. Mantenimiento conserva sus especializaciones (`mnt_vehicle_details`, `mnt_vehicle_mounts`, `mnt_first_aid_kit_contents`, familias y tipos de mantenimiento si ICORE no los tiene) referenciando `asset_ref`. MVP: los activos siguen dentro del módulo, pero solo son accesibles mediante `AssetPort` (repositorio `assets` detrás del puerto). Ninguna página ni servicio consulta la tabla directamente, de modo que después se pueden extraer sin afectar a quien los usa.
+
+**7. Identidad histórica.** Además de `person_ref`, se guarda una instantánea inmutable (`actor_snapshot jsonb`: nombre, puesto o rol, interno/externo, proveedor, NIF del proveedor si aplica) en sesiones (técnico y firmante), respuestas (quien responde), reaperturas, firmas y certificados. La instantánea se escribe en la RPC y un trigger impide modificarla después.
+
+**8. Certificados y documentos.** Mantenimiento guarda los metadatos del certificado (código, sesión, plan, ítems, resultado, vigencia de negocio) y sus relaciones. ICORE guarda el archivo, la versión, el hash, la vigencia documental y la evidencia. `mnt_certificates.document_version_ref NOT NULL` una vez emitido. Se retiran `pdf_url` y `pdf_hash_sha256` locales (en M7).
+
+**9. Contrato documental independiente del navegador.**
+- Servicio de dominio: `DocumentService.registerVersion({ orgId, kind, subject, bytesRef | stream, mime, meta }) -> DocumentVersionRef`, ejecutado en servidor. El servidor calcula el SHA-256 y registra la versión.
+- Adaptador web (`adapters/web/upload.ts`): convierte `File/Blob` en una subida firmada y llama al servidor function. Solo la interfaz lo usa.
+- El PDF del certificado se genera o vuelve a verificar en servidor (pdf-lib es compatible con Workers).
+
+**10. Manifest de prerrequisitos del host** (`modules/maintenance/host-manifest.json` + `preflight.sql`):
+- `contractVersion` (semver);
+- tablas y funciones requeridas: org table + PK, `host_has_perm`, `host_current_person()`, sitios (`host_site_tree`), documentos (`host_register_document_version`), outbox (opcional);
+- permisos requeridos: `mnt.view, mnt.manage_assets, mnt.run, mnt.close, mnt.reopen, mnt.certify, mnt.admin`.
+
+El preflight aborta la instalación con un error claro (fail-fast) si falta algo o no coincide la versión. También se ejecuta al iniciar el módulo (`MaintenanceProvider`), que no se monta si falla.
+
+**11. Pruebas ampliadas:**
+- inserción y actualización cross-org rechazadas por FK compuesta y por RLS;
+- cambio de organización activa con consultas en caché: las query keys incluyen `orgId` y el caché se invalida al cambiar;
+- cierre y reapertura concurrentes (dos transacciones: una gana y la otra recibe un error controlado; `SELECT ... FOR UPDATE` en RPC);
+- emisión duplicada de certificado (clave idempotente `UNIQUE (org_id, session_id) WHERE status <> 'revoked'`);
+- migraciones y backfills idempotentes (ejecutar dos veces da el mismo resultado);
+- actor eliminado o desactivado: el historial muestra la instantánea;
+- versión documental retirada: el certificado conserva la referencia y el hash;
+- QR caducado, revocado y limitado por tasa (tabla `mnt_qr_tokens` con `expires_at`, `revoked_at` y límite por IP/token).
+
+**12. Vitest.** Se añaden `vitest` (+ `@vitest/coverage-v8`), `vitest.config.ts` con alias `@`, script `test` en package.json y la carpeta `modules/maintenance/**/__tests__`. Las pruebas SQL y RLS se ejecutan con un script contra una base de datos de prueba (pgTAP o consultas asertivas vía psql).
+
+**13. Alcance.** No hay cambios de interfaz ajenos al desacoplamiento, no se publica y no se conecta GitHub. Cada fase se divide en commits pequeños y revisables.
+
+### Ajustes al contrato (sección G)
+- `docs` cambia a `registerVersion(input: DocumentVersionInput): Promise<DocumentVersionRef>` sin `File/Blob`. La subida web queda en el adaptador web.
+- Se añaden `assets: AssetPort` (`get`, `list`, `search`, `byQr`) y `manifest: { contractVersion; preflight(): Promise<PreflightResult> }`.
+- `audit` se sustituye por el outbox del lado servidor. El cliente no emite eventos de auditoría.
