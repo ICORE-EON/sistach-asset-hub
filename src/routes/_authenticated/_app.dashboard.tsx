@@ -107,12 +107,12 @@ function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Bienvenido, {user?.user_metadata?.full_name ?? user?.email}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Empresa activa:{" "}
           <span className="font-medium text-foreground">{activeMembership?.companies.name}</span>
           {" · "}
           Rol: <Badge variant="outline" className="ml-1 capitalize">{activeMembership?.role}</Badge>
-        </p>
+        </div>
       </div>
 
       {isLoading || !stats ? (
