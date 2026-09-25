@@ -151,7 +151,7 @@ export function createChecklistsRepo(c: StandaloneClient) {
     async saveResponse(orgId: string, itemId: string, versionId: string, r: ResponseInput) {
       const s = await assertItem(orgId, itemId);
       // Answers can only change while the session is in progress (the UI already only allows that).
-      if (s.status !== undefined && s.status !== "in_progress") throw new Error("La sesión está cerrada");
+      if (s.status !== "in_progress") throw new Error("La sesión está cerrada");
       ok(await c.from("checklist_responses").upsert({
         maintenance_item_id: itemId, checklist_template_version_id: versionId, question_id: r.question_id,
         answer: { value: r.answer } as unknown as Json, is_fail: r.is_fail, observations: r.observations,

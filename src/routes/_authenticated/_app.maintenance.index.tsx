@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Wrench, Search, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/")({
   head: () => ({ meta: [{ title: "Mantenimientos" }] }),
@@ -49,20 +49,9 @@ function MaintenanceList() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["maintenance-sessions", companyId, statusFilter],
+    queryKey: sessionKeys.list(companyId ?? null, statusFilter),
     enabled: !!companyId,
-    queryFn: async () => {
-      let q = supabase
-        .from("maintenance_sessions")
-        .select("*, maintenance_plans(name, code)")
-        .eq("company_id", companyId!)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => sessionService.listSessions(companyId ?? null, statusFilter),
   });
 
   const filtered = sessions.filter((s) => {
@@ -171,128 +160,33 @@ function CreateSessionDialog({ companyId }: { companyId: string }) {
   const [technicianName, setTechnicianName] = useState("");
   const [locationId, setLocationId] = useState("");
 
+  // One id per attempt: retries/double clicks reuse the same session instead of creating another.
+  const requestId = useRef(crypto.randomUUID());
+
   const { data: plans = [] } = useQuery({
-    queryKey: ["plans-for-session", companyId],
+    queryKey: sessionKeys.plansForSession(companyId),
     enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_plans")
-        .select("id, code, name, checklist_template_id, asset_family_id, asset_families(code, name_i18n), checklist_templates(name, current_version)")
-        .eq("company_id", companyId)
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => sessionService.listPlansForSession(companyId),
   });
 
   const { data: planLocations = [] } = useQuery({
-    queryKey: ["plan-locations", planId],
+    queryKey: sessionKeys.planLocations(companyId, planId),
     enabled: !!planId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_plan_assets")
-        .select("assets(location_id, locations(name))")
-        .eq("plan_id", planId);
-      if (error) throw error;
-      const map = new Map<string, string>();
-      for (const row of data ?? []) {
-        const loc = row.assets?.location_id;
-        if (loc) map.set(loc, row.assets?.locations?.name ?? "Ubicación");
-      }
-      return [...map.entries()].map(([id, name]) => ({ id, name }));
-    },
+    queryFn: () => sessionService.listPlanLocations(companyId, planId),
   });
 
   const create = useMutation({
     mutationFn: async () => {
       if (!planId) throw new Error("Selecciona un plan");
-      const plan = plans.find((p) => p.id === planId);
-      if (!plan) throw new Error("Plan no encontrado");
-
-      // Activos asignados al plan (con su tipo y ubicación)
-      const { data: planAssets, error: paErr } = await supabase
-        .from("maintenance_plan_assets")
-        .select("asset_id, assets(id, asset_type_id, location_id)")
-        .eq("plan_id", planId);
-      if (paErr) throw paErr;
-      let rows = (planAssets ?? []).filter((pa) => pa.assets);
-      if (locationId) rows = rows.filter((pa) => pa.assets?.location_id === locationId);
-      if (rows.length === 0) throw new Error("El plan no tiene equipos para esta selección");
-
-      // Plantilla de checklist por tipo de activo
-      const { data: typeMap, error: tmErr } = await supabase
-        .from("maintenance_plan_type_templates")
-        .select("asset_type_id, checklist_template_id")
-        .eq("plan_id", planId);
-      if (tmErr) throw tmErr;
-      const templateByType = new Map<string, string>(
-        (typeMap ?? []).map((t) => [t.asset_type_id, t.checklist_template_id]),
-      );
-      const templateIds = [
-        ...new Set(
-          rows.map(
-            (pa) => templateByType.get(pa.assets!.asset_type_id) ?? plan.checklist_template_id,
-          ),
-        ),
-      ];
-
-      const { data: vers, error: verErr } = await supabase
-        .from("checklist_template_versions")
-        .select("id, version, template_id")
-        .in("template_id", templateIds)
-        .eq("is_published", true)
-        .order("version", { ascending: false });
-      if (verErr) throw verErr;
-      const versionByTemplate = new Map<string, string>();
-      for (const v of vers ?? []) {
-        if (!versionByTemplate.has(v.template_id)) versionByTemplate.set(v.template_id, v.id);
-      }
-      if (templateIds.some((t) => !versionByTemplate.has(t)))
-        throw new Error("Hay tipos de activo cuya plantilla no tiene versión publicada");
-
-      // Código
-      const { data: code, error: codeErr } = await supabase.rpc("next_code", {
-        p_company_id: companyId,
-        p_scope: "maintenance_sessions",
-        p_prefix: "MTS",
+      if (!plans.find((p) => p.id === planId)) throw new Error("Plan no encontrado");
+      return sessionService.createSession(companyId, {
+        requestId: requestId.current, planId, locationId, scheduledFor, technicianName,
       });
-      if (codeErr) throw codeErr;
-
-      const { data: session, error: sessErr } = await supabase
-        .from("maintenance_sessions")
-        .insert({
-          company_id: companyId,
-          code,
-          plan_id: planId,
-          location_id: locationId || null,
-          scheduled_for: scheduledFor || null,
-          technician_name: technicianName || null,
-          status: "draft",
-        })
-        .select()
-        .single();
-      if (sessErr) throw sessErr;
-
-      const items = rows.map((pa) => {
-        const templateId =
-          templateByType.get(pa.assets!.asset_type_id) ?? plan.checklist_template_id;
-        return {
-          session_id: session.id,
-          asset_id: pa.asset_id,
-          checklist_template_version_id: versionByTemplate.get(templateId)!,
-          result: "pending",
-        };
-      });
-      const { error: itemsErr } = await supabase.from("maintenance_items").insert(items);
-      if (itemsErr) throw itemsErr;
-
-      return session.id;
     },
     onSuccess: (id) => {
       toast.success("Sesión creada");
-      qc.invalidateQueries({ queryKey: ["maintenance-sessions"] });
+      requestId.current = crypto.randomUUID();
+      qc.invalidateQueries({ queryKey: sessionKeys.lists(companyId) });
       setOpen(false);
       setPlanId("");
       setLocationId("");

@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useCompany } from "@/contexts/CompanyContext";
+import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
 
 const RESULT_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ok: { label: "OK", variant: "default" },
@@ -23,21 +25,14 @@ function fdate(d: string | null | undefined) {
 }
 
 export function AssetHistoryPanel({ assetId }: { assetId: string }) {
+  const { activeCompanyId } = useCompany();
   const { data: maintenance = [] } = useQuery({
-    queryKey: ["asset-maintenance", assetId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_items")
-        .select(
-          "id, result, completed_at, created_at, observations, maintenance_sessions(id, code, status, closed_at, scheduled_for, maintenance_plans(name))",
-        )
-        .eq("asset_id", assetId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryKey: sessionKeys.assetHistory(activeCompanyId, assetId),
+    enabled: !!activeCompanyId,
+    queryFn: () => sessionService.listAssetHistory(activeCompanyId, assetId),
   });
 
+  // Residual (blocks 5 and 6): incidents and certificates tabs keep their current reads.
   const { data: incidents = [] } = useQuery({
     queryKey: ["asset-incidents", assetId],
     queryFn: async () => {
