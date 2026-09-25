@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layers, Plus, Trash2, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
 
 export const Route = createFileRoute("/_authenticated/_app/asset-families")({
   head: () => ({
@@ -50,15 +49,15 @@ function AssetFamiliesPage() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: families = [], isLoading } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types-family", activeCompanyId],
+    queryKey: assetKeys.typesForFamilies(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetTypes(activeCompanyId!),
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const invalidate = () => {
@@ -69,11 +68,7 @@ function AssetFamiliesPage() {
 
   const assign = useMutation({
     mutationFn: async ({ typeId, familyId }: { typeId: string; familyId: string | null }) => {
-      const { error } = await supabase
-        .from("asset_types")
-        .update({ family_id: familyId })
-        .eq("id", typeId);
-      if (error) throw error;
+      await assetService.setTypeFamily(activeCompanyId, typeId, familyId);
     },
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
@@ -81,11 +76,7 @@ function AssetFamiliesPage() {
 
   const toggleCert = useMutation({
     mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
-      const { error } = await supabase
-        .from("asset_families")
-        .update({ requires_certificate: value })
-        .eq("id", id);
-      if (error) throw error;
+      await assetService.setFamilyRequiresCertificate(activeCompanyId, id, value);
     },
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
@@ -93,8 +84,7 @@ function AssetFamiliesPage() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("asset_families").delete().eq("id", id);
-      if (error) throw error;
+      await assetService.deleteFamily(activeCompanyId, id);
     },
     onSuccess: () => {
       toast.success("Familia eliminada");
@@ -264,17 +254,7 @@ function CreateFamilyDialog({ onCreated }: { onCreated: () => void }) {
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!activeCompanyId) throw new Error("Sin empresa activa");
-      if (!code || !name) throw new Error("Código y nombre son obligatorios");
-      const { error } = await supabase.from("asset_families").insert({
-        company_id: activeCompanyId,
-        code: code.toLowerCase().replace(/\s+/g, "_"),
-        name_i18n: { es: name },
-        color,
-        requires_certificate: requiresCert,
-        is_system: false,
-      });
-      if (error) throw error;
+      await assetService.createFamily(activeCompanyId, { code, name, color, requiresCertificate: requiresCert });
     },
     onSuccess: () => {
       toast.success("Familia creada");

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Plus, Search, QrCode } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,86 +62,38 @@ function AssetsList() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types", activeCompanyId],
+    queryKey: assetKeys.types(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("asset_types")
-        .select("id, code, name_i18n, category, is_system, family_id")
-        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
-        .eq("active", true)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("asset_families")
-        .select("id, code, name_i18n, color")
-        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
-        .eq("active", true)
-        .order("sort_order")
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations", activeCompanyId],
+    queryKey: assetKeys.sites(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("locations")
-        .select("id, code, name")
-        .eq("company_id", activeCompanyId!)
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listActiveSites(activeCompanyId),
   });
 
   const { data: assets = [], isLoading } = useQuery({
-    queryKey: ["assets", activeCompanyId, statusFilter, familyFilter, typeFilter, locationFilter, q],
+    queryKey: assetKeys.list(activeCompanyId, statusFilter, familyFilter, typeFilter, locationFilter, q),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      let query = supabase
-        .from("assets")
-        .select(
-          "id, code, name, status, manufacturer, model, serial_number, install_date, qr_token, asset_type_id, location_id, asset_types(code, name_i18n), locations(name, code)"
-        )
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("code", { ascending: false })
-        .limit(500);
-      if (statusFilter !== "all") query = query.eq("status", statusFilter);
-      if (typeFilter !== "all") query = query.eq("asset_type_id", typeFilter);
-      else if (familyFilter !== "all") {
-        const ids = types
-          .filter((t) => t.family_id === familyFilter)
-          .map((t) => t.id);
-        query = ids.length
-          ? query.in("asset_type_id", ids)
-          : query.eq("asset_type_id", "00000000-0000-0000-0000-000000000000");
-      }
-      if (locationFilter !== "all") query = query.eq("location_id", locationFilter);
-      if (q.trim()) {
-        const term = `%${q.trim()}%`;
-        query = query.or(
-          `name.ilike.${term},code.ilike.${term},serial_number.ilike.${term},manufacturer.ilike.${term},model.ilike.${term}`
-        );
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () =>
+      assetService.listAssets(activeCompanyId, {
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        typeIds:
+          typeFilter !== "all"
+            ? [typeFilter]
+            : familyFilter !== "all"
+              ? types.filter((t) => t.family_id === familyFilter).map((t) => t.id)
+              : null,
+        siteId: locationFilter !== "all" ? locationFilter : undefined,
+        q,
+      }),
   });
 
   const typeMap = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
@@ -355,19 +307,9 @@ function CreateAssetDialog({
   const create = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error("No hay empresa activa");
-      if (!assetTypeId) throw new Error("Selecciona un tipo");
-      const { data: codeData, error: codeErr } = await supabase.rpc("next_code", {
-        p_company_id: activeCompanyId,
-        p_scope: "assets",
-        p_prefix: "AST",
-      });
-      if (codeErr) throw codeErr;
-      const { error } = await supabase.from("assets").insert({
-        company_id: activeCompanyId,
-        qr_token: "",
+      await assetService.createAsset(activeCompanyId, {
         asset_type_id: assetTypeId,
         location_id: locationId || null,
-        code: codeData as string,
         name: name || null,
         manufacturer: manufacturer || null,
         model: model || null,
@@ -375,7 +317,6 @@ function CreateAssetDialog({
         install_date: installDate || null,
         notes: notes || null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Activo creado");

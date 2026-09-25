@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowLeft, Printer, Trash2, Save } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,44 +50,21 @@ function AssetDetail() {
   const canDelete = role === "administrator";
 
   const { data: asset, isLoading } = useQuery({
-    queryKey: ["asset", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("*, asset_types(code, name_i18n, category), locations(name, code)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: assetKeys.detail(activeCompanyId, id),
+    enabled: !!activeCompanyId,
+    queryFn: () => assetService.getAsset(activeCompanyId, id),
   });
 
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types", activeCompanyId],
+    queryKey: assetKeys.types(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("asset_types")
-        .select("id, code, name_i18n")
-        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
-        .eq("active", true);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations", activeCompanyId],
+    queryKey: [...assetKeys.sites(activeCompanyId), "all"],
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("locations")
-        .select("id, name, code")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listSites(activeCompanyId),
   });
 
   const [form, setForm] = useState<Record<string, string>>({});
@@ -109,9 +86,7 @@ function AssetDetail() {
 
   const update = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("assets")
-        .update({
+      await assetService.updateAsset(activeCompanyId, id, {
           name: form.name || null,
           asset_type_id: form.asset_type_id,
           location_id: form.location_id || null,
@@ -122,13 +97,11 @@ function AssetDetail() {
           warranty_until: form.warranty_until || null,
           status: form.status,
           notes: form.notes || null,
-        })
-        .eq("id", id);
-      if (error) throw error;
+        });
     },
     onSuccess: () => {
       toast.success("Activo actualizado");
-      qc.invalidateQueries({ queryKey: ["asset", id] });
+      qc.invalidateQueries({ queryKey: assetKeys.detail(activeCompanyId, id) });
       qc.invalidateQueries({ queryKey: ["assets"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -136,9 +109,7 @@ function AssetDetail() {
 
   const remove = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("assets")
-        .update({ deleted_at: new Date().toISOString() })
+      await assetService.updateAsset(activeCompanyId, id, { deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
