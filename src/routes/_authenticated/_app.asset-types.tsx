@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag, Plus, Trash2, Lock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchAssetFamilies } from "@/lib/asset-families";
 
 export const Route = createFileRoute("/_authenticated/_app/asset-types")({
   head: () => ({ meta: [{ title: "Tipos de activo" }] }),
@@ -57,33 +56,20 @@ function AssetTypesPage() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: types = [], isLoading } = useQuery({
-    queryKey: ["asset-types-admin", activeCompanyId],
+    queryKey: assetKeys.typesAdmin(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("asset_types")
-        .select("*")
-        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
-        .order("is_system", { ascending: false })
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listTypesAdmin(activeCompanyId),
   });
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const setFamily = useMutation({
     mutationFn: async ({ typeId, familyId }: { typeId: string; familyId: string }) => {
-      const { error } = await supabase
-        .from("asset_types")
-        .update({ family_id: familyId })
-        .eq("id", typeId);
-      if (error) throw error;
+      await assetService.setTypeFamily(activeCompanyId, typeId, familyId);
     },
     onSuccess: () => {
       toast.success("Familia actualizada");
@@ -95,8 +81,7 @@ function AssetTypesPage() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("asset_types").delete().eq("id", id);
-      if (error) throw error;
+      await assetService.deleteType(activeCompanyId, id);
     },
     onSuccess: () => {
       toast.success("Tipo eliminado");
@@ -230,24 +215,14 @@ function CreateTypeDialog({ onCreated }: { onCreated: () => void }) {
   const [familyId, setFamilyId] = useState("");
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!activeCompanyId) throw new Error("Sin empresa activa");
-      if (!code || !name) throw new Error("Código y nombre son obligatorios");
-      const { error } = await supabase.from("asset_types").insert({
-        company_id: activeCompanyId,
-        code: code.toUpperCase(),
-        name_i18n: { es: name },
-        category,
-        family_id: familyId || null,
-        is_system: false,
-      });
-      if (error) throw error;
+      await assetService.createType(activeCompanyId, { code, name, category, familyId });
     },
     onSuccess: () => {
       toast.success("Tipo creado");

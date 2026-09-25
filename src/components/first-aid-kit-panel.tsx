@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, BriefcaseMedical, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,19 +69,14 @@ function expiryTone(expires: string | null): { label: string; cls: string } | nu
 
 export function FirstAidKitPanel({ assetId, canManage }: { assetId: string; canManage: boolean }) {
   const qc = useQueryClient();
+  const { activeCompanyId } = useCompany();
+  const kitKey = assetKeys.kit(activeCompanyId, assetId);
   const [editing, setEditing] = useState<typeof EMPTY | null>(null);
 
   const { data: items = [], isLoading } = useQuery({
-    queryKey: ["kit-contents", assetId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("first_aid_kit_contents")
-        .select("id, product_code, product_name, quantity, unit, batch_code, expires_on, notes")
-        .eq("kit_asset_id", assetId)
-        .order("product_name");
-      if (error) throw error;
-      return data as KitItem[];
-    },
+    queryKey: kitKey,
+    enabled: !!activeCompanyId,
+    queryFn: async () => (await assetService.listKitItems(activeCompanyId, assetId)) as KitItem[],
   });
 
   const summary = useMemo(() => {
@@ -99,7 +95,6 @@ export function FirstAidKitPanel({ assetId, canManage }: { assetId: string; canM
       const name = v.product_name.trim();
       if (!name) throw new Error("El nombre del producto es obligatorio");
       const payload = {
-        kit_asset_id: assetId,
         product_code: slugProductCode(v.product_code.trim() || name),
         product_name: name,
         quantity: Math.max(0, Math.round(Number(v.quantity.replace(",", ".")) || 0)),
@@ -108,30 +103,23 @@ export function FirstAidKitPanel({ assetId, canManage }: { assetId: string; canM
         expires_on: v.expires_on || null,
         notes: v.notes.trim() || null,
       };
-      if (v.id) {
-        const { error } = await supabase.from("first_aid_kit_contents").update(payload).eq("id", v.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("first_aid_kit_contents").insert(payload as never);
-        if (error) throw error;
-      }
+      await assetService.saveKitItem(activeCompanyId, assetId, v.id || null, payload);
     },
     onSuccess: () => {
       toast.success("Producto guardado");
       setEditing(null);
-      qc.invalidateQueries({ queryKey: ["kit-contents", assetId] });
+      qc.invalidateQueries({ queryKey: kitKey });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("first_aid_kit_contents").delete().eq("id", id);
-      if (error) throw error;
+      await assetService.deleteKitItem(activeCompanyId, assetId, id);
     },
     onSuccess: () => {
       toast.success("Producto eliminado");
-      qc.invalidateQueries({ queryKey: ["kit-contents", assetId] });
+      qc.invalidateQueries({ queryKey: kitKey });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -140,20 +128,18 @@ export function FirstAidKitPanel({ assetId, canManage }: { assetId: string; canM
     mutationFn: async () => {
       const existing = new Set(items.map((i) => (i.product_code ?? "").toUpperCase()));
       const missing = FIRST_AID_PRODUCTS.filter((p) => !existing.has(p.code)).map((p) => ({
-        kit_asset_id: assetId,
         product_code: p.code,
         product_name: p.name,
         quantity: Number(p.quantity),
         unit: p.unit,
       }));
       if (!missing.length) throw new Error("El botiquín ya tiene los 12 productos estándar");
-      const { error } = await supabase.from("first_aid_kit_contents").insert(missing as never);
-      if (error) throw error;
+      await assetService.insertKitItems(activeCompanyId, assetId, missing);
       return missing.length;
     },
     onSuccess: (n) => {
       toast.success(`${n} productos añadidos`);
-      qc.invalidateQueries({ queryKey: ["kit-contents", assetId] });
+      qc.invalidateQueries({ queryKey: kitKey });
     },
     onError: (e: Error) => toast.error(e.message),
   });

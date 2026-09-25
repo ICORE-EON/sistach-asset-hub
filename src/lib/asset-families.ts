@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { assetService } from "@/modules/maintenance/services/assets";
 
 export type AssetFamily = {
   id: string;
@@ -21,30 +22,16 @@ export type AssetTypeRow = {
   family_id: string | null;
 };
 
+/** Delegates to the maintenance module (block 1 of phase 3). */
 export async function fetchAssetFamilies(companyId: string): Promise<AssetFamily[]> {
-  const { data, error } = await supabase
-    .from("asset_families")
-    .select("*")
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
-    .eq("active", true)
-    .order("sort_order")
-    .order("code");
-  if (error) throw error;
-  return (data ?? []) as AssetFamily[];
+  return (await assetService.listFamilies(companyId)) as AssetFamily[];
 }
 
 export async function fetchAssetTypes(companyId: string): Promise<AssetTypeRow[]> {
-  const { data, error } = await supabase
-    .from("asset_types")
-    .select("id, code, name_i18n, category, is_system, family_id")
-    .or(`company_id.eq.${companyId},is_system.eq.true`)
-    .eq("active", true)
-    .order("code");
-  if (error) throw error;
-  return (data ?? []) as AssetTypeRow[];
+  return (await assetService.listTypes(companyId)) as AssetTypeRow[];
 }
 
-/** Published checklist templates available for a company. */
+/** Published checklist templates available for a company. (Checklists block — pending.) */
 export type PublishedTemplate = {
   id: string;
   code: string;
@@ -70,7 +57,6 @@ export async function fetchPublishedTemplates(companyId: string): Promise<Publis
   if (error) throw error;
   return (data ?? []) as unknown as PublishedTemplate[];
 }
-
 
 /** Latest published version id for each checklist template. */
 export async function fetchPublishedVersions(
