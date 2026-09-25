@@ -10,3 +10,8 @@
 - [ ] Fase 8: línea base limpia para ICORE
 - [ ] Fase 9: paquete de exportación
 - Bloqueado (decisiones ICORE): permisos como función SQL, auth.users compartido, motor de importación/firma, prefijo `mnt_` vs esquema
+
+## Corrective fix for phases 0–1 (done)
+- [x] Startup error "Uncaught undefined" fixed (auth listener filtered to identity changes; active company read after hydration; breadcrumb nested <li>)
+- [x] Decisions resolved: SQL permissions (host_has_perm), identity via person_ref, mnt_ prefix in public
+- [ ] Phase 2 — waiting for user authorization
