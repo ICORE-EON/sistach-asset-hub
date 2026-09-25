@@ -3,6 +3,9 @@
 - [x] Fase 0/1: Vitest, frontera `src/modules/maintenance`, contratos, manifest, dominio puro + tests
 - [x] Fase 2: adaptadores standalone (tenant, authz, people, sites, assets, docs) + preflight + stub ICORE — esperando revisión antes de fase 3
 - [ ] Fase 3: repositorios y servicios por dominio (quitar supabase.* de páginas)
+  - [x] Bloque 1 activos/familias/tipos/botiquín (repo + servicio + prueba real) — esperando revisión
+  - [ ] Bloque 2 checklists  - [ ] 3 planes  - [ ] 4 sesiones  - [ ] 5 incidencias  - [ ] 6 certificados
+  - [ ] Verificar cambio de organización con 2 empresas (cuenta actual solo tiene 1)
 - [ ] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales
 - [ ] Fase 5: migraciones M1–M7 (org_id, FKs compuestas, tablas de relación, outbox)
 - [ ] Fase 6: person_ref + actor_snapshot, document_version_ref
