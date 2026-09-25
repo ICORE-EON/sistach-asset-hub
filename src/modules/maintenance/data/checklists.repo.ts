@@ -38,8 +38,9 @@ export function createChecklistsRepo(c: StandaloneClient) {
   const assertItem = async (orgId: string, itemId: string) => {
     const it = ok(await c.from("maintenance_items").select("id, session_id").eq("id", itemId).maybeSingle());
     if (!it) throw new Error("Equipo de sesión no encontrado en la organización activa");
-    const s = ok(await c.from("maintenance_sessions").select("id").eq("id", it.session_id).eq("company_id", orgId).maybeSingle());
+    const s = ok(await c.from("maintenance_sessions").select("id, status").eq("id", it.session_id).eq("company_id", orgId).maybeSingle());
     if (!s) throw new Error("Equipo de sesión no encontrado en la organización activa");
+    return s as { id: string; status?: string };
   };
 
   return {
@@ -148,7 +149,9 @@ export function createChecklistsRepo(c: StandaloneClient) {
       return ok(await c.from("checklist_responses").select("*").eq("maintenance_item_id", itemId)) ?? [];
     },
     async saveResponse(orgId: string, itemId: string, versionId: string, r: ResponseInput) {
-      await assertItem(orgId, itemId);
+      const s = await assertItem(orgId, itemId);
+      // Answers can only change while the session is in progress (the UI already only allows that).
+      if (s.status !== "in_progress") throw new Error("La sesión está cerrada");
       ok(await c.from("checklist_responses").upsert({
         maintenance_item_id: itemId, checklist_template_version_id: versionId, question_id: r.question_id,
         answer: { value: r.answer } as unknown as Json, is_fail: r.is_fail, observations: r.observations,

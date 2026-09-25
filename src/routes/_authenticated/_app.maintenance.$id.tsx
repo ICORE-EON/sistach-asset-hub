@@ -12,7 +12,6 @@ import {
   Eraser,
 } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
-import { generateCertificatePdf } from "@/lib/certificate-generator";
 import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/$id")({
   head: () => ({ meta: [{ title: "Sesión de mantenimiento" }] }),
@@ -56,49 +55,28 @@ function SessionDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership } = useCompany();
+  const { activeMembership, activeCompanyId } = useCompany();
+  const orgId = activeCompanyId;
   const role = activeMembership?.role;
   const canRun =
     role === "administrator" || role === "system_manager" || role === "manager";
 
   const { data: session } = useQuery({
-    queryKey: ["session", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_sessions")
-        .select("*, maintenance_plans(name, code)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: sessionKeys.detail(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.getSession(orgId, id),
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["session-items", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_items")
-        .select("*, assets(id, code, name, manufacturer, model, location_id, locations(name), asset_type_id, asset_types(code, name_i18n))")
-        .eq("session_id", id)
-        .order("created_at");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: sessionKeys.items(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.listItems(orgId, id),
   });
 
   const { data: linkedCert } = useQuery({
-    queryKey: ["session-cert", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_items")
-        .select("certificates(id, code, status)")
-        .eq("maintenance_session_id", id)
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.certificates ?? null;
-    },
+    queryKey: sessionKeys.certificate(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.getSessionCertificate(orgId, id),
   });
 
   const itemGroups = useMemo(() => {
@@ -140,16 +118,11 @@ function SessionDetail() {
   );
 
   const start = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("maintenance_sessions")
-        .update({ status: "in_progress", started_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => sessionService.startSession(orgId, id),
     onSuccess: () => {
       toast.success("Sesión iniciada");
-      qc.invalidateQueries({ queryKey: ["session", id] });
+      qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+      qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -260,7 +233,7 @@ function SessionDetail() {
             key={activeItem.id}
             item={activeItem}
             editable={editable && session.status === "in_progress"}
-            companyId={session.company_id}
+            companyId={orgId ?? session.company_id}
             sessionId={id}
           />
         ) : (
@@ -293,11 +266,17 @@ function SessionDetail() {
 
       {closeOpen && (
         <CloseSessionDialog
+          orgId={orgId}
           sessionId={id}
           pendingCount={pendingCount}
           open={closeOpen}
           onOpenChange={setCloseOpen}
-          onClosed={() => qc.invalidateQueries({ queryKey: ["session", id] })}
+          onClosed={() => {
+            qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.items(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.certificate(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+          }}
         />
       )}
     </div>
@@ -357,69 +336,10 @@ function ItemChecklist({
   });
 
   const completeItem = useMutation({
-    mutationFn: async (intent: "complete" | "na") => {
-      let createdIncidents = 0;
-      let failsWithoutIncident = 0;
-      let dbResult: "ok" | "with_incident" | "not_applicable" = "ok";
-
-      if (intent === "na") {
-        dbResult = "not_applicable";
-      } else {
-        // Releer respuestas frescas desde la BD para evitar race con la caché
-        const freshResponses = await checklistService.listResponses(companyId, item.id);
-
-        const fails = (freshResponses ?? []).filter((r) => r.is_fail);
-        const failedWithIncident = fails.filter((r) => {
-          const q = questions.find((qq) => qq.id === r.question_id);
-          return q?.creates_incident;
-        });
-        failsWithoutIncident = fails.length - failedWithIncident.length;
-
-        for (const r of failedWithIncident) {
-          const q = questions.find((qq) => qq.id === r.question_id);
-          // Evitar duplicar si ya hay incidencia ligada a esta respuesta
-          const { data: existing } = await supabase
-            .from("incidents")
-            .select("id")
-            .eq("source_response_id", r.id)
-            .maybeSingle();
-          if (existing) continue;
-          const { data: code } = await supabase.rpc("next_code", {
-            p_company_id: companyId,
-            p_scope: "incidents",
-            p_prefix: "INC",
-          });
-          const { error: insErr } = await supabase.from("incidents").insert({
-            company_id: companyId,
-            code: code ?? "",
-            title: `Fallo en checklist: ${q?.prompt ?? "pregunta"}`,
-            description: r.observations || null,
-            severity: "medium",
-            status: "open",
-            source: "maintenance",
-            asset_id: item.asset_id,
-            source_maintenance_item_id: item.id,
-            source_response_id: r.id,
-          });
-          if (insErr) throw insErr;
-          createdIncidents += 1;
-        }
-
-        dbResult = fails.length > 0 ? "with_incident" : "ok";
-      }
-
-      const { error } = await supabase
-        .from("maintenance_items")
-        .update({
-          result: dbResult,
-          observations: observations || null,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", item.id);
-      if (error) throw error;
-
-      return { dbResult, createdIncidents, failsWithoutIncident };
-    },
+    mutationFn: (intent: "complete" | "na") =>
+      sessionService.completeItem(companyId, {
+        sessionId, item: { id: item.id, asset_id: item.asset_id }, intent, observations, questions,
+      }),
     onSuccess: ({ dbResult, createdIncidents, failsWithoutIncident }) => {
       if (dbResult === "not_applicable") {
         toast.success("Activo marcado como N/A");
@@ -434,7 +354,7 @@ function ItemChecklist({
       } else {
         toast.success("Activo guardado");
       }
-      qc.invalidateQueries({ queryKey: ["session-items", sessionId] });
+      qc.invalidateQueries({ queryKey: sessionKeys.items(companyId, sessionId), exact: true });
       qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -636,12 +556,14 @@ function QuestionInput({
 }
 
 function CloseSessionDialog({
+  orgId,
   sessionId,
   pendingCount,
   open,
   onOpenChange,
   onClosed,
 }: {
+  orgId: string | null;
   sessionId: string;
   pendingCount: number;
   open: boolean;
@@ -693,146 +615,10 @@ function CloseSessionDialog({
     mutationFn: async () => {
       if (!signerName.trim()) throw new Error("Indica el nombre del firmante");
       if (!hasInk.current) throw new Error("Firma para continuar");
-      const c = canvasRef.current!;
-      const signature = c.toDataURL("image/png");
-
-      // 1. Load session + plan + items to build the certificate
-      const { data: session, error: sErr } = await supabase
-        .from("maintenance_sessions")
-        .select("*, maintenance_plans(name, interval_months, asset_families(requires_certificate))")
-        .eq("id", sessionId)
-        .single();
-      if (sErr) throw sErr;
-
-      const { data: items, error: iErr } = await supabase
-        .from("maintenance_items")
-        .select("id, asset_id, result, observations")
-        .eq("session_id", sessionId);
-      if (iErr) throw iErr;
-
-      // 2. Mark pending items as skipped
-      const pendingIds = items.filter((i) => i.result === "pending").map((i) => i.id);
-      if (pendingIds.length > 0) {
-        const { error: skipErr } = await supabase
-          .from("maintenance_items")
-          .update({ result: "skipped" })
-          .in("id", pendingIds);
-        if (skipErr) throw skipErr;
-        for (const it of items) if (it.result === "pending") it.result = "skipped";
-      }
-
-      const hasIncidents = items.some(
-        (i) => i.result === "with_incident" || i.result === "fail",
-      );
-      const outcome = hasIncidents
-        ? pendingIds.length > 0
-          ? "incomplete_with_incidents"
-          : "with_incidents"
-        : pendingIds.length > 0
-          ? "incomplete"
-          : "ok";
-
-      // 3. Close the session
-      const { error } = await supabase
-        .from("maintenance_sessions")
-        .update({
-          status: "closed",
-          closed_at: new Date().toISOString(),
-          signer_name: signerName.trim(),
-          signer_role: signerRole.trim() || null,
-          signature_image_url: signature,
-          metadata: {
-            ...((session.metadata as Record<string, unknown>) ?? {}),
-            outcome,
-            skipped_count: pendingIds.length,
-          },
-        })
-        .eq("id", sessionId);
-      if (error) throw error;
-
-      if (session.maintenance_plans?.asset_families?.requires_certificate === false) {
-        return null;
-      }
-
-      // 3. Generate certificate
-      const { data: code, error: codeErr } = await supabase.rpc("next_code", {
-        p_company_id: session.company_id,
-        p_scope: "certificate",
-        p_prefix: "CERT",
-      });
-      if (codeErr) throw codeErr;
-
-      const today = new Date();
-      const intervalMonths = session.maintenance_plans?.interval_months ?? null;
-      const validUntil = intervalMonths
-        ? new Date(today.getFullYear(), today.getMonth() + intervalMonths, today.getDate())
-            .toISOString()
-            .slice(0, 10)
-        : null;
-
-      const okCount = items.filter((i) => i.result === "ok").length;
-      const failCount = items.filter((i) => i.result === "with_incident" || i.result === "fail").length;
-      const summary = `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
-        pendingIds.length > 0 ? `, ${pendingIds.length} sin revisar` : ""
-      }.`;
-
-      const { data: cert, error: certErr } = await supabase
-        .from("certificates")
-        .insert({
-          company_id: session.company_id,
-          code,
-          title: `Certificado de mantenimiento — ${session.maintenance_plans?.name ?? session.code}`,
-          issued_on: today.toISOString().slice(0, 10),
-          valid_until: validUntil,
-          issuer_name: signerName.trim(),
-          issuer_role: signerRole.trim() || null,
-          signature_image_url: signature,
-          notes: summary,
-          status: "issued",
-        })
-        .select()
-        .single();
-      if (certErr) throw certErr;
-
-      if (items.length > 0) {
-        const mapResult = (r: string | null | undefined): "ok" | "conditional" | "failed" | "na" => {
-          switch (r) {
-            case "ok":
-              return "ok";
-            case "with_incident":
-            case "conditional":
-              return "conditional";
-            case "fail":
-            case "failed":
-              return "failed";
-            case "na":
-            case "n/a":
-            case "skipped":
-              return "na";
-            default:
-              return "ok";
-          }
-        };
-        const certItems = items.map((it) => ({
-          certificate_id: cert.id,
-          asset_id: it.asset_id,
-          maintenance_session_id: sessionId,
-          maintenance_item_id: it.id,
-          result: mapResult(it.result),
-          notes: it.observations ?? null,
-        }));
-        const { error: ciErr } = await supabase.from("certificate_items").insert(certItems);
-        if (ciErr) throw ciErr;
-      }
-
-      // 4. Generate PDF (best effort — don't block close if it fails)
-      try {
-        await generateCertificatePdf(cert.id);
-      } catch (e) {
-        console.error("PDF generation failed", e);
+      const signature = canvasRef.current!.toDataURL("image/png");
+      const { cert, pdfFailed } = await sessionService.closeSession(orgId, sessionId, { signerName, signerRole, signature });
+      if (pdfFailed)
         toast.warning("Certificado emitido, pero no se pudo generar el PDF. Podrás regenerarlo desde el detalle.");
-      }
-
       return cert;
     },
     onSuccess: (cert) => {

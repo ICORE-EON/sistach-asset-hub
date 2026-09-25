@@ -25,7 +25,7 @@ const DB: Record<string, Row[]> = {
     { id: "qA", template_version_id: "vA", position: 1, prompt: "¿A?" },
     { id: "qB", template_version_id: "vB", position: 1, prompt: "¿B?" },
   ],
-  maintenance_sessions: [{ id: "sA", company_id: A }, { id: "sB", company_id: B }],
+  maintenance_sessions: [{ id: "sA", company_id: A, status: "in_progress" }, { id: "sB", company_id: B, status: "in_progress" }],
   maintenance_items: [{ id: "iA", session_id: "sA" }, { id: "iB", session_id: "sB" }],
   checklist_responses: [
     { id: "rA", maintenance_item_id: "iA", question_id: "qA" },
