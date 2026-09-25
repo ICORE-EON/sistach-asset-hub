@@ -64,8 +64,10 @@ describe("resolución de plantilla de checklist", () => {
     const sinSub = { ...tipoCentro, include_sublocations: false };
     expect(templateAppliesTo(sinSub, { assetTypeId: "CO2", familyId: "PCI", locationIds: ["ALMACEN"], locations: locs })).toBe(false);
     expect(templateAppliesTo(sinSub, { assetTypeId: "CO2", familyId: "PCI", locationIds: ["BERGA"], locations: locs })).toBe(true);
+    // La plantilla genérica de familia no aplica a otra familia; las de tipo explícito sí,
+    // y sin ubicación pedida todas las de centro aplican.
     expect(resolveTemplatesForType(all, { assetTypeId: "CO2", familyId: "MAQ" }).map((t) => t.id))
-      .toEqual(["tipo", "tipoCentro", "otroCentro"].filter((id) => id !== "familia").sort((a, b) => a.localeCompare(b)).length ? ["tipoCentro", "otroCentro", "tipo"] : []);
+      .toEqual(["tipoCentro", "otroCentro", "tipo"]);
     const legada = { ...base, id: "legada", asset_family_id: null, asset_type_id: "CO2" };
     expect(templateAppliesTo(legada, { assetTypeId: "CO2" })).toBe(true);
     expect(templateAppliesTo(legada, { assetTypeId: "BIE" })).toBe(false);
