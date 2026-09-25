@@ -109,9 +109,7 @@ function AssetDetail() {
 
   const remove = useMutation({
     mutationFn: async () => {
-      await assetService.updateAsset(activeCompanyId, id, { deleted_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
+      await assetService.deleteAsset(activeCompanyId, id);
     },
     onSuccess: () => {
       toast.success("Activo eliminado");
