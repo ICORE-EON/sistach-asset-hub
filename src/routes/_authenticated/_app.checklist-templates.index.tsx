@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Plus, ChevronRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,17 +34,14 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
-import { fetchCompanyLocations } from "@/lib/maintenance-scope";
-import { describeTemplateScope, type ScopedTemplate } from "@/lib/checklist-scope";
+import { describeTemplateScope, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
+import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
+import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
 
 export const Route = createFileRoute("/_authenticated/_app/checklist-templates/")({
   head: () => ({ meta: [{ title: "Plantillas de checklist" }] }),
   component: ListPage,
 });
-
-const TEMPLATE_FIELDS =
-  "id, code, name, active, current_version, asset_type_id, asset_family_id, asset_type_ids, location_ids, include_sublocations";
 
 function ListPage() {
   const { activeCompanyId, activeMembership } = useCompany();
@@ -57,38 +53,32 @@ function ListPage() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ["checklist-templates", activeCompanyId],
+    queryKey: checklistKeys.list(activeCompanyId),
     enabled: !!activeCompanyId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_templates")
-        .select(TEMPLATE_FIELDS)
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("code");
-      if (error) throw error;
-      return (data ?? []) as unknown as Array<
+      const data = await checklistService.listTemplates(activeCompanyId);
+      return data as unknown as Array<
         ScopedTemplate & { current_version: number | null; active: boolean }
       >;
     },
   });
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types-family", activeCompanyId],
+    queryKey: assetKeys.typesForFamilies(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetTypes(activeCompanyId!),
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations-scope", activeCompanyId],
+    queryKey: assetKeys.scopeSites(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+    queryFn: () => assetService.listScopeSites(activeCompanyId),
   });
 
   const typeName = (id: string) => {
@@ -142,7 +132,7 @@ function ListPage() {
               locations={locations}
               onCreated={() => {
                 setOpen(false);
-                qc.invalidateQueries({ queryKey: ["checklist-templates"] });
+                qc.invalidateQueries({ queryKey: checklistKeys.list(activeCompanyId) });
               }}
             />
           </Dialog>
@@ -279,37 +269,9 @@ function CreateTemplateDialog({
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!activeCompanyId) throw new Error("Sin empresa activa");
-      if (!code || !name || !familyId) throw new Error("Completa los campos obligatorios");
-      const finalTypes = allTypes ? [] : typeIds;
-      if (!allTypes && !finalTypes.length) throw new Error("Selecciona al menos un tipo de activo");
-      const finalLocations = allLocations ? [] : locationIds;
-      if (!allLocations && !finalLocations.length) throw new Error("Selecciona al menos un centro");
-
-      const { data: tpl, error: tplErr } = await supabase
-        .from("checklist_templates")
-        .insert({
-          company_id: activeCompanyId,
-          code: code.toUpperCase(),
-          name,
-          asset_family_id: familyId,
-          asset_type_ids: finalTypes,
-          asset_type_id: finalTypes.length === 1 ? finalTypes[0] : null,
-          location_ids: finalLocations,
-          include_sublocations: includeSub,
-          description: description || null,
-          current_version: 0,
-        })
-        .select()
-        .single();
-      if (tplErr) throw tplErr;
-
-      const { error: verErr } = await supabase.from("checklist_template_versions").insert({
-        template_id: tpl.id,
-        version: 1,
-        is_published: false,
+      await checklistService.createTemplate(activeCompanyId, {
+        code, name, familyId, allTypes, typeIds, allLocations, locationIds, includeSub, description,
       });
-      if (verErr) throw verErr;
     },
     onSuccess: () => {
       toast.success("Plantilla creada");

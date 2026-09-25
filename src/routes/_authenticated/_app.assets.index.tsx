@@ -133,7 +133,7 @@ function AssetsList() {
               locations={locations}
               onCreated={() => {
                 setOpen(false);
-                qc.invalidateQueries({ queryKey: ["assets"] });
+                qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
               }}
             />
           </Dialog>

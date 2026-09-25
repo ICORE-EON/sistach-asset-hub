@@ -84,7 +84,7 @@ beforeEach(() => { writes.length = 0; for (const k of Object.keys(delay)) delete
 describe("query keys", () => {
   it("every assetKeys factory embeds orgId at position 1 and differs between tenants", () => {
     const factories = Object.entries(assetKeys) as Array<[string, (o: string, ...r: string[]) => readonly unknown[]]>;
-    expect(factories.length).toBe(8);
+    expect(factories.length).toBe(9);
     for (const [name, f] of factories) {
       const a = f(ORG_A, "x"), b = f(ORG_B, "x");
       expect(a[1], name).toBe(ORG_A);

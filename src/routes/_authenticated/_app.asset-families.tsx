@@ -61,9 +61,9 @@ function AssetFamiliesPage() {
   });
 
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["asset-families"] });
-    qc.invalidateQueries({ queryKey: ["asset-types-family"] });
-    qc.invalidateQueries({ queryKey: ["asset-types-admin"] });
+    qc.invalidateQueries({ queryKey: assetKeys.families(activeCompanyId) });
+    qc.invalidateQueries({ queryKey: assetKeys.typesForFamilies(activeCompanyId) });
+    qc.invalidateQueries({ queryKey: assetKeys.typesAdmin(activeCompanyId) });
   };
 
   const assign = useMutation({

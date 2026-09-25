@@ -78,6 +78,11 @@ export function createAssetsRepo(c: StandaloneClient) {
       return ok(await c.from("locations").select("id, code, name").eq("company_id", orgId)
         .eq("active", true).is("deleted_at", null).order("name")) ?? [];
     },
+    /** Site tree (with parent) used by scope pickers: plans and checklist templates. */
+    async listScopeSites(orgId: string) {
+      return ok(await c.from("locations").select("id, name, code, parent_location_id").eq("company_id", orgId)
+        .is("deleted_at", null).order("name")) ?? [];
+    },
     async listSites(orgId: string) {
       return ok(await c.from("locations").select("id, name, code").eq("company_id", orgId).is("deleted_at", null)) ?? [];
     },

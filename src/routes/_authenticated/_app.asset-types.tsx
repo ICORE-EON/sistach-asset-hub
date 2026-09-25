@@ -73,8 +73,8 @@ function AssetTypesPage() {
     },
     onSuccess: () => {
       toast.success("Familia actualizada");
-      qc.invalidateQueries({ queryKey: ["asset-types-admin"] });
-      qc.invalidateQueries({ queryKey: ["asset-types-family"] });
+      qc.invalidateQueries({ queryKey: assetKeys.typesAdmin(activeCompanyId) });
+      qc.invalidateQueries({ queryKey: assetKeys.typesForFamilies(activeCompanyId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -85,7 +85,7 @@ function AssetTypesPage() {
     },
     onSuccess: () => {
       toast.success("Tipo eliminado");
-      qc.invalidateQueries({ queryKey: ["asset-types-admin"] });
+      qc.invalidateQueries({ queryKey: assetKeys.typesAdmin(activeCompanyId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -115,8 +115,8 @@ function AssetTypesPage() {
             <CreateTypeDialog
               onCreated={() => {
                 setOpen(false);
-                qc.invalidateQueries({ queryKey: ["asset-types-admin"] });
-                qc.invalidateQueries({ queryKey: ["asset-types"] });
+                qc.invalidateQueries({ queryKey: assetKeys.typesAdmin(activeCompanyId) });
+                qc.invalidateQueries({ queryKey: assetKeys.types(activeCompanyId) });
               }}
             />
           </Dialog>

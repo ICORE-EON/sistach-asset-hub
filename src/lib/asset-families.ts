@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { checklistService } from "@/modules/maintenance/services/checklists";
 import { assetService } from "@/modules/maintenance/services/assets";
 
 export type AssetFamily = {
@@ -31,7 +31,7 @@ export async function fetchAssetTypes(companyId: string): Promise<AssetTypeRow[]
   return (await assetService.listTypes(companyId)) as AssetTypeRow[];
 }
 
-/** Published checklist templates available for a company. (Checklists block — pending.) */
+/** Published checklist templates available for a company. (Delegates to the maintenance module.) */
 export type PublishedTemplate = {
   id: string;
   code: string;
@@ -44,35 +44,13 @@ export type PublishedTemplate = {
 };
 
 export async function fetchPublishedTemplates(companyId: string): Promise<PublishedTemplate[]> {
-  const { data, error } = await supabase
-    .from("checklist_templates")
-    .select(
-      "id, code, name, asset_type_id, asset_family_id, asset_type_ids, location_ids, include_sublocations",
-    )
-    .eq("company_id", companyId)
-    .is("deleted_at", null)
-    .eq("active", true)
-    .gt("current_version", 0)
-    .order("name");
-  if (error) throw error;
-  return (data ?? []) as unknown as PublishedTemplate[];
+  return (await checklistService.listPublishedTemplates(companyId)) as unknown as PublishedTemplate[];
 }
 
-/** Latest published version id for each checklist template. */
+/** Latest published version id for each checklist template of the company. */
 export async function fetchPublishedVersions(
+  companyId: string,
   templateIds: string[],
 ): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (!templateIds.length) return out;
-  const { data, error } = await supabase
-    .from("checklist_template_versions")
-    .select("id, template_id, version")
-    .in("template_id", templateIds)
-    .eq("is_published", true)
-    .order("version", { ascending: false });
-  if (error) throw error;
-  for (const row of data ?? []) {
-    if (!out.has(row.template_id)) out.set(row.template_id, row.id);
-  }
-  return out;
+  return checklistService.latestPublishedVersions(companyId, templateIds);
 }
