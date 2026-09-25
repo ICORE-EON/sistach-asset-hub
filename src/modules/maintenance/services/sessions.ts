@@ -85,8 +85,6 @@ export const sessionService = {
       if (existing) return { cert: { id: existing.id, code: existing.code }, pdfFailed: false };
       if (r.session.status !== "closed") throw new Error("La sesión ya se ha cerrado en otro dispositivo");
     }
-    const md = (r.session.metadata ?? {}) as { outcome?: string };
-    void md;
     return legacy.emitSessionCertificate(org, {
       sessionId, sessionCode: r.session.code, planName: plan?.name ?? null, intervalMonths: plan?.interval_months ?? null,
       signerName: r.closedNow ? signer.signerName : (r.session.signer_name ?? signer.signerName),
