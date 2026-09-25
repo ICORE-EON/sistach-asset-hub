@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, Power, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,14 +33,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FREQUENCIES } from "./_app.maintenance-plans.index";
-import {
-  describeScopeLocations,
-  fetchCompanyLocations,
-  fetchScopeAssets,
-  type ScopeAsset,
-} from "@/lib/maintenance-scope";
-import { fetchAssetTypes } from "@/lib/asset-families";
+import { describeScopeLocations, type ScopeAsset } from "@/modules/maintenance/domain/scope";
+import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
+import { FREQUENCIES, planKeys, planService } from "@/modules/maintenance/services/plans";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/$id")({
   head: () => ({ meta: [{ title: "Detalle plan" }] }),
@@ -57,70 +51,43 @@ function PlanDetail() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plan } = useQuery({
-    queryKey: ["plan", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_plans")
-        .select("*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name, current_version), certificate_templates(id, code, name)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: planKeys.detail(activeCompanyId, id),
+    enabled: !!activeCompanyId,
+    queryFn: () => planService.getPlan(activeCompanyId, id),
   });
 
   const { data: certTemplates = [] } = useQuery({
-    queryKey: ["certificate-templates-pick", activeCompanyId],
+    queryKey: planKeys.certTemplatesByCode(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .select("id, code, name, is_default")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => planService.listCertificateTemplates(activeCompanyId, "code"),
   });
 
   const setCertTemplate = useMutation({
-    mutationFn: async (templateId: string | null) => {
-      const { error } = await supabase
-        .from("maintenance_plans")
-        .update({ certificate_template_id: templateId })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (templateId: string | null) =>
+      planService.setCertificateTemplate(activeCompanyId, id, templateId),
     onSuccess: () => {
       toast.success("Plantilla de certificado actualizada");
-      qc.invalidateQueries({ queryKey: ["plan", id] });
+      qc.invalidateQueries({ queryKey: planKeys.detail(activeCompanyId, id), exact: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const { data: planAssets = [] } = useQuery({
-    queryKey: ["plan-assets", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_plan_assets")
-        .select("*, assets(id, code, name, status, locations(name))")
-        .eq("plan_id", id);
-      if (error) throw error;
-      return data;
-    },
+    queryKey: planKeys.assets(activeCompanyId, id),
+    enabled: !!activeCompanyId,
+    queryFn: () => planService.listPlanAssets(activeCompanyId, id),
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations-scope", activeCompanyId],
+    queryKey: assetKeys.scopeSites(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+    queryFn: () => assetService.listScopeSites(activeCompanyId),
   });
 
   const { data: allTypes = [] } = useQuery({
-    queryKey: ["asset-types-family", activeCompanyId],
+    queryKey: assetKeys.typesForFamilies(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetTypes(activeCompanyId!),
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const familyTypeIds = useMemo(() => {
@@ -132,11 +99,10 @@ function PlanDetail() {
 
   // Todos los activos de la familia (para el diálogo de añadir manualmente)
   const { data: familyAssets = [] } = useQuery({
-    queryKey: ["family-assets", activeCompanyId, familyTypeIds],
+    queryKey: planKeys.familyAssets(activeCompanyId, familyTypeIds),
     enabled: !!activeCompanyId && !!plan && familyTypeIds.length > 0,
     queryFn: () =>
-      fetchScopeAssets({
-        companyId: activeCompanyId!,
+      planService.listScopeAssets(activeCompanyId, {
         assetTypeIds: familyTypeIds,
         locationIds: [],
         includeSublocations: true,
@@ -146,17 +112,15 @@ function PlanDetail() {
 
   // Activos que encajan con el alcance guardado del plan
   const { data: scopedAssets = [] } = useQuery({
-    queryKey: [
-      "scoped-assets",
+    queryKey: planKeys.scopedAssets(
       activeCompanyId,
       familyTypeIds,
       plan?.scope_location_ids,
       plan?.scope_include_sublocations,
-    ],
+    ),
     enabled: !!activeCompanyId && plan?.scope_mode === "scoped" && familyTypeIds.length > 0,
     queryFn: () =>
-      fetchScopeAssets({
-        companyId: activeCompanyId!,
+      planService.listScopeAssets(activeCompanyId, {
         assetTypeIds: familyTypeIds,
         locationIds: (plan?.scope_location_ids as string[] | null) ?? [],
         includeSublocations: plan?.scope_include_sublocations ?? true,
@@ -175,48 +139,29 @@ function PlanDetail() {
   );
 
   const addAssets = useMutation({
-    mutationFn: async (assetIds: string[]) => {
-      if (!assetIds.length) throw new Error("Selecciona al menos un equipo");
-      const { error } = await supabase
-        .from("maintenance_plan_assets")
-        .insert(assetIds.map((assetId) => ({ plan_id: id, asset_id: assetId })));
-      if (error) throw error;
-      return assetIds.length;
-    },
+    mutationFn: (assetIds: string[]) => planService.addAssets(activeCompanyId, id, assetIds),
     onSuccess: (n) => {
       toast.success(`${n} equipo(s) añadidos`);
-      qc.invalidateQueries({ queryKey: ["plan-assets", id] });
+      qc.invalidateQueries({ queryKey: planKeys.assets(activeCompanyId, id), exact: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleActive = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("maintenance_plans")
-        .update({ active: !plan?.active })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => planService.setActive(activeCompanyId, id, !plan?.active),
     onSuccess: () => {
       toast.success("Estado actualizado");
-      qc.invalidateQueries({ queryKey: ["plan", id] });
-      qc.invalidateQueries({ queryKey: ["maintenance-plans"] });
+      qc.invalidateQueries({ queryKey: planKeys.detail(activeCompanyId, id), exact: true });
+      qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const removeAsset = useMutation({
-    mutationFn: async (assignmentId: string) => {
-      const { error } = await supabase
-        .from("maintenance_plan_assets")
-        .delete()
-        .eq("id", assignmentId);
-      if (error) throw error;
-    },
+    mutationFn: (assignmentId: string) => planService.removeAsset(activeCompanyId, id, assignmentId),
     onSuccess: () => {
       toast.success("Activo desvinculado");
-      qc.invalidateQueries({ queryKey: ["plan-assets", id] });
+      qc.invalidateQueries({ queryKey: planKeys.assets(activeCompanyId, id), exact: true });
     },
     onError: (e: Error) => toast.error(e.message),
   });

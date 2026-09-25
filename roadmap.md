@@ -4,7 +4,7 @@
 - [x] Fase 2: adaptadores standalone (tenant, authz, people, sites, assets, docs) + preflight + stub ICORE — esperando revisión antes de fase 3
 - [ ] Fase 3: repositorios y servicios por dominio (quitar supabase.* de páginas)
   - [x] Bloque 1 activos/familias/tipos/botiquín (repo + servicio + prueba real) — esperando revisión — verificado: build prod + test cambio de organización (10 casos)
-  - [x] Bloque 2 checklists  - [ ] 3 planes  - [ ] 4 sesiones  - [ ] 5 incidencias  - [ ] 6 certificados
+  - [x] Bloque 2 checklists  - [x] Bloque 3 planes (pendiente de aprobación)  - [ ] 4 sesiones  - [ ] 5 incidencias  - [ ] 6 certificados
   - [ ] Verificar cambio de organización con 2 empresas (cuenta actual solo tiene 1)
 - [ ] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales
 - [ ] Fase 5: migraciones M1–M7 (org_id, FKs compuestas, tablas de relación, outbox)

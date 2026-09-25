@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, ChevronRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,22 +35,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchCompanyLocations, fetchScopeAssets, groupAssets } from "@/lib/maintenance-scope";
-import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
-import { resolveTemplatesForType, type ScopedTemplate } from "@/lib/checklist-scope";
+import { groupAssets } from "@/modules/maintenance/domain/scope";
+import { resolveTemplatesForType, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
+import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
+import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { FREQUENCIES, planKeys, planService } from "@/modules/maintenance/services/plans";
 
+export { FREQUENCIES };
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance-plans/")({
   head: () => ({ meta: [{ title: "Planes de mantenimiento" }] }),
   component: PlansList,
 });
-
-export const FREQUENCIES = [
-  { value: "monthly", label: "Mensual", months: 1 },
-  { value: "quarterly", label: "Trimestral", months: 3 },
-  { value: "biannual", label: "Semestral", months: 6 },
-  { value: "annual", label: "Anual", months: 12 },
-];
 
 function PlansList() {
   const { activeCompanyId, activeMembership } = useCompany();
@@ -66,53 +61,24 @@ function PlansList() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plans = [], isLoading } = useQuery({
-    queryKey: ["maintenance-plans", activeCompanyId],
+    queryKey: planKeys.list(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("maintenance_plans")
-        .select("*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name)")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => planService.listPlans(activeCompanyId),
   });
 
   const { data: templates = [] } = useQuery({
-    queryKey: ["templates-published", activeCompanyId],
+    queryKey: checklistKeys.published(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_templates")
-        .select(
-          "id, code, name, asset_type_id, current_version, asset_family_id, asset_type_ids, location_ids, include_sublocations",
-        )
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .gt("current_version", 0)
-        .eq("active", true);
-      if (error) throw error;
-      return (data ?? []) as unknown as Array<
-        ScopedTemplate & { code: string; name: string; current_version: number }
-      >;
-    },
+    queryFn: async () =>
+      (await checklistService.listPublishedTemplates(activeCompanyId)) as unknown as Array<
+        ScopedTemplate & { code: string; name: string }
+      >,
   });
 
-
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types", activeCompanyId],
+    queryKey: assetKeys.types(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("asset_types")
-        .select("id, code, name_i18n")
-        .or(`company_id.eq.${activeCompanyId},is_system.eq.true`)
-        .eq("active", true);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   // Opciones de familia y tipo a partir de los planes existentes
@@ -189,7 +155,7 @@ function PlansList() {
               templates={templates}
               onCreated={() => {
                 setOpen(false);
-                qc.invalidateQueries({ queryKey: ["maintenance-plans"] });
+                qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true });
               }}
             />
           </Dialog>
@@ -374,47 +340,37 @@ function CreatePlanDialog({
   const [certTemplateId, setCertTemplateId] = useState("");
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
 
   const { data: allTypes = [] } = useQuery({
-    queryKey: ["asset-types-family", activeCompanyId],
+    queryKey: assetKeys.typesForFamilies(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetTypes(activeCompanyId!),
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
 
   const { data: certTemplates = [] } = useQuery({
-    queryKey: ["cert-templates-family", activeCompanyId],
+    queryKey: planKeys.certTemplatesByName(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .select("id, code, name, asset_family_id")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => planService.listCertificateTemplates(activeCompanyId, "name"),
   });
 
   const family = families.find((f) => f.id === familyId);
   const familyTypeIds = allTypes.filter((t) => t.family_id === familyId).map((t) => t.id);
 
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations-scope", activeCompanyId],
+    queryKey: assetKeys.scopeSites(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+    queryFn: () => assetService.listScopeSites(activeCompanyId),
   });
 
   const { data: candidates = [], isFetching: loadingCandidates } = useQuery({
-    queryKey: ["scope-assets", activeCompanyId, familyTypeIds, scopeMode, locationIds, includeSub],
+    queryKey: planKeys.scopeAssets(activeCompanyId, familyTypeIds, scopeMode, locationIds, includeSub),
     enabled: !!activeCompanyId && !!familyId,
     queryFn: () =>
-      fetchScopeAssets({
-        companyId: activeCompanyId!,
+      planService.listScopeAssets(activeCompanyId, {
         assetTypeIds: familyTypeIds,
         locationIds: scopeMode === "scoped" ? locationIds : [],
         includeSublocations: includeSub,
@@ -476,52 +432,11 @@ function CreatePlanDialog({
   const missingTemplates = usedTypeIds.filter((id) => !templateFor(id));
 
   const create = useMutation({
-    mutationFn: async () => {
-      if (!activeCompanyId) throw new Error("Sin empresa activa");
-      if (!code || !name || !familyId) throw new Error("Completa los campos obligatorios");
-      if (!selectedIds.length) throw new Error("Selecciona al menos un equipo");
-      if (missingTemplates.length)
-        throw new Error("Hay tipos de activo sin plantilla de checklist publicada");
-      const freq = FREQUENCIES.find((f) => f.value === frequency);
-      const mainTemplate = templateFor(usedTypeIds[0]);
-
-      const { data: plan, error } = await supabase
-        .from("maintenance_plans")
-        .insert({
-          company_id: activeCompanyId,
-          code: code.toUpperCase(),
-          name,
-          asset_family_id: familyId,
-          asset_type_id: usedTypeIds.length === 1 ? usedTypeIds[0] : null,
-          checklist_template_id: mainTemplate,
-          certificate_template_id: certTemplateId || null,
-          frequency,
-          interval_months: freq?.months ?? null,
-          notes: notes || null,
-          scope_mode: scopeMode,
-          scope_location_ids: scopeMode === "scoped" ? locationIds : [],
-          scope_include_sublocations: includeSub,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-
-      const { error: linkErr } = await supabase.from("maintenance_plan_assets").insert(
-        selectedIds.map((assetId) => ({ plan_id: plan.id, asset_id: assetId })),
-      );
-      if (linkErr) throw linkErr;
-
-      const { error: mapErr } = await supabase.from("maintenance_plan_type_templates").insert(
-        usedTypeIds.map((typeId) => ({
-          plan_id: plan.id,
-          asset_type_id: typeId,
-          checklist_template_id: templateFor(typeId),
-        })),
-      );
-      if (mapErr) throw mapErr;
-
-      return selectedIds.length;
-    },
+    mutationFn: () =>
+      planService.createPlan(activeCompanyId, {
+        code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
+        selectedIds, usedTypeIds, templateFor, certTemplateId,
+      }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
       onCreated();
