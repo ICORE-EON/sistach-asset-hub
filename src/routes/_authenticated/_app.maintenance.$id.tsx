@@ -38,6 +38,7 @@ import {
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { generateCertificatePdf } from "@/lib/certificate-generator";
+import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/$id")({
   head: () => ({ meta: [{ title: "Sesión de mantenimiento" }] }),
@@ -327,28 +328,13 @@ function ItemChecklist({
   const [observations, setObservations] = useState(item.observations ?? "");
 
   const { data: questions = [] } = useQuery({
-    queryKey: ["item-questions", item.checklist_template_version_id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_questions")
-        .select("*")
-        .eq("template_version_id", item.checklist_template_version_id)
-        .order("position");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: checklistKeys.itemQuestions(companyId, item.checklist_template_version_id),
+    queryFn: () => checklistService.listQuestions(companyId, item.checklist_template_version_id),
   });
 
   const { data: responses = [] } = useQuery({
-    queryKey: ["item-responses", item.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_responses")
-        .select("*")
-        .eq("maintenance_item_id", item.id);
-      if (error) throw error;
-      return data;
-    },
+    queryKey: checklistKeys.itemResponses(companyId, item.id),
+    queryFn: () => checklistService.listResponses(companyId, item.id),
   });
 
   const responseMap = useMemo(() => {
@@ -359,21 +345,14 @@ function ItemChecklist({
 
   const saveResponse = useMutation({
     mutationFn: async (args: { question: typeof questions[number]; answer: unknown; isFail: boolean; observations?: string }) => {
-      const { error } = await supabase.from("checklist_responses").upsert(
-        {
-          maintenance_item_id: item.id,
-          checklist_template_version_id: item.checklist_template_version_id,
-          question_id: args.question.id,
-          answer: { value: args.answer } as unknown as never,
-          is_fail: args.isFail,
-          observations: args.observations ?? null,
-          answered_at: new Date().toISOString(),
-        },
-        { onConflict: "maintenance_item_id,question_id" },
-      );
-      if (error) throw error;
+      await checklistService.saveResponse(companyId, item.id, item.checklist_template_version_id, {
+        question_id: args.question.id,
+        answer: args.answer,
+        is_fail: args.isFail,
+        observations: args.observations ?? null,
+      });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["item-responses", item.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -387,11 +366,7 @@ function ItemChecklist({
         dbResult = "not_applicable";
       } else {
         // Releer respuestas frescas desde la BD para evitar race con la caché
-        const { data: freshResponses, error: rErr } = await supabase
-          .from("checklist_responses")
-          .select("id, question_id, is_fail, observations")
-          .eq("maintenance_item_id", item.id);
-        if (rErr) throw rErr;
+        const freshResponses = await checklistService.listResponses(companyId, item.id);
 
         const fails = (freshResponses ?? []).filter((r) => r.is_fail);
         const failedWithIncident = fails.filter((r) => {
@@ -460,7 +435,7 @@ function ItemChecklist({
         toast.success("Activo guardado");
       }
       qc.invalidateQueries({ queryKey: ["session-items", sessionId] });
-      qc.invalidateQueries({ queryKey: ["item-responses", item.id] });
+      qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) });
     },
     onError: (e: Error) => toast.error(e.message),
   });

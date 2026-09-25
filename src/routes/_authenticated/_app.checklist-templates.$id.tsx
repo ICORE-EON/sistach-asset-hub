@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, CheckCircle2, FileText, GitBranch } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,9 +27,9 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { i18nName } from "@/lib/i18n-name";
-import { fetchAssetFamilies, fetchAssetTypes } from "@/lib/asset-families";
-import { fetchCompanyLocations } from "@/lib/maintenance-scope";
-import { describeTemplateScope } from "@/lib/checklist-scope";
+import { describeTemplateScope } from "@/modules/maintenance/domain/checklist-scope";
+import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
+import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
 
 export const Route = createFileRoute("/_authenticated/_app/checklist-templates/$id")({
   head: () => ({ meta: [{ title: "Editor de plantilla" }] }),
@@ -46,35 +45,21 @@ const RESPONSE_TYPES = [
 
 function TemplateEditor() {
   const { id } = Route.useParams();
-  const { activeMembership } = useCompany();
+  const { activeCompanyId, activeMembership } = useCompany();
   const qc = useQueryClient();
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: template } = useQuery({
-    queryKey: ["template", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_templates")
-        .select("*, asset_types(code, name_i18n)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: checklistKeys.detail(activeCompanyId, id),
+    enabled: !!activeCompanyId,
+    queryFn: () => checklistService.getTemplate(activeCompanyId, id),
   });
 
   const { data: versions = [] } = useQuery({
-    queryKey: ["template-versions", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_template_versions")
-        .select("*")
-        .eq("template_id", id)
-        .order("version", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryKey: checklistKeys.versions(activeCompanyId, id),
+    enabled: !!activeCompanyId,
+    queryFn: () => checklistService.listVersions(activeCompanyId, id),
   });
 
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
@@ -84,39 +69,21 @@ function TemplateEditor() {
   }, [versions, selectedVersionId]);
 
   const { data: questions = [] } = useQuery({
-    queryKey: ["questions", activeVersion?.id],
-    enabled: !!activeVersion?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_questions")
-        .select("*")
-        .eq("template_version_id", activeVersion!.id)
-        .order("position");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: checklistKeys.questions(activeCompanyId, activeVersion?.id),
+    enabled: !!activeCompanyId && !!activeVersion?.id,
+    queryFn: () => checklistService.listQuestions(activeCompanyId, activeVersion!.id),
   });
 
   const publishVersion = useMutation({
     mutationFn: async () => {
       if (!activeVersion) return;
-      const { error } = await supabase
-        .from("checklist_template_versions")
-        .update({
-          is_published: true,
-          published_at: new Date().toISOString(),
-        })
-        .eq("id", activeVersion.id);
-      if (error) throw error;
-      await supabase
-        .from("checklist_templates")
-        .update({ current_version: activeVersion.version })
-        .eq("id", id);
+      await checklistService.publishVersion(activeCompanyId, id, activeVersion.id, activeVersion.version);
     },
     onSuccess: () => {
       toast.success("Versión publicada");
-      qc.invalidateQueries({ queryKey: ["template-versions", id] });
-      qc.invalidateQueries({ queryKey: ["template", id] });
+      qc.invalidateQueries({ queryKey: checklistKeys.versions(activeCompanyId, id) });
+      qc.invalidateQueries({ queryKey: checklistKeys.detail(activeCompanyId, id) });
+      qc.invalidateQueries({ queryKey: checklistKeys.list(activeCompanyId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -124,42 +91,14 @@ function TemplateEditor() {
   const newVersion = useMutation({
     mutationFn: async () => {
       const next = Math.max(0, ...versions.map((v) => v.version)) + 1;
-      const { data, error } = await supabase
-        .from("checklist_template_versions")
-        .insert({ template_id: id, version: next, is_published: false })
-        .select()
-        .single();
-      if (error) throw error;
       // Clonar preguntas de la última versión publicada
       const lastPublished = versions.find((v) => v.is_published);
-      if (lastPublished) {
-        const { data: prev } = await supabase
-          .from("checklist_questions")
-          .select("*")
-          .eq("template_version_id", lastPublished.id)
-          .order("position");
-        if (prev?.length) {
-          const clones = prev.map((q) => ({
-            template_version_id: data.id,
-            position: q.position,
-            prompt: q.prompt,
-            help_text: q.help_text,
-            response_type: q.response_type,
-            options: q.options,
-            required: q.required,
-            creates_incident: q.creates_incident,
-            fails_on: q.fails_on,
-            metadata: q.metadata,
-          }));
-          await supabase.from("checklist_questions").insert(clones);
-        }
-      }
-      return data.id;
+      return checklistService.createVersion(activeCompanyId, id, next, lastPublished?.id ?? null);
     },
     onSuccess: (newId) => {
       toast.success("Nueva versión creada");
       setSelectedVersionId(newId);
-      qc.invalidateQueries({ queryKey: ["template-versions", id] });
+      qc.invalidateQueries({ queryKey: checklistKeys.versions(activeCompanyId, id) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -237,7 +176,7 @@ function TemplateEditor() {
                 <AddQuestionDialog
                   versionId={activeVersion.id}
                   nextPosition={(questions.at(-1)?.position ?? 0) + 1}
-                  onCreated={() => qc.invalidateQueries({ queryKey: ["questions", activeVersion.id] })}
+                  onCreated={() => qc.invalidateQueries({ queryKey: checklistKeys.questions(activeCompanyId, activeVersion.id) })}
                 />
                 <Button
                   onClick={() => publishVersion.mutate()}
@@ -261,8 +200,9 @@ function TemplateEditor() {
                   key={q.id}
                   question={q}
                   index={idx}
+                  versionId={activeVersion!.id}
                   editable={!!canManage && !activeVersion?.is_published}
-                  onDeleted={() => qc.invalidateQueries({ queryKey: ["questions", activeVersion?.id] })}
+                  onDeleted={() => qc.invalidateQueries({ queryKey: checklistKeys.questions(activeCompanyId, activeVersion?.id) })}
                 />
               ))
             )}
@@ -276,19 +216,19 @@ function TemplateEditor() {
 function QuestionRow({
   question,
   index,
+  versionId,
   editable,
   onDeleted,
 }: {
   question: { id: string; prompt: string; response_type: string; required: boolean; creates_incident: boolean; help_text: string | null };
   index: number;
+  versionId: string;
   editable: boolean;
   onDeleted: () => void;
 }) {
+  const { activeCompanyId } = useCompany();
   const remove = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("checklist_questions").delete().eq("id", question.id);
-      if (error) throw error;
-    },
+    mutationFn: () => checklistService.deleteQuestion(activeCompanyId, versionId, question.id),
     onSuccess: () => {
       toast.success("Pregunta eliminada");
       onDeleted();
@@ -340,6 +280,7 @@ function AddQuestionDialog({
   nextPosition: number;
   onCreated: () => void;
 }) {
+  const { activeCompanyId } = useCompany();
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [helpText, setHelpText] = useState("");
@@ -350,22 +291,19 @@ function AddQuestionDialog({
 
   const create = useMutation({
     mutationFn: async () => {
-      if (!prompt.trim()) throw new Error("Escribe la pregunta");
       const options =
         responseType === "choice"
           ? { choices: choices.split(",").map((c) => c.trim()).filter(Boolean) }
           : null;
-      const { error } = await supabase.from("checklist_questions").insert({
-        template_version_id: versionId,
+      await checklistService.addQuestion(activeCompanyId, versionId, {
         position: nextPosition,
-        prompt: prompt.trim(),
+        prompt,
         help_text: helpText || null,
         response_type: responseType,
         required,
         creates_incident: createsIncident,
         options,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Pregunta añadida");
@@ -451,37 +389,25 @@ function ScopeCard({ templateId, canManage }: { templateId: string; canManage: b
   const [editing, setEditing] = useState(false);
 
   const { data: scope } = useQuery({
-    queryKey: ["template-scope", templateId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("checklist_templates")
-        .select("asset_family_id, asset_type_ids, location_ids, include_sublocations")
-        .eq("id", templateId)
-        .single();
-      if (error) throw error;
-      return data as unknown as {
-        asset_family_id: string | null;
-        asset_type_ids: string[] | null;
-        location_ids: string[] | null;
-        include_sublocations: boolean | null;
-      };
-    },
+    queryKey: checklistKeys.scope(activeCompanyId, templateId),
+    enabled: !!activeCompanyId,
+    queryFn: () => checklistService.getTemplateScope(activeCompanyId, templateId),
   });
 
   const { data: families = [] } = useQuery({
-    queryKey: ["asset-families", activeCompanyId],
+    queryKey: assetKeys.families(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetFamilies(activeCompanyId!),
+    queryFn: () => assetService.listFamilies(activeCompanyId),
   });
   const { data: types = [] } = useQuery({
-    queryKey: ["asset-types-family", activeCompanyId],
+    queryKey: assetKeys.typesForFamilies(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchAssetTypes(activeCompanyId!),
+    queryFn: () => assetService.listTypes(activeCompanyId),
   });
   const { data: locations = [] } = useQuery({
-    queryKey: ["locations-scope", activeCompanyId],
+    queryKey: assetKeys.scopeSites(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: () => fetchCompanyLocations(activeCompanyId!),
+    queryFn: () => assetService.listScopeSites(activeCompanyId),
   });
 
   const [familyId, setFamilyId] = useState<string>("");
@@ -499,24 +425,18 @@ function ScopeCard({ templateId, canManage }: { templateId: string; canManage: b
   }
 
   const save = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("checklist_templates")
-        .update({
-          asset_family_id: familyId || null,
-          asset_type_ids: typeIds,
-          asset_type_id: typeIds.length === 1 ? typeIds[0] : null,
-          location_ids: locationIds,
-          include_sublocations: includeSub,
-        })
-        .eq("id", templateId);
-      if (error) throw error;
-    },
+    mutationFn: () =>
+      checklistService.updateTemplateScope(activeCompanyId, templateId, {
+        asset_family_id: familyId || null,
+        asset_type_ids: typeIds,
+        location_ids: locationIds,
+        include_sublocations: includeSub,
+      }),
     onSuccess: () => {
       toast.success("Ámbito actualizado");
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["template-scope", templateId] });
-      qc.invalidateQueries({ queryKey: ["checklist-templates"] });
+      qc.invalidateQueries({ queryKey: checklistKeys.scope(activeCompanyId, templateId) });
+      qc.invalidateQueries({ queryKey: checklistKeys.list(activeCompanyId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });

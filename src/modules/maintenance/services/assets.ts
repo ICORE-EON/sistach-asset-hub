@@ -13,6 +13,7 @@ export const assetKeys = {
   typesAdmin: (orgId: string | null) => ["asset-types-admin", orgId] as const,
   types: (orgId: string | null) => ["asset-types", orgId] as const,
   sites: (orgId: string | null) => ["locations", orgId] as const,
+  scopeSites: (orgId: string | null) => ["locations-scope", orgId] as const,
   list: (orgId: string | null, ...f: unknown[]) => ["assets", orgId, ...f] as const,
   detail: (orgId: string | null, id: string) => ["asset", orgId, id] as const,
   kit: (orgId: string | null, assetId: string) => ["kit-contents", orgId, assetId] as const,
@@ -48,6 +49,7 @@ export const assetService = {
 
   listActiveSites: (orgId: string | null) => repo.listActiveSites(need(orgId)),
   listSites: (orgId: string | null) => repo.listSites(need(orgId)),
+  listScopeSites: (orgId: string | null) => repo.listScopeSites(need(orgId)),
 
   listAssets: (orgId: string | null, f?: AssetFilters) => repo.listAssets(need(orgId), f),
   getAsset: async (orgId: string | null, id: string) => {

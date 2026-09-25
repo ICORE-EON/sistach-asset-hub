@@ -102,7 +102,7 @@ function AssetDetail() {
     onSuccess: () => {
       toast.success("Activo actualizado");
       qc.invalidateQueries({ queryKey: assetKeys.detail(activeCompanyId, id) });
-      qc.invalidateQueries({ queryKey: ["assets"] });
+      qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -113,7 +113,7 @@ function AssetDetail() {
     },
     onSuccess: () => {
       toast.success("Activo eliminado");
-      qc.invalidateQueries({ queryKey: ["assets"] });
+      qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
       navigate({ to: "/assets" });
     },
     onError: (e: Error) => toast.error(e.message),
