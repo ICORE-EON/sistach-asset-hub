@@ -10,8 +10,13 @@ import { QueryClient, QueryObserver } from "@tanstack/query-core";
 import { createCertificatesRepo } from "../../data/certificates.repo";
 import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, pickTemplate, readCertificateSnapshot,
-  requiresCertificate, validUntilFrom,
+  planSnapshotLogo, requiresCertificate, validUntilFrom,
 } from "../../domain/certificate-rules";
+import {
+  certificateResultCounts, certificateResultHasIncident, certificateResultLabel, normalizeCertificateResult,
+} from "../../domain/certificate-results";
+import { legacyCertificateItemResult } from "../../domain/session-rules";
+import { resolveCell } from "@/lib/certificate-templates/render";
 import { composePdfData } from "../../domain/certificate-pdf-source";
 
 const A = "00000000-0000-0000-0000-00000000000a";
@@ -47,6 +52,7 @@ const seed = () => {
 };
 const writes: Array<{ table: string; op: string; filters: Array<[string, unknown]>; payload?: unknown }> = [];
 const uploads: string[] = [];
+let STORE: Record<string, { bytes: Uint8Array; type: string }> = {};
 const gates: Record<string, Promise<void> | undefined> = {};
 let seq = 0;
 function fakeClient() {
@@ -92,8 +98,16 @@ function fakeClient() {
     return b;
   };
   const rpc = async (_f: string, a: { p_prefix: string }) => ({ data: `${a.p_prefix}-${++seq}`, error: null });
-  const storage = { from: () => ({
-    upload: async (path: string) => { uploads.push(path); return { error: null }; },
+  const storage = { from: (bucket: string) => ({
+    upload: async (path: string, blob: Blob, o?: { upsert?: boolean }) => {
+      const key = `${bucket}:${path}`;
+      if (o?.upsert === false && STORE[key]) return { error: { message: "The resource already exists" } };
+      uploads.push(path); STORE[key] = { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type }; return { error: null };
+    },
+    download: async (path: string) => {
+      const f = STORE[`${bucket}:${path}`];
+      return f ? { data: new Blob([f.bytes.slice().buffer as ArrayBuffer], { type: f.type }), error: null } : { data: null, error: { message: "not found" } };
+    },
     createSignedUrl: async (path: string) => ({ data: { signedUrl: `signed://${path}` }, error: null }),
   }) };
   return { from, rpc, storage };
@@ -103,7 +117,7 @@ const render = vi.fn(async () => new Uint8Array([1, 2, 3]));
 vi.mock("../../adapters/standalone/repos", () => ({ get certificatesRepo() { return repo; }, get renderCertificatePdf() { return render; } }));
 const { certificateKeys, certificateService } = await import("../certificates");
 
-beforeEach(() => { seed(); writes.length = 0; uploads.length = 0; render.mockClear(); });
+beforeEach(() => { seed(); STORE = {}; writes.length = 0; uploads.length = 0; render.mockClear(); });
 const certWrites = () => writes.filter((w) => w.table === "certificates" || w.table === "certificate_items");
 
 describe("certificate rules (unchanged)", () => {
@@ -141,7 +155,7 @@ describe("snapshot precedence", () => {
     incidents: [], template: { source: "default", data: { name: "Plantilla al emitir" } as never },
   });
   const cert = { id: "c", code: "CERT", status: "issued", issued_on: "2026-02-01", valid_until: null, issuer_name: "Ana", issuer_role: null, signature_image_url: "sig" };
-  const live = { certItems: [{ result: "conditional", notes: "obs", asset_id: "a1", maintenance_item_id: "i1", maintenance_session_id: "s1", assets: { code: "AST-1", name: "NOMBRE ACTUAL" } }],
+  const live = { orgId: "org1", certItems: [{ result: "conditional", notes: "obs", asset_id: "a1", maintenance_item_id: "i1", maintenance_session_id: "s1", assets: { code: "AST-1", name: "NOMBRE ACTUAL" } }],
     sessionId: "s1", session: null, mItems: [], company: { name: "Empresa ACTUAL" }, incidents: [],
     currentTemplate: { source: "plan" as const, template: { name: "Plantilla ACTUAL" } as never } };
 
@@ -275,5 +289,111 @@ describe("emission idempotency", () => {
     await expect(certificateService.emitForSession(A, args("sB"))).rejects.toThrow(/organización activa/);
     expect(await certificateService.emitForSession(B, { ...args("sB"), requiresCertificate: false })).toEqual({ cert: null, pdfFailed: false });
     expect(certWrites()).toHaveLength(0);
+  });
+});
+
+describe("frozen logo (immutable at emission)", () => {
+  const png = (n: number) => new Uint8Array([0x89, 0x50, 0x4e, 0x47, n]);
+  const putLogo = (path: string, bytes: Uint8Array) => { STORE[`company-logos:${path}`] = { bytes, type: "image/png" }; };
+  const emitArgs = {
+    requiresCertificate: true, sessionId: "sB", sessionCode: "MTS", planId: null, planName: null, intervalMonths: null,
+    sessionMetadata: {}, sessionLocationId: null, signerName: "Ana", signerRole: null, signature: "sig", pendingCount: 0,
+    items: [{ id: "iB", asset_id: "aB", result: "with_incident", observations: null, metadata: itemSnap("aB", "AST-B") }],
+  };
+  const lastLogoArg = () => (render.mock.calls.at(-1) as unknown as [{ logoUrl: string | null }])[0].logoUrl;
+  const emitted = () => DB.certificates.find((c) => c.company_id === B && !["cB", "cBr"].includes(c.id as string))!;
+  beforeEach(() => {
+    DB.certificate_templates.find((t) => t.id === "tB")!.logo_url = `${B}/templates/tB.png`;
+    putLogo(`${B}/templates/tB.png`, png(1));
+  });
+
+  it("replacing the template logo after emission changes neither the snapshot nor the PDF", async () => {
+    await certificateService.emitForSession(B, emitArgs);
+    const cert = emitted();
+    const snap = readCertificateSnapshot(cert.metadata, "sB")!;
+    expect(snap.logo).toMatchObject({ status: "frozen", source_path: `${B}/templates/tB.png` });
+    const frozen = snap.logo as { path: string; sha256: string };
+    expect(frozen.path.startsWith(`${B}/certificates/frozen-logos/${frozen.sha256}.`)).toBe(true);
+    const first = lastLogoArg();
+    expect(first).toMatch(/^data:image\/png;base64,/);
+    // Replace the logo in place and change the template's logo path.
+    putLogo(`${B}/templates/tB.png`, png(2));
+    putLogo(`${B}/templates/tB-new.png`, png(3));
+    DB.certificate_templates.find((t) => t.id === "tB")!.logo_url = `${B}/templates/tB-new.png`;
+    const r = await certificateService.generatePdf(B, cert.id as string);
+    expect(r.warning).toBeNull();
+    expect(lastLogoArg()).toBe(first);
+    expect(readCertificateSnapshot(emitted().metadata, "sB")!.logo).toEqual(snap.logo);
+  });
+
+  it("tampered frozen bytes or invalid hash: existing PDF kept, nothing regenerated, current logo never used", async () => {
+    await certificateService.emitForSession(B, emitArgs);
+    const cert = emitted();
+    const snap = readCertificateSnapshot(cert.metadata, "sB")!;
+    const frozen = snap.logo as { path: string };
+    STORE[`signed-certificates:${frozen.path}`].bytes = png(9);
+    const pdfBefore = cert.pdf_url, hashBefore = cert.pdf_hash_sha256;
+    render.mockClear(); writes.length = 0;
+    await expect(certificateService.generatePdf(B, cert.id as string)).rejects.toThrow(/Se conserva el PDF emitido/);
+    expect(render).not.toHaveBeenCalled();
+    expect(emitted().pdf_url).toBe(pdfBefore); expect(emitted().pdf_hash_sha256).toBe(hashBefore);
+    expect(writes.filter((w) => w.table === "certificates")).toHaveLength(0);
+    // invalid hash string in the reference
+    (emitted().metadata as { snapshot: { logo: unknown } }).snapshot.logo = { ...snap.logo, sha256: "zz" };
+    await expect(certificateService.generatePdf(B, cert.id as string)).rejects.toThrow(/Se conserva el PDF emitido/);
+    expect(certificateService.logoNotice(B, emitted().metadata, "sB")).toMatch(/inválida.*no se usará el logo actual/);
+  });
+
+  it("a frozen reference under another org is refused (no read of foreign storage)", () => {
+    const logo = { status: "frozen", path: `${A}/certificates/frozen-logos/${"a".repeat(64)}.png`, sha256: "a".repeat(64), content_type: "image/png", source_path: "x" };
+    expect(planSnapshotLogo(B, logo)).toMatchObject({ kind: "missing", reason: expect.stringMatching(/organización activa/) });
+    expect(planSnapshotLogo(A, logo)).toMatchObject({ kind: "frozen" });
+    expect(planSnapshotLogo(B, undefined).kind).toBe("missing");
+    expect(planSnapshotLogo(B, { status: "none" }).kind).toBe("none");
+  });
+
+  it("a template logo path of another org is never copied at emission", async () => {
+    DB.certificate_templates.find((t) => t.id === "tB")!.logo_url = `${A}/templates/tA.png`;
+    putLogo(`${A}/templates/tA.png`, png(5));
+    const r = await certificateService.emitForSession(B, emitArgs);
+    expect(readCertificateSnapshot(emitted().metadata, "sB")!.logo).toMatchObject({ status: "unavailable", reason: "foreign_path" });
+    expect(Object.keys(STORE).some((k) => k.includes(`${B}/certificates/frozen-logos/`))).toBe(false);
+    expect(lastLogoArg()).toBeNull(); expect(r.pdfFailed).toBe(false);
+  });
+
+  it("logo that cannot be copied at emission: first PDF without logo + warning; later regenerations refused", async () => {
+    delete STORE[`company-logos:${B}/templates/tB.png`];
+    await certificateService.emitForSession(B, emitArgs);
+    expect(lastLogoArg()).toBeNull();
+    await expect(certificateService.generatePdf(B, emitted().id as string)).rejects.toThrow(/no se ha regenerado/);
+  });
+});
+
+describe("result normalization (single source)", () => {
+  it("labels and counters for every canonical and legacy value", () => {
+    const cases: Array<[string | null, string, boolean]> = [
+      ["ok", "OK", false], ["conditional", "Con incidencia", true], ["with_incident", "Con incidencia", true],
+      ["failed", "Fallo", true], ["fail", "Fallo", true], ["na", "N/A", false], ["n/a", "N/A", false],
+      ["not_applicable", "N/A", false], ["skipped", "N/A", false], [null, "OK", false],
+    ];
+    for (const [r, label, inc] of cases) {
+      expect(certificateResultLabel(r), String(r)).toBe(label);
+      expect(certificateResultHasIncident(r), String(r)).toBe(inc);
+      expect(legacyCertificateItemResult(r)).toBe(normalizeCertificateResult(r));
+    }
+    expect(certificateResultCounts(["ok", "conditional", "failed", "na", "with_incident"])).toEqual({ total: 5, ok: 1, withIncidents: 3, na: 1 });
+  });
+  it("conditional counts as incident in the emission summary", () => {
+    expect(emissionSummary(["ok", "conditional", "with_incident"], 0)).toBe("1 equipo(s) OK, 2 con incidencias.");
+  });
+  it("PDF cell shows the translated label for conditional", () => {
+    expect(resolveCell({ source: "result" } as never, { result: "conditional" })).toBe("Con incidencia");
+    expect(resolveCell({ source: "result" } as never, { result: "failed" })).toBe("Fallo");
+  });
+  it("detail screen uses the shared normalization, not raw values", () => {
+    const src = readFileSync(resolve(__dirname, "../../../../routes/_authenticated/_app.certificates.$id.tsx"), "utf8");
+    expect(src).toMatch(/certificateResultCounts\(items.map\(\(i\) => i.result\)\).withIncidents/);
+    expect(src).toMatch(/certificateResultLabel\(it.result\)/);
+    expect(src).not.toMatch(/i\.result === "with_incident"/);
   });
 });

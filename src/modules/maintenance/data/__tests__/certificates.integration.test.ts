@@ -44,7 +44,7 @@ describe.skipIf(!(url && key && token))("certificates repo · integración real"
       if (c.status === "issued") {
         const src = await repo.loadPdfSource(org, c.id);
         const cur = await repo.resolveTemplateForSession(org, src.session?.plan_id ?? null);
-        const d = composePdfData({ ...src, currentTemplate: cur });
+        const d = composePdfData({ ...src, orgId: org, currentTemplate: cur });
         sources[d.source] = (sources[d.source] ?? 0) + 1;
         await expect(repo.loadPdfSource(FOREIGN, c.id)).rejects.toThrow(/no encontrado/);
       }
