@@ -55,7 +55,7 @@ describe.skipIf(!(url && key && token))("certificates repo · integración real"
       await expect(repo.listAssetCertificates(FOREIGN, asset.id)).rejects.toThrow(/organización activa/);
       console.log(`[IT] certificados=${list.length} ítems(5)=${items} plantillas=${tpls.length} pestañaActivo=${tab.length} fuentesPDF=${JSON.stringify(sources)}`);
     }
-  });
+  }, 60000);
 
   it("escrituras rechazadas sin persistir nada", async () => {
     const org = await orgOf();
@@ -76,5 +76,5 @@ describe.skipIf(!(url && key && token))("certificates repo · integración real"
     const after = await repo.getCertificate(org, c.id);
     expect(after.status).toBe(before.status); expect(after.notes).toBe(before.notes); expect(after.pdf_hash_sha256).toBe(before.pdf_hash_sha256);
     expect((await repo.listCertificates(org, "all")).length).toBe((await repo.listCertificates(org, "all")).length);
-  });
+  }, 60000);
 });

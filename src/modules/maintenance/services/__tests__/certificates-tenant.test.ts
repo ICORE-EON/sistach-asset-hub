@@ -69,7 +69,7 @@ function fakeClient() {
         const rows = (DB[table] ??= []);
         if (op === "insert") {
           writes.push({ table, op, filters: [...filters], payload });
-          const created = (Array.isArray(payload) ? payload : [payload]).map((p) => ({ id: `new-${++seq}`, ...(p as Row) }));
+          const created: Row[] = (Array.isArray(payload) ? payload : [payload]).map((p) => ({ id: `new-${++seq}`, ...(p as Row) }));
           rows.push(...created);
           if (table === "certificate_items") for (const ci of created) {
             const cert = DB.certificates.find((c) => c.id === ci.certificate_id)!;
@@ -232,7 +232,7 @@ describe("writes with the current org; cross-org refusals before writing", () =>
   it("revoked certificates cannot be revoked again nor regenerated; no org means no write", async () => {
     await expect(certificateService.revoke(B, "cBr")).rejects.toThrow(/emitido/);
     await expect(certificateService.generatePdf(B, "cBr")).rejects.toThrow(/emitido/);
-    await expect(certificateService.revoke(null, "cB")).rejects.toThrow(/Sin empresa activa/);
+    expect(() => certificateService.revoke(null, "cB")).toThrow(/Sin empresa activa/);
     expect(writes).toHaveLength(0);
   });
   it("writes carry the current orgId", async () => {
