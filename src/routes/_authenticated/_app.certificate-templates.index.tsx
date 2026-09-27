@@ -70,7 +70,7 @@ function TemplatesList() {
             <CreateTemplateDialog
               onCreated={(id) => {
                 setOpen(false);
-                qc.invalidateQueries({ queryKey: ["certificate-templates"] });
+                qc.invalidateQueries({ queryKey: certificateKeys.templates(activeCompanyId) });
                 navigate({ to: "/certificate-templates/$id", params: { id } });
               }}
             />

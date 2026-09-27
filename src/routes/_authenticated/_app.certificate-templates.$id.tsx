@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Star, Trash, Eye } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,18 +97,12 @@ function TemplateEditor() {
   const { activeMembership } = useCompany();
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
+  const org = activeMembership?.company_id ?? null;
 
   const { data: tpl } = useQuery({
-    queryKey: ["certificate-template", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: certificateKeys.template(org, id),
+    enabled: !!org,
+    queryFn: () => certificateService.getTemplate(org, id),
   });
 
   const [form, setForm] = useState<TemplateForm | null>(null);
@@ -135,9 +129,7 @@ function TemplateEditor() {
   const save = useMutation({
     mutationFn: async () => {
       if (!form) return;
-      const { error } = await supabase
-        .from("certificate_templates")
-        .update({
+      await certificateService.updateTemplate(org, id, {
           code: form.code.trim().toUpperCase(),
           name: form.name.trim(),
           language: form.language,
@@ -151,29 +143,21 @@ function TemplateEditor() {
           show_signature: form.show_signature,
           show_company_stamp: form.show_company_stamp,
           logo_url: form.logo_url,
-        } as never)
-        .eq("id", id);
-      if (error) throw error;
+        });
     },
     onSuccess: () => {
       toast.success("Plantilla guardada");
-      qc.invalidateQueries({ queryKey: ["certificate-template", id] });
-      qc.invalidateQueries({ queryKey: ["certificate-templates"] });
+      qc.invalidateQueries({ queryKey: certificateKeys.template(org, id) });
+      qc.invalidateQueries({ queryKey: certificateKeys.templates(org) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("certificate_templates")
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => certificateService.deleteTemplate(org, id),
     onSuccess: () => {
       toast.success("Plantilla eliminada");
-      qc.invalidateQueries({ queryKey: ["certificate-templates"] });
+      qc.invalidateQueries({ queryKey: certificateKeys.templates(org) });
       navigate({ to: "/certificate-templates" });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -581,12 +565,9 @@ function LogoCard({
       setSignedUrl(null);
       return;
     }
-    supabase.storage
-      .from("company-logos")
-      .createSignedUrl(logoUrl, 300)
-      .then(({ data }) => {
-        if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
-      });
+    certificateService.signedLogoUrl(logoUrl).then((u) => {
+      if (!cancelled) setSignedUrl(u !== logoUrl ? u : null);
+    });
     return () => {
       cancelled = true;
     };
@@ -601,17 +582,16 @@ function LogoCard({
       toast.error("La imagen no puede superar 2 MB");
       return;
     }
-    const ext = (file.name.split(".").pop() || "png").toLowerCase();
-    const path = `${companyId}/templates/${templateId}.${ext}`;
     setUploading(true);
-    const { error } = await supabase.storage
-      .from("company-logos")
-      .upload(path, file, { upsert: true, contentType: file.type });
-    setUploading(false);
-    if (error) {
-      toast.error(error.message);
+    let path: string;
+    try {
+      path = await certificateService.uploadTemplateLogo(companyId, templateId, file);
+    } catch (e) {
+      setUploading(false);
+      toast.error((e as Error).message);
       return;
     }
+    setUploading(false);
     onChange(path);
     toast.success("Logo subido. Recuerda guardar la plantilla.");
   };
