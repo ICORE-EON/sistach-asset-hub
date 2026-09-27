@@ -1,3 +1,4 @@
+import { certificateResultSummary } from "@/modules/maintenance/domain/certificate-results";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont, type PDFImage } from "pdf-lib";
 import type { CertificateTemplate, TemplateColumn } from "./certificate-templates/types";
 import { renderTemplate, resolveCell, type RowSource } from "./certificate-templates/render";
@@ -285,7 +286,8 @@ export interface BuildPdfInput {
 }
 
 export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Array> {
-  const pdf = await PDFDocument.create();
+  // No creation/modification dates: identical input → identical bytes → identical hash (idempotent versions).
+  const pdf = await PDFDocument.create({ updateMetadata: false });
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
@@ -358,6 +360,12 @@ export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Ar
   // Equipment table
   if (input.template.columns.length > 0 && input.rows.length > 0) {
     ctx = drawTable(ctx, input.template.columns, input.rows);
+  }
+
+  // Result summary and completeness (shared domain rule)
+  if (input.rows.length > 0) {
+    ctx = { ...ctx, y: ctx.y - 6 };
+    ctx = drawParagraph(ctx, `Resumen: ${certificateResultSummary(input.rows.map((r) => r.result))}`, 10);
   }
 
   // Incidents table

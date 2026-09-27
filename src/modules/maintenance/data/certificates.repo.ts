@@ -7,8 +7,8 @@
  * Idempotency (no schema change; unique constraints/atomic RPCs stay for phase 7):
  *  - emitForSession: in-process single flight per session + re-check of an existing certificate for
  *    the session right before inserting; a retry returns the existing one.
- *  - storePdf: fixed storage path {org}/certificates/{id}.pdf with upsert, so regenerating replaces
- *    the same object and never creates another document.
+ *  - storePdf: immutable content-addressed versions {org}/certificates/{id}/{sha256}.pdf, verified and
+ *    then activated by compare-and-set; never overwrites or deletes (see storePdf).
  */
 import type { StandaloneClient } from "../adapters/standalone/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -27,6 +27,7 @@ const i18n = (n: unknown, code?: string | null) => {
   return o.es ?? o.en ?? o.ca ?? code ?? "";
 };
 
+export const pdfVersionPath = (orgId: string, certId: string, sha256: string) => `${orgId}/certificates/${certId}/${sha256}.pdf`;
 const inflightEmit = new Map<string, Promise<unknown>>();
 const inflightPdf = new Map<string, Promise<unknown>>();
 const single = <T>(m: Map<string, Promise<unknown>>, k: string, fn: () => Promise<T>): Promise<T> => {
@@ -287,16 +288,42 @@ export function createCertificatesRepo(c: StandaloneClient) {
       catch { return path; }
     },
 
+    /**
+     * Immutable PDF versioning. Each generation is written to a NEW content-addressed path
+     * {org}/certificates/{certId}/{sha256}.pdf with upsert:false; nothing is ever overwritten or deleted.
+     * The active reference (pdf_url, pdf_hash_sha256) is switched only after the stored object has been
+     * read back and its SHA-256 verified, with compare-and-set on the previous reference. A retry of the
+     * same generation (same bytes → same hash → same path) reuses the stored object and creates no new
+     * version. On any failure the previous PDF and reference stay untouched.
+     */
     storePdf(orgId: string, certId: string, bytes: Uint8Array, hashHex: string) {
       return single(inflightPdf, `${orgId}:${certId}`, async () => {
         const cert = await getOwn(orgId, certId);
         assertPdfBuildable(cert.status);
-        const path = `${orgId}/certificates/${certId}.pdf`;
+        const hash = await sha256Hex(bytes);
+        if (hash !== hashHex) throw new Error("La huella del PDF no coincide");
+        const path = pdfVersionPath(orgId, certId, hash);
+        if (cert.pdf_url === path && cert.pdf_hash_sha256 === hash) return { pdfUrl: path, created: false };
+        const bucket = c.storage.from("signed-certificates");
         const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-        const { error } = await c.storage.from("signed-certificates").upload(path, new Blob([ab], { type: "application/pdf" }), { contentType: "application/pdf", upsert: true });
-        if (error) throw error;
-        ok(await c.from("certificates").update({ pdf_url: path, pdf_hash_sha256: hashHex }).eq("id", certId).eq("company_id", orgId));
-        return { pdfUrl: path };
+        const up = await bucket.upload(path, new Blob([ab], { type: "application/pdf" }), { contentType: "application/pdf", upsert: false });
+        const exists = !!up.error && /exist|duplicate|409/i.test(String((up.error as { message?: string }).message ?? up.error));
+        if (up.error && !exists) throw up.error;
+        // Verify what is actually stored (new upload or equivalent earlier attempt) before switching.
+        const back = await bucket.download(path);
+        if (back.error || !back.data) throw new Error("No se ha podido verificar el PDF guardado. Se conserva el PDF anterior.");
+        if ((await sha256Hex(new Uint8Array(await back.data.arrayBuffer()))) !== hash)
+          throw new Error("El PDF guardado no supera la verificación de huella. Se conserva el PDF anterior.");
+        const meta = (cert.metadata && typeof cert.metadata === "object" && !Array.isArray(cert.metadata) ? cert.metadata : {}) as Record<string, unknown>;
+        const prev = Array.isArray(meta.pdf_versions) ? (meta.pdf_versions as unknown[]) : [];
+        const versions = [...prev, ...(cert.pdf_url && !prev.some((v) => (v as { path?: string })?.path === cert.pdf_url)
+          ? [{ path: cert.pdf_url, sha256: cert.pdf_hash_sha256 ?? null }] : []), { path, sha256: hash, stored_at: new Date().toISOString() }];
+        let q = c.from("certificates").update({ pdf_url: path, pdf_hash_sha256: hash, metadata: { ...meta, pdf_versions: versions } as unknown as Json })
+          .eq("id", certId).eq("company_id", orgId);
+        q = cert.pdf_url ? q.eq("pdf_url", cert.pdf_url) : q.is("pdf_url", null);
+        const upd = ok(await q.select("id")) as unknown as Array<{ id: string }> | null;
+        if (!upd || upd.length !== 1) throw new Error("El certificado ha cambiado mientras se generaba el PDF. Se conserva el PDF anterior.");
+        return { pdfUrl: path, created: true };
       });
     },
 
