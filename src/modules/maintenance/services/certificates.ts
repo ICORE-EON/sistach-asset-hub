@@ -6,7 +6,7 @@ import { certificatesRepo as repo, renderCertificatePdf } from "../adapters/stan
 import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/lib/certificate-templates/default";
 import type { TemplateColumn } from "@/lib/certificate-templates/types";
 import { composePdfData } from "../domain/certificate-pdf-source";
-import { LOGO_INTEGRITY_ERROR, isOrgPath, readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
+import { LOGO_INTEGRITY_ERROR, isOrgPath, planSnapshotLogo, readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
 import type { TemplateInput } from "../data/certificates.repo";
 
 export const certificateKeys = {
@@ -45,6 +45,13 @@ export const certificateService = {
   listIncidents: (orgId: string | null, id: string) => repo.listIncidents(need(orgId), id),
   appliedTemplate: (orgId: string | null, id: string, metadata: unknown, sessionId: string | null) =>
     repo.appliedTemplate(need(orgId), id, readCertificateSnapshot(metadata, sessionId)),
+  /** Visible warning when a snapshot certificate cannot rely on its frozen logo. */
+  logoNotice: (orgId: string | null, metadata: unknown, sessionId: string | null): string | null => {
+    const snap = readCertificateSnapshot(metadata, sessionId);
+    if (!snap || !orgId) return null;
+    const p = planSnapshotLogo(orgId, snap.logo);
+    return p.kind === "missing" ? `${p.reason}. Al regenerar se conservará el PDF emitido y no se usará el logo actual.` : null;
+  },
   hasSnapshot: (metadata: unknown, sessionId: string | null) => !!readCertificateSnapshot(metadata, sessionId),
   revoke: (orgId: string | null, id: string) => repo.revoke(need(orgId), id),
   updateNotes: (orgId: string | null, id: string, notes: string) => repo.updateNotes(need(orgId), id, notes.trim() || null),

@@ -239,6 +239,11 @@ function CertificateDetail() {
                     Emitido antes del registro histórico: el PDF usa los datos congelados de la sesión cuando existen y, si no, los datos y la plantilla actuales.
                   </p>
                 )}
+                {cert && !cert.external_provider && certificateService.logoNotice(org, cert.metadata, linkedSession ?? null) && (
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    {certificateService.logoNotice(org, cert.metadata, linkedSession ?? null)}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
