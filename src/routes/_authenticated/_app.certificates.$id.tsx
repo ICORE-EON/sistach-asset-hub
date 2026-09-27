@@ -208,6 +208,12 @@ function CertificateDetail() {
               value={certificateResultCounts(items.map((i) => i.result)).withIncidents}
               tone="amber"
             />
+            <SummaryRow label="N/A" value={certificateResultCounts(items.map((i) => i.result)).na} />
+            <SummaryRow label="Sin revisar" value={certificateResultCounts(items.map((i) => i.result)).skipped} />
+            <SummaryRow
+              label="Completitud"
+              value={certificateResultCounts(items.map((i) => i.result)).complete ? "Completo" : "Incompleto"}
+            />
             <SummaryRow label="Incidencias abiertas" value={incidents.filter((i) => i.status !== "closed").length} />
             {resolvedTemplate && (
               <div className="border-t pt-2">
@@ -340,7 +346,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SummaryRow({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" }) {
+function SummaryRow({ label, value, tone }: { label: string; value: number | string; tone?: "emerald" | "amber" }) {
   const cls =
     tone === "emerald"
       ? "text-emerald-600"

@@ -16,7 +16,7 @@ const RESULT_LABELS: Record<string, { label: string; variant: "default" | "secon
   fail: { label: "No conforme", variant: "destructive" },
   not_applicable: { label: "No aplica", variant: "secondary" },
   na: { label: "No aplica", variant: "secondary" },
-  skipped: { label: "No revisado", variant: "outline" },
+  skipped: { label: "Sin revisar", variant: "outline" },
   pending: { label: "Pendiente", variant: "outline" },
 };
 

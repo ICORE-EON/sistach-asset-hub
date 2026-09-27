@@ -33,13 +33,15 @@ export function itemResultFor(intent: "complete" | "na", failCount: number): "ok
   return failCount > 0 ? "with_incident" : "ok";
 }
 
-export const isFailResult = (r: string | null | undefined) => r === "with_incident" || r === "fail";
+import { certificateResultCounts, certificateResultHasIncident } from "./certificate-results";
+export const isFailResult = (r: string | null | undefined) => certificateResultHasIncident(r);
 
 /** Outcome stored in session metadata on close; pendingCount = items marked skipped at close. */
 export function legacySessionOutcome(results: string[], pendingCount: number): LegacyOutcome {
-  const hasIncidents = results.some(isFailResult);
-  if (hasIncidents) return pendingCount > 0 ? "incomplete_with_incidents" : "with_incidents";
-  return pendingCount > 0 ? "incomplete" : "ok";
+  const c = certificateResultCounts(results);
+  const incomplete = pendingCount > 0 || c.skipped > 0;
+  if (c.withIncidents > 0) return incomplete ? "incomplete_with_incidents" : "with_incidents";
+  return incomplete ? "incomplete" : "ok";
 }
 
 /** Legacy maintenance_items.result -> certificate_items_result_chk values (single normalization). */

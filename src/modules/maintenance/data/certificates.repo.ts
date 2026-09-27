@@ -7,8 +7,8 @@
  * Idempotency (no schema change; unique constraints/atomic RPCs stay for phase 7):
  *  - emitForSession: in-process single flight per session + re-check of an existing certificate for
  *    the session right before inserting; a retry returns the existing one.
- *  - storePdf: fixed storage path {org}/certificates/{id}.pdf with upsert, so regenerating replaces
- *    the same object and never creates another document.
+ *  - storePdf: immutable content-addressed versions {org}/certificates/{id}/{sha256}.pdf, verified and
+ *    then activated by compare-and-set; never overwrites or deletes (see storePdf).
  */
 import type { StandaloneClient } from "../adapters/standalone/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -17,7 +17,7 @@ import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
   type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,
 } from "../domain/certificate-rules";
-import { legacyCertificateItemResult } from "../domain/session-rules";
+import { resolveCertificateItemResult, storedCertificateResult } from "../domain/certificate-results";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Certificado no encontrado";
@@ -27,6 +27,7 @@ const i18n = (n: unknown, code?: string | null) => {
   return o.es ?? o.en ?? o.ca ?? code ?? "";
 };
 
+export const pdfVersionPath = (orgId: string, certId: string, sha256: string) => `${orgId}/certificates/${certId}/${sha256}.pdf`;
 const inflightEmit = new Map<string, Promise<unknown>>();
 const inflightPdf = new Map<string, Promise<unknown>>();
 const single = <T>(m: Map<string, Promise<unknown>>, k: string, fn: () => Promise<T>): Promise<T> => {
@@ -92,6 +93,20 @@ export function createCertificatesRepo(c: StandaloneClient) {
     }
   };
 
+  /**
+   * Canonical results: the stored column cannot express «Sin revisar», so the linked maintenance item
+   * (only when its session belongs to orgId) supplies the historical value. See certificate-results.ts.
+   */
+  const withHistoricalResults = async <R extends { result: string; maintenance_item_id?: string | null }>(orgId: string, rows: R[]): Promise<R[]> => {
+    const ids = [...new Set(rows.map((r) => r.maintenance_item_id).filter(Boolean) as string[])];
+    if (!ids.length) return rows.map((r) => ({ ...r, result: resolveCertificateItemResult(r.result) }));
+    const mi = (ok(await c.from("maintenance_items").select("id, result, session_id").in("id", ids)) ?? []) as Array<{ id: string; result: string; session_id: string }>;
+    const sids = [...new Set(mi.map((m) => m.session_id))];
+    const own = new Set(sids.length ? ((ok(await c.from("maintenance_sessions").select("id").in("id", sids).eq("company_id", orgId)) ?? []) as Array<{ id: string }>).map((s) => s.id) : []);
+    const src = new Map(mi.filter((m) => own.has(m.session_id)).map((m) => [m.id, m.result]));
+    return rows.map((r) => ({ ...r, result: resolveCertificateItemResult(r.result, r.maintenance_item_id ? src.get(r.maintenance_item_id) : null) }));
+  };
+
   const resolveTemplate = async (orgId: string, planId: string | null) => {
     let plan = null, family = null;
     if (planId) {
@@ -139,7 +154,8 @@ export function createCertificatesRepo(c: StandaloneClient) {
     getCertificate: getOwn,
     async listItems(orgId: string, certId: string) {
       await getOwn(orgId, certId);
-      return ok(await c.from("certificate_items").select("*, assets(id, code, name), maintenance_sessions(id, code)").eq("certificate_id", certId)) ?? [];
+      const rows = ok(await c.from("certificate_items").select("*, assets(id, code, name), maintenance_sessions(id, code)").eq("certificate_id", certId)) ?? [];
+      return withHistoricalResults(orgId, rows);
     },
     async listIncidents(orgId: string, certId: string) {
       await getOwn(orgId, certId);
@@ -173,8 +189,8 @@ export function createCertificatesRepo(c: StandaloneClient) {
 
     async listAssetCertificates(orgId: string, assetId: string) {
       await assertAsset(orgId, assetId);
-      const rows = ok(await c.from("certificate_items").select("id, result, certificates(id, code, title, issued_on, valid_until, status, company_id)").eq("asset_id", assetId)) ?? [];
-      return rows.filter((r) => (r.certificates as { company_id?: string } | null)?.company_id === orgId);
+      const rows = ok(await c.from("certificate_items").select("id, result, maintenance_item_id, certificates(id, code, title, issued_on, valid_until, status, company_id)").eq("asset_id", assetId)) ?? [];
+      return withHistoricalResults(orgId, rows.filter((r) => (r.certificates as { company_id?: string } | null)?.company_id === orgId));
     },
 
     findSessionCertificate,
@@ -224,7 +240,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
         if (a.items.length > 0) {
           ok(await c.from("certificate_items").insert(a.items.map((it) => ({
             certificate_id: cert.id, asset_id: it.asset_id, maintenance_session_id: a.sessionId,
-            maintenance_item_id: it.id, result: legacyCertificateItemResult(it.result), notes: it.observations ?? null,
+            maintenance_item_id: it.id, result: storedCertificateResult(it.result), notes: it.observations ?? null,
           }))));
         }
         return { cert: { id: cert.id as string, code: cert.code as string }, created: true };
@@ -241,12 +257,12 @@ export function createCertificatesRepo(c: StandaloneClient) {
       const sessionId = certItems.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
       type S = { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null };
       let session = null as S | null;
-      let mItems: Array<{ id: string; asset_id: string; metadata: unknown }> = [];
+      let mItems: Array<{ id: string; asset_id: string; result: string; metadata: unknown }> = [];
       if (sessionId) {
         session = ok(await c.from("maintenance_sessions").select("plan_id, status, metadata, maintenance_plans(name), locations(name)")
           .eq("id", sessionId).eq("company_id", orgId).maybeSingle()) as unknown as S | null;
         if (!session) throw new Error(CROSS);
-        mItems = (ok(await c.from("maintenance_items").select("id, asset_id, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
+        mItems = (ok(await c.from("maintenance_items").select("id, asset_id, result, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
       }
       const [company, incs] = await Promise.all([
         c.from("companies").select("name, cif, address, logo_url").eq("id", orgId).maybeSingle().then(ok),
@@ -272,16 +288,42 @@ export function createCertificatesRepo(c: StandaloneClient) {
       catch { return path; }
     },
 
+    /**
+     * Immutable PDF versioning. Each generation is written to a NEW content-addressed path
+     * {org}/certificates/{certId}/{sha256}.pdf with upsert:false; nothing is ever overwritten or deleted.
+     * The active reference (pdf_url, pdf_hash_sha256) is switched only after the stored object has been
+     * read back and its SHA-256 verified, with compare-and-set on the previous reference. A retry of the
+     * same generation (same bytes → same hash → same path) reuses the stored object and creates no new
+     * version. On any failure the previous PDF and reference stay untouched.
+     */
     storePdf(orgId: string, certId: string, bytes: Uint8Array, hashHex: string) {
       return single(inflightPdf, `${orgId}:${certId}`, async () => {
         const cert = await getOwn(orgId, certId);
         assertPdfBuildable(cert.status);
-        const path = `${orgId}/certificates/${certId}.pdf`;
+        const hash = await sha256Hex(bytes);
+        if (hash !== hashHex) throw new Error("La huella del PDF no coincide");
+        const path = pdfVersionPath(orgId, certId, hash);
+        if (cert.pdf_url === path && cert.pdf_hash_sha256 === hash) return { pdfUrl: path, created: false };
+        const bucket = c.storage.from("signed-certificates");
         const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-        const { error } = await c.storage.from("signed-certificates").upload(path, new Blob([ab], { type: "application/pdf" }), { contentType: "application/pdf", upsert: true });
-        if (error) throw error;
-        ok(await c.from("certificates").update({ pdf_url: path, pdf_hash_sha256: hashHex }).eq("id", certId).eq("company_id", orgId));
-        return { pdfUrl: path };
+        const up = await bucket.upload(path, new Blob([ab], { type: "application/pdf" }), { contentType: "application/pdf", upsert: false });
+        const exists = !!up.error && /exist|duplicate|409/i.test(String((up.error as { message?: string }).message ?? up.error));
+        if (up.error && !exists) throw up.error;
+        // Verify what is actually stored (new upload or equivalent earlier attempt) before switching.
+        const back = await bucket.download(path);
+        if (back.error || !back.data) throw new Error("No se ha podido verificar el PDF guardado. Se conserva el PDF anterior.");
+        if ((await sha256Hex(new Uint8Array(await back.data.arrayBuffer()))) !== hash)
+          throw new Error("El PDF guardado no supera la verificación de huella. Se conserva el PDF anterior.");
+        const meta = (cert.metadata && typeof cert.metadata === "object" && !Array.isArray(cert.metadata) ? cert.metadata : {}) as Record<string, unknown>;
+        const prev = Array.isArray(meta.pdf_versions) ? (meta.pdf_versions as unknown[]) : [];
+        const versions = [...prev, ...(cert.pdf_url && !prev.some((v) => (v as { path?: string })?.path === cert.pdf_url)
+          ? [{ path: cert.pdf_url, sha256: cert.pdf_hash_sha256 ?? null }] : []), { path, sha256: hash, stored_at: new Date().toISOString() }];
+        let q = c.from("certificates").update({ pdf_url: path, pdf_hash_sha256: hash, metadata: { ...meta, pdf_versions: versions } as unknown as Json })
+          .eq("id", certId).eq("company_id", orgId);
+        q = cert.pdf_url ? q.eq("pdf_url", cert.pdf_url) : q.is("pdf_url", null);
+        const upd = ok(await q.select("id")) as unknown as Array<{ id: string }> | null;
+        if (!upd || upd.length !== 1) throw new Error("El certificado ha cambiado mientras se generaba el PDF. Se conserva el PDF anterior.");
+        return { pdfUrl: path, created: true };
       });
     },
 
