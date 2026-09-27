@@ -510,7 +510,7 @@ describe("result normalization (single source)", () => {
     expect(resolveCell({ source: "result" } as never, { result: "na" })).toBe("N/A");
   });
   it("detail screen uses the shared normalization, not raw values", () => {
-    const src = readFileSync(resolve(__dirname, "../../../../routes/_authenticated/_app.certificates.$id.tsx"), "utf8");
+    const src = readFileSync(resolve(__dirname, "../../ui/pages/CertificateDetailPage.tsx"), "utf8");
     expect(src).toMatch(/certificateResultCounts\(items.map\(\(i\) => i.result\)\).withIncidents/);
     expect(src).toMatch(/certificateResultLabel\(it.result\)/);
     expect(src).not.toMatch(/i\.result === "with_incident"/);
