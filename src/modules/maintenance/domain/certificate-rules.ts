@@ -19,6 +19,7 @@
 import type { RowSource } from "@/lib/certificate-templates/render";
 import type { CertificateTemplate } from "@/lib/certificate-templates/types";
 import { legacyCertificateItemResult } from "./session-rules";
+import { certificateResultCounts } from "./certificate-results";
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : null);
@@ -35,8 +36,7 @@ export function validUntilFrom(today: Date, intervalMonths: number | null | unde
 
 /** Same notes summary as before. */
 export function emissionSummary(results: string[], pendingCount: number): string {
-  const okCount = results.filter((r) => r === "ok").length;
-  const failCount = results.filter((r) => r === "with_incident" || r === "fail").length;
+  const { ok: okCount, withIncidents: failCount } = certificateResultCounts(results);
   return `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
     pendingCount > 0 ? `, ${pendingCount} sin revisar` : ""}.`;
 }
@@ -69,7 +69,48 @@ export type CertificateSnapshot = {
   items: FrozenItem[];
   incidents: FrozenIncident[];
   template: { source: TemplateSourceKind; data: CertificateTemplate | null };
+  /** Logo frozen at emission (content-addressed copy + SHA-256). Absent on snapshots taken before this field. */
+  logo?: FrozenLogo;
 };
+
+/**
+ * Logo reference frozen at emission.
+ *  - "none": the certificate had no logo (template/company without logo or show_logo off).
+ *  - "frozen": immutable copy at {org}/certificates/frozen-logos/{sha256}.{ext}; bytes must hash to sha256.
+ *  - "unavailable": the logo existed but could not be copied at emission; PDF is built without logo.
+ */
+export type FrozenLogo =
+  | { status: "none" }
+  | { status: "frozen"; path: string; sha256: string; content_type: string; source_path: string }
+  | { status: "unavailable"; source_path: string; reason: string };
+
+const HEX64 = /^[0-9a-f]{64}$/;
+export const frozenLogoPath = (orgId: string, sha256: string, contentType: string) =>
+  `${orgId}/certificates/frozen-logos/${sha256}.${contentType.includes("png") ? "png" : contentType.includes("svg") ? "svg" : "jpg"}`;
+
+/** Only logo paths under the active org are acceptable (template logo, company logo or frozen copy). */
+export const isOrgPath = (orgId: string, path: string | null | undefined) =>
+  typeof path === "string" && path.startsWith(`${orgId}/`) && !path.includes("..");
+
+/** Plan for the PDF logo of a snapshot certificate. Never falls back to the current logo. */
+export type LogoPlan =
+  | { kind: "none" }
+  | { kind: "frozen"; path: string; sha256: string }
+  | { kind: "missing"; reason: string };
+export function planSnapshotLogo(orgId: string, logo: unknown): LogoPlan {
+  const l = obj(logo);
+  if (!l) return { kind: "missing", reason: "El certificado no tiene referencia de logo congelado" };
+  if (l.status === "none") return { kind: "none" };
+  if (l.status === "unavailable") return { kind: "missing", reason: "El logo no pudo congelarse al emitir" };
+  if (l.status !== "frozen" || typeof l.sha256 !== "string" || !HEX64.test(l.sha256) || typeof l.path !== "string")
+    return { kind: "missing", reason: "Referencia de logo congelado inválida" };
+  if (!isOrgPath(orgId, l.path) || !l.path.startsWith(`${orgId}/certificates/frozen-logos/${l.sha256}.`))
+    return { kind: "missing", reason: "El logo congelado no pertenece a la organización activa" };
+  return { kind: "frozen", path: l.path, sha256: l.sha256 };
+}
+
+export const LOGO_INTEGRITY_ERROR =
+  "No se puede verificar el logo original del certificado. Se conserva el PDF emitido sin cambios; no se ha regenerado.";
 
 /** Asset row shape the PDF expects, from an item opening snapshot. Null when not usable. */
 export function assetFromItemSnapshot(itemMetadata: unknown, assetId: string): RowSource["asset"] | null {
@@ -98,6 +139,7 @@ export function buildEmissionSnapshot(a: {
   items: Array<{ id: string; asset_id: string; result: string; observations: string | null; metadata?: unknown }>;
   incidents: FrozenIncident[];
   template: CertificateSnapshot["template"];
+  logo?: FrozenLogo;
 }): CertificateSnapshot {
   const plan = obj(obj(obj(a.sessionMetadata)?.snapshot)?.plan);
   const items: FrozenItem[] = a.items.map((it) => ({
@@ -109,7 +151,7 @@ export function buildEmissionSnapshot(a: {
     v: CERT_SNAPSHOT_VERSION, captured_at: a.now.toISOString(), session_id: a.sessionId, session_code: a.sessionCode,
     plan: plan ? { id: str(plan.id) || null, name: str(plan.name) || null } : null,
     company: a.company, location_name: a.sessionLocationName || mostCommonLocation(rows),
-    items, incidents: a.incidents, template: a.template,
+    items, incidents: a.incidents, template: a.template, logo: a.logo ?? { status: "none" },
   };
 }
 

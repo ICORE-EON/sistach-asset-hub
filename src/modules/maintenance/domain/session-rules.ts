@@ -42,13 +42,5 @@ export function legacySessionOutcome(results: string[], pendingCount: number): L
   return pendingCount > 0 ? "incomplete" : "ok";
 }
 
-/** Legacy maintenance_items.result -> certificate_items_result_chk values (unchanged mapping). */
-export function legacyCertificateItemResult(r: string | null | undefined): "ok" | "conditional" | "failed" | "na" {
-  switch (r) {
-    case "ok": return "ok";
-    case "with_incident": case "conditional": return "conditional";
-    case "fail": case "failed": return "failed";
-    case "na": case "n/a": case "skipped": return "na";
-    default: return "ok";
-  }
-}
+/** Legacy maintenance_items.result -> certificate_items_result_chk values (single normalization). */
+export { normalizeCertificateResult as legacyCertificateItemResult } from "./certificate-results";

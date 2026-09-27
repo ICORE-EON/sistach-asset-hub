@@ -1,3 +1,4 @@
+import { certificateResultLabel } from "@/modules/maintenance/domain/certificate-results";
 import type { CertificateTemplate, TemplateColumn, TemplateVariables } from "./types";
 
 export function substituteVariables(text: string, vars: Partial<TemplateVariables>): string {
@@ -20,12 +21,6 @@ export interface RowSource {
   notes?: string | null;
 }
 
-const RESULT_LABELS: Record<string, string> = {
-  ok: "OK",
-  conditional: "Condicional",
-  failed: "Fallo",
-  na: "N/A",
-};
 
 function i18nName(i18n: Record<string, string> | null | undefined, fallback?: string | null): string {
   if (!i18n) return fallback ?? "";
@@ -47,7 +42,7 @@ export function resolveCell(col: TemplateColumn, row: RowSource): string {
     case "location.name":
       return row.asset?.locations?.name ?? "";
     case "result":
-      return RESULT_LABELS[row.result ?? ""] ?? row.result ?? "";
+      return row.result ? certificateResultLabel(row.result) : "";
     case "notes":
       return row.notes ?? "";
     default:

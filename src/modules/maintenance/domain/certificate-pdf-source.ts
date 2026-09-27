@@ -5,7 +5,8 @@
 import type { RowSource } from "@/lib/certificate-templates/render";
 import type { CertificateTemplate, TemplateVariables } from "@/lib/certificate-templates/types";
 import {
-  assetFromItemSnapshot, mostCommonLocation, readCertificateSnapshot,
+  assetFromItemSnapshot, mostCommonLocation, planSnapshotLogo, readCertificateSnapshot,
+  type LogoPlan,
   type FrozenIncident, type PdfSource, type TemplateSourceKind,
 } from "./certificate-rules";
 import { historicalSession } from "./session-history";
@@ -25,7 +26,9 @@ type Company = { name?: string | null; cif?: string | null; address?: string | n
 export type PdfData = {
   source: PdfSource; templateFrozen: boolean; templateSource: TemplateSourceKind;
   template: CertificateTemplate | null; vars: Partial<TemplateVariables>; rows: RowSource[];
-  incidents: FrozenIncident[]; logoPath: string | null; signature: string | null;
+  incidents: FrozenIncident[]; signature: string | null;
+  /** Snapshot certificates: frozen logo or explicit "missing". Legacy: the current logo, flagged by source. */
+  logo: LogoPlan | { kind: "current"; path: string };
 };
 
 const i18n = (n: unknown, code?: string | null) => {
@@ -34,7 +37,7 @@ const i18n = (n: unknown, code?: string | null) => {
 };
 
 export function composePdfData(a: {
-  cert: Cert; certItems: CertItem[]; sessionId: string | null;
+  orgId: string; cert: Cert; certItems: CertItem[]; sessionId: string | null;
   session: { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null } | null;
   mItems: Array<{ id: string; asset_id: string; metadata: unknown }>;
   company: Company; incidents: Incident[];
@@ -54,7 +57,7 @@ export function composePdfData(a: {
         location_name: snap.location_name, plan_name: snap.plan?.name ?? "" },
       rows: snap.items.map((i) => ({ asset: i.asset, result: i.result, notes: i.notes })),
       incidents: snap.incidents,
-      logoPath: tpl?.logo_url ?? snap.company.logo_url ?? null, signature: a.cert.signature_image_url ?? null,
+      logo: planSnapshotLogo(a.orgId, snap.logo), signature: a.cert.signature_image_url ?? null,
     };
   }
 
@@ -86,7 +89,8 @@ export function composePdfData(a: {
       location_name: a.session?.locations?.name || mostCommonLocation(rows),
       plan_name: (hs?.maintenance_plans as { name?: string } | null | undefined)?.name ?? "" },
     rows, incidents,
-    logoPath: tpl?.logo_url ?? a.company?.logo_url ?? null, signature: a.cert.signature_image_url ?? null,
+    logo: (() => { const p = tpl?.logo_url ?? a.company?.logo_url ?? null; return p ? { kind: "current" as const, path: p } : { kind: "none" as const }; })(),
+    signature: a.cert.signature_image_url ?? null,
   };
 }
 
