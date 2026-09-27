@@ -63,7 +63,7 @@ export function createIncidentsRepo(c: StandaloneClient) {
       let q = c.from("incidents").select("*, assets(code, name)").eq("company_id", orgId)
         .order("created_at", { ascending: false }).limit(500);
       if (severity !== "all") q = q.eq("severity", severity);
-      return ok(await q);
+      return ok(await q) ?? [];
     },
 
     async getIncident(orgId: string, id: string) {
@@ -75,21 +75,21 @@ export function createIncidentsRepo(c: StandaloneClient) {
 
     async listHistory(orgId: string, id: string) {
       await getOwn(orgId, id);
-      return ok(await c.from("incident_status_history").select("*").eq("incident_id", id).order("changed_at", { ascending: false }));
+      return ok(await c.from("incident_status_history").select("*").eq("incident_id", id).order("changed_at", { ascending: false })) ?? [];
     },
 
     async listMembers(orgId: string) {
-      return ok(await c.from("company_members").select("user_id, role").eq("company_id", orgId).eq("active", true));
+      return ok(await c.from("company_members").select("user_id, role").eq("company_id", orgId).eq("active", true)) ?? [];
     },
 
     async listAssetOptions(orgId: string) {
-      return ok(await c.from("assets").select("id, code, name").eq("company_id", orgId).is("deleted_at", null).order("code").limit(500));
+      return ok(await c.from("assets").select("id, code, name").eq("company_id", orgId).is("deleted_at", null).order("code").limit(500)) ?? [];
     },
 
     async listAssetIncidents(orgId: string, assetId: string) {
       await assertAsset(orgId, assetId);
       return ok(await c.from("incidents").select("id, code, title, severity, status, created_at")
-        .eq("company_id", orgId).eq("asset_id", assetId).order("created_at", { ascending: false }));
+        .eq("company_id", orgId).eq("asset_id", assetId).order("created_at", { ascending: false })) ?? [];
     },
 
     async createManual(orgId: string, v: { title: string; description: string | null; severity: string; assetId: string | null }) {

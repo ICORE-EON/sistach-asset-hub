@@ -26,7 +26,7 @@ export const incidentService = {
   listAssetOptions: (orgId: string | null) => repo.listAssetOptions(need(orgId)),
   listAssetIncidents: (orgId: string | null, assetId: string) => repo.listAssetIncidents(need(orgId), assetId),
 
-  createManual: (orgId: string | null, v: { title: string; description: string; severity: string; assetId: string }) => {
+  createManual: async (orgId: string | null, v: { title: string; description: string; severity: string; assetId: string }) => {
     if (!v.title.trim()) throw new Error("El título es obligatorio");
     return repo.createManual(need(orgId), {
       title: v.title.trim(), description: v.description.trim() || null, severity: v.severity,
