@@ -36,9 +36,10 @@ export function validUntilFrom(today: Date, intervalMonths: number | null | unde
 
 /** Same notes summary as before. */
 export function emissionSummary(results: string[], pendingCount: number): string {
-  const { ok: okCount, withIncidents: failCount } = certificateResultCounts(results);
+  const { ok: okCount, withIncidents: failCount, skipped } = certificateResultCounts(results);
+  const unreviewed = Math.max(skipped, pendingCount);
   return `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
-    pendingCount > 0 ? `, ${pendingCount} sin revisar` : ""}.`;
+    unreviewed > 0 ? `, ${unreviewed} sin revisar` : ""}.`;
 }
 
 export const requiresCertificate = (requires: boolean | null | undefined) => requires !== false;

@@ -17,7 +17,7 @@ import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
   type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,
 } from "../domain/certificate-rules";
-import { legacyCertificateItemResult } from "../domain/session-rules";
+import { resolveCertificateItemResult, storedCertificateResult } from "../domain/certificate-results";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Certificado no encontrado";
@@ -224,7 +224,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
         if (a.items.length > 0) {
           ok(await c.from("certificate_items").insert(a.items.map((it) => ({
             certificate_id: cert.id, asset_id: it.asset_id, maintenance_session_id: a.sessionId,
-            maintenance_item_id: it.id, result: legacyCertificateItemResult(it.result), notes: it.observations ?? null,
+            maintenance_item_id: it.id, result: storedCertificateResult(it.result), notes: it.observations ?? null,
           }))));
         }
         return { cert: { id: cert.id as string, code: cert.code as string }, created: true };
@@ -241,12 +241,12 @@ export function createCertificatesRepo(c: StandaloneClient) {
       const sessionId = certItems.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
       type S = { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null };
       let session = null as S | null;
-      let mItems: Array<{ id: string; asset_id: string; metadata: unknown }> = [];
+      let mItems: Array<{ id: string; asset_id: string; result: string; metadata: unknown }> = [];
       if (sessionId) {
         session = ok(await c.from("maintenance_sessions").select("plan_id, status, metadata, maintenance_plans(name), locations(name)")
           .eq("id", sessionId).eq("company_id", orgId).maybeSingle()) as unknown as S | null;
         if (!session) throw new Error(CROSS);
-        mItems = (ok(await c.from("maintenance_items").select("id, asset_id, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
+        mItems = (ok(await c.from("maintenance_items").select("id, asset_id, result, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
       }
       const [company, incs] = await Promise.all([
         c.from("companies").select("name, cif, address, logo_url").eq("id", orgId).maybeSingle().then(ok),
