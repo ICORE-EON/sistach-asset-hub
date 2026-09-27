@@ -77,10 +77,11 @@ function CertificateDetail() {
 
   const regenerate = useMutation({
     mutationFn: async () => {
-      await certificateService.generatePdf(org, id);
+      return certificateService.generatePdf(org, id);
     },
-    onSuccess: () => {
-      toast.success("PDF generado");
+    onSuccess: (r) => {
+      if (r.warning) toast.warning(r.warning);
+      else toast.success("PDF generado");
       refreshCert();
     },
     onError: (e: Error) => toast.error(e.message),
