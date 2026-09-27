@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCompany } from "@/contexts/CompanyContext";
 import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
 import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 
 const RESULT_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ok: { label: "OK", variant: "default" },
@@ -39,17 +39,10 @@ export function AssetHistoryPanel({ assetId }: { assetId: string }) {
     queryFn: () => incidentService.listAssetIncidents(activeCompanyId, assetId),
   });
 
-  // Residual (block 6): certificates tab keeps its current read.
   const { data: certificates = [] } = useQuery({
-    queryKey: ["asset-certificates", assetId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_items")
-        .select("id, result, certificates(id, code, title, issued_on, valid_until, status)")
-        .eq("asset_id", assetId);
-      if (error) throw error;
-      return data.filter((r) => r.certificates);
-    },
+    queryKey: certificateKeys.byAsset(activeCompanyId, assetId),
+    enabled: !!activeCompanyId,
+    queryFn: () => certificateService.listAssetCertificates(activeCompanyId, assetId),
   });
 
   return (

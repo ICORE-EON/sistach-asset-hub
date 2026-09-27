@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,19 +45,9 @@ export function ExternalCertificateDialog({ open, onOpenChange, companyId }: Pro
   const [file, setFile] = useState<File | null>(null);
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["assets-for-cert", companyId],
+    queryKey: certificateKeys.externalAssets(companyId),
     enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("id, code, name")
-        .eq("company_id", companyId)
-        .is("deleted_at", null)
-        .order("code")
-        .limit(500);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => certificateService.listAssetsForExternal(companyId),
   });
 
   const reset = () => {
@@ -74,71 +64,13 @@ export function ExternalCertificateDialog({ open, onOpenChange, companyId }: Pro
   };
 
   const create = useMutation({
-    mutationFn: async () => {
-      if (!title.trim()) throw new Error("Indica un título");
-      if (!provider.trim()) throw new Error("Indica el proveedor externo");
-      if (!file) throw new Error("Adjunta el PDF del certificado");
-
-      const { data: code, error: codeErr } = await supabase.rpc("next_code", {
-        p_company_id: companyId,
-        p_scope: "certificate",
-        p_prefix: "CERT",
-      });
-      if (codeErr) throw codeErr;
-
-      const { data: cert, error } = await supabase
-        .from("certificates")
-        .insert({
-          company_id: companyId,
-          code,
-          title: title.trim(),
-          issued_on: issuedOn,
-          valid_until: validUntil || null,
-          issuer_name: issuerName.trim() || null,
-          issuer_role: issuerRole.trim() || null,
-          external_provider: provider.trim(),
-          external_cert_number: externalNumber.trim() || null,
-          notes: notes.trim() || null,
-          status: "issued",
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
-      if (assetId !== "none") {
-        const { error: itemErr } = await supabase.from("certificate_items").insert({
-          certificate_id: cert.id,
-          asset_id: assetId,
-          result: "ok",
-        });
-        if (itemErr) throw itemErr;
-      }
-
-      // Upload PDF to documents bucket
-      const path = `certificates/${cert.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const { error: upErr } = await supabase.storage
-        .from("documents")
-        .upload(path, file, { contentType: file.type || "application/pdf" });
-      if (upErr) throw upErr;
-
-      const { error: docErr } = await supabase.from("documents").insert({
-        company_id: companyId,
-        certificate_id: cert.id,
-        title: file.name,
-        category: "certificate_pdf",
-        storage_bucket: "documents",
-        storage_path: path,
-        mime_type: file.type || "application/pdf",
-        file_size_bytes: file.size,
-        is_signed: true,
-      });
-      if (docErr) throw docErr;
-
-      return cert;
-    },
+    mutationFn: () =>
+      certificateService.registerExternal(companyId, {
+        title, issuerName, issuerRole, provider, externalNumber, issuedOn, validUntil, assetId, notes, file,
+      }),
     onSuccess: (cert) => {
       toast.success(`Certificado ${cert.code} registrado`);
-      qc.invalidateQueries({ queryKey: ["certificates"] });
+      qc.invalidateQueries({ queryKey: certificateKeys.lists(companyId) });
       reset();
       onOpenChange(false);
       navigate({ to: "/certificates/$id", params: { id: cert.id } });

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil, Download, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,6 @@ import {
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
-import { generateCertificatePdf, getCertificatePdfDownloadUrl } from "@/lib/certificate-generator";
 
 export const Route = createFileRoute("/_authenticated/_app/certificates/$id")({
   head: () => ({ meta: [{ title: "Certificado" }] }),
@@ -35,112 +34,53 @@ function CertificateDetail() {
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
+  const org = activeMembership?.company_id ?? null;
+
   const { data: cert } = useQuery({
-    queryKey: ["certificate", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificates")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: certificateKeys.detail(org, id),
+    enabled: !!org,
+    queryFn: () => certificateService.getCertificate(org, id),
   });
 
   const { data: items = [] } = useQuery({
-    queryKey: ["certificate-items", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_items")
-        .select("*, assets(id, code, name), maintenance_sessions(id, code)")
-        .eq("certificate_id", id);
-      if (error) throw error;
-      return data;
-    },
+    queryKey: certificateKeys.items(org, id),
+    enabled: !!org,
+    queryFn: () => certificateService.listItems(org, id),
   });
 
   const { data: incidents = [] } = useQuery({
-    queryKey: ["certificate-incidents", id, cert?.id],
-    enabled: !!cert,
-    queryFn: async () => {
-      // Find incidents created from any of the maintenance items linked to this certificate
-      const itemIds = items.map((i) => i.maintenance_item_id).filter(Boolean) as string[];
-      if (itemIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("incidents")
-        .select("id, code, title, status, severity")
-        .in("source_maintenance_item_id", itemIds);
-      if (error) throw error;
-      return data;
-    },
+    queryKey: certificateKeys.incidents(org, id),
+    enabled: !!org && !!cert,
+    queryFn: () => certificateService.listIncidents(org, id),
   });
 
-  // Resolve which certificate template will be applied (mirrors generator logic)
+  const linkedSession = items.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
+  // Frozen template when the certificate has its snapshot; otherwise the current resolution.
   const { data: resolvedTemplate } = useQuery({
-    queryKey: ["certificate-resolved-template", id, cert?.id],
-    enabled: !!cert,
-    queryFn: async () => {
-      const sid = items.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
-      let planTplId: string | null = null;
-      if (sid) {
-        const { data: s } = await supabase
-          .from("maintenance_sessions")
-          .select("plan_id")
-          .eq("id", sid)
-          .maybeSingle();
-        if (s?.plan_id) {
-          const { data: p } = await supabase
-            .from("maintenance_plans")
-            .select("certificate_template_id")
-            .eq("id", s.plan_id)
-            .maybeSingle();
-          planTplId = p?.certificate_template_id ?? null;
-        }
-      }
-      if (planTplId) {
-        const { data: tpl } = await supabase
-          .from("certificate_templates")
-          .select("id, name")
-          .eq("id", planTplId)
-          .maybeSingle();
-        if (tpl) return { source: "plan" as const, id: tpl.id, name: tpl.name };
-      }
-      const { data: def } = await supabase
-        .from("certificate_templates")
-        .select("id, name")
-        .eq("company_id", cert!.company_id)
-        .eq("is_default", true)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (def) return { source: "default" as const, id: def.id, name: def.name };
-      return { source: "builtin" as const, id: null, name: "Plantilla genérica integrada" };
-    },
+    queryKey: certificateKeys.applied(org, id),
+    enabled: !!org && !!cert,
+    queryFn: () => certificateService.appliedTemplate(org, id, cert!.metadata, linkedSession),
   });
 
+  const refreshCert = () => qc.invalidateQueries({ queryKey: certificateKeys.detail(org, id) });
 
   const revoke = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("certificates")
-        .update({ status: "revoked" })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => certificateService.revoke(org, id),
     onSuccess: () => {
       toast.success("Certificado revocado");
-      qc.invalidateQueries({ queryKey: ["certificate", id] });
+      refreshCert();
+      qc.invalidateQueries({ queryKey: certificateKeys.lists(org) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const regenerate = useMutation({
     mutationFn: async () => {
-      await generateCertificatePdf(id);
+      await certificateService.generatePdf(org, id);
     },
     onSuccess: () => {
       toast.success("PDF generado");
-      qc.invalidateQueries({ queryKey: ["certificate", id] });
+      refreshCert();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -148,7 +88,7 @@ function CertificateDetail() {
   const download = useMutation({
     mutationFn: async () => {
       if (!cert?.pdf_url) throw new Error("Sin PDF disponible");
-      const url = await getCertificatePdfDownloadUrl(cert.pdf_url);
+      const url = await certificateService.pdfDownloadUrl(org, id);
       window.open(url, "_blank");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -286,10 +226,17 @@ function CertificateDetail() {
                 <p className="text-xs text-muted-foreground">
                   {resolvedTemplate.source === "plan"
                     ? "Asignada al plan de mantenimiento"
+                    : resolvedTemplate.source === "family"
+                    ? "Plantilla de la familia de activos"
                     : resolvedTemplate.source === "default"
                     ? "Plantilla por defecto de la empresa"
                     : "Sin plantilla configurada — ni en el plan ni como predeterminada"}
                 </p>
+                {!resolvedTemplate.frozen && !cert.external_provider && (
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    Emitido antes del registro histórico: el PDF usa los datos congelados de la sesión cuando existen y, si no, los datos y la plantilla actuales.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
@@ -369,6 +316,7 @@ function CertificateDetail() {
           open={editNotesOpen}
           onOpenChange={setEditNotesOpen}
           certId={id}
+          orgId={org}
           initial={cert.notes ?? ""}
         />
       )}
@@ -404,8 +352,10 @@ function EditNotesDialog({
   open,
   onOpenChange,
   certId,
+  orgId,
   initial,
 }: {
+  orgId: string | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   certId: string;
@@ -415,16 +365,10 @@ function EditNotesDialog({
   const [notes, setNotes] = useState(initial);
 
   const save = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("certificates")
-        .update({ notes: notes.trim() || null })
-        .eq("id", certId);
-      if (error) throw error;
-    },
+    mutationFn: () => certificateService.updateNotes(orgId, certId, notes),
     onSuccess: () => {
       toast.success("Notas guardadas");
-      qc.invalidateQueries({ queryKey: ["certificate", certId] });
+      qc.invalidateQueries({ queryKey: certificateKeys.detail(orgId, certId) });
       onOpenChange(false);
     },
     onError: (e: Error) => toast.error(e.message),
