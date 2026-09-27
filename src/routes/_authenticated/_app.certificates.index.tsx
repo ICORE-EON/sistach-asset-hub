@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileBadge, Search, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -37,21 +37,9 @@ function CertificatesList() {
   const [extOpen, setExtOpen] = useState(false);
 
   const { data: certs = [], isLoading } = useQuery({
-    queryKey: ["certificates", companyId, statusFilter],
+    queryKey: certificateKeys.list(companyId ?? null, statusFilter),
     enabled: !!companyId,
-    queryFn: async () => {
-      let q = supabase
-        .from("certificates")
-        .select("*")
-        .eq("company_id", companyId!)
-        .is("deleted_at", null)
-        .order("issued_on", { ascending: false })
-        .limit(500);
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => certificateService.listCertificates(companyId ?? null, statusFilter),
   });
 
   const filtered = certs.filter((c) => {

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileBadge, Plus, ChevronRight, Star, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/lib/certificate-templates/default";
 
 export const Route = createFileRoute("/_authenticated/_app/certificate-templates/")({
   head: () => ({ meta: [{ title: "Plantillas de certificado" }] }),
@@ -41,18 +40,9 @@ function TemplatesList() {
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ["certificate-templates", activeCompanyId],
+    queryKey: certificateKeys.templates(activeCompanyId),
     enabled: !!activeCompanyId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .select("id, code, name, language, is_default, updated_at")
-        .eq("company_id", activeCompanyId!)
-        .is("deleted_at", null)
-        .order("code");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => certificateService.listTemplates(activeCompanyId),
   });
 
   return (
@@ -169,31 +159,7 @@ function CreateTemplateDialog({ onCreated }: { onCreated: (id: string) => void }
   const [name, setName] = useState("");
 
   const create = useMutation({
-    mutationFn: async () => {
-      if (!activeCompanyId) throw new Error("Sin empresa activa");
-      if (!code.trim() || !name.trim()) throw new Error("Completa código y nombre");
-      const { data, error } = await supabase
-        .from("certificate_templates")
-        .insert({
-          company_id: activeCompanyId,
-          code: code.trim().toUpperCase(),
-          name: name.trim(),
-          language: DEFAULT_CERTIFICATE_TEMPLATE.language,
-          title: DEFAULT_CERTIFICATE_TEMPLATE.title,
-          intro_text: DEFAULT_CERTIFICATE_TEMPLATE.intro_text,
-          regulation_text: DEFAULT_CERTIFICATE_TEMPLATE.regulation_text,
-          footer_text: DEFAULT_CERTIFICATE_TEMPLATE.footer_text,
-          columns: JSON.parse(JSON.stringify(DEFAULT_CERTIFICATE_TEMPLATE.columns)),
-          show_logo: DEFAULT_CERTIFICATE_TEMPLATE.show_logo,
-          show_signature: DEFAULT_CERTIFICATE_TEMPLATE.show_signature,
-          show_company_stamp: DEFAULT_CERTIFICATE_TEMPLATE.show_company_stamp,
-          paper_size: DEFAULT_CERTIFICATE_TEMPLATE.paper_size,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      return data.id as string;
-    },
+    mutationFn: () => certificateService.createTemplate(activeCompanyId, { code, name }),
     onSuccess: (id) => {
       toast.success("Plantilla creada");
       onCreated(id);
