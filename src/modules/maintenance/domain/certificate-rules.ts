@@ -18,7 +18,7 @@
  */
 import type { RowSource } from "@/lib/certificate-templates/render";
 import type { CertificateTemplate } from "@/lib/certificate-templates/types";
-import { legacyCertificateItemResult } from "./session-rules";
+import { normalizeCertificateResult as legacyCertificateItemResult } from "./certificate-results";
 import { certificateResultCounts } from "./certificate-results";
 
 type Obj = Record<string, unknown>;

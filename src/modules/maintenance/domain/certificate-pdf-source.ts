@@ -10,6 +10,7 @@ import {
   type FrozenIncident, type PdfSource, type TemplateSourceKind,
 } from "./certificate-rules";
 import { historicalSession } from "./session-history";
+import { normalizeCertificateResult, resolveCertificateItemResult } from "./certificate-results";
 
 export function formatDateEs(d: string | null | undefined): string {
   if (!d) return "";
@@ -39,7 +40,7 @@ const i18n = (n: unknown, code?: string | null) => {
 export function composePdfData(a: {
   orgId: string; cert: Cert; certItems: CertItem[]; sessionId: string | null;
   session: { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null } | null;
-  mItems: Array<{ id: string; asset_id: string; metadata: unknown }>;
+  mItems: Array<{ id: string; asset_id: string; result?: string | null; metadata: unknown }>;
   company: Company; incidents: Incident[];
   currentTemplate: { source: TemplateSourceKind; template: CertificateTemplate | null };
 }): PdfData {
@@ -55,7 +56,7 @@ export function composePdfData(a: {
       source: "snapshot", templateFrozen: true, templateSource: snap.template.source, template: tpl,
       vars: { ...base, company_name: snap.company.name, company_cif: snap.company.cif, company_address: snap.company.address,
         location_name: snap.location_name, plan_name: snap.plan?.name ?? "" },
-      rows: snap.items.map((i) => ({ asset: i.asset, result: i.result, notes: i.notes })),
+      rows: snap.items.map((i) => ({ asset: i.asset, result: normalizeCertificateResult(i.result), notes: i.notes })),
       incidents: snap.incidents,
       logo: planSnapshotLogo(a.orgId, snap.logo), signature: a.cert.signature_image_url ?? null,
     };
@@ -68,7 +69,7 @@ export function composePdfData(a: {
     const m = it.maintenance_item_id ? byItem.get(it.maintenance_item_id) : undefined;
     const frozen = m && it.asset_id ? assetFromItemSnapshot(m.metadata, it.asset_id) : null;
     if (!frozen) allFrozen = false;
-    return { asset: frozen ?? (it.assets as RowSource["asset"]), result: it.result, notes: it.notes };
+    return { asset: frozen ?? (it.assets as RowSource["asset"]), result: resolveCertificateItemResult(it.result, m?.result), notes: it.notes };
   });
   const hs = a.session ? historicalSession(a.session) : null;
   if (hs && hs.history_source === "legacy") allFrozen = false;

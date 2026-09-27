@@ -92,6 +92,20 @@ export function createCertificatesRepo(c: StandaloneClient) {
     }
   };
 
+  /**
+   * Canonical results: the stored column cannot express «Sin revisar», so the linked maintenance item
+   * (only when its session belongs to orgId) supplies the historical value. See certificate-results.ts.
+   */
+  const withHistoricalResults = async <R extends { result: string; maintenance_item_id?: string | null }>(orgId: string, rows: R[]): Promise<R[]> => {
+    const ids = [...new Set(rows.map((r) => r.maintenance_item_id).filter(Boolean) as string[])];
+    if (!ids.length) return rows.map((r) => ({ ...r, result: resolveCertificateItemResult(r.result) }));
+    const mi = (ok(await c.from("maintenance_items").select("id, result, session_id").in("id", ids)) ?? []) as Array<{ id: string; result: string; session_id: string }>;
+    const sids = [...new Set(mi.map((m) => m.session_id))];
+    const own = new Set(sids.length ? ((ok(await c.from("maintenance_sessions").select("id").in("id", sids).eq("company_id", orgId)) ?? []) as Array<{ id: string }>).map((s) => s.id) : []);
+    const src = new Map(mi.filter((m) => own.has(m.session_id)).map((m) => [m.id, m.result]));
+    return rows.map((r) => ({ ...r, result: resolveCertificateItemResult(r.result, r.maintenance_item_id ? src.get(r.maintenance_item_id) : null) }));
+  };
+
   const resolveTemplate = async (orgId: string, planId: string | null) => {
     let plan = null, family = null;
     if (planId) {
@@ -139,7 +153,8 @@ export function createCertificatesRepo(c: StandaloneClient) {
     getCertificate: getOwn,
     async listItems(orgId: string, certId: string) {
       await getOwn(orgId, certId);
-      return ok(await c.from("certificate_items").select("*, assets(id, code, name), maintenance_sessions(id, code)").eq("certificate_id", certId)) ?? [];
+      const rows = ok(await c.from("certificate_items").select("*, assets(id, code, name), maintenance_sessions(id, code)").eq("certificate_id", certId)) ?? [];
+      return withHistoricalResults(orgId, rows);
     },
     async listIncidents(orgId: string, certId: string) {
       await getOwn(orgId, certId);
@@ -173,8 +188,8 @@ export function createCertificatesRepo(c: StandaloneClient) {
 
     async listAssetCertificates(orgId: string, assetId: string) {
       await assertAsset(orgId, assetId);
-      const rows = ok(await c.from("certificate_items").select("id, result, certificates(id, code, title, issued_on, valid_until, status, company_id)").eq("asset_id", assetId)) ?? [];
-      return rows.filter((r) => (r.certificates as { company_id?: string } | null)?.company_id === orgId);
+      const rows = ok(await c.from("certificate_items").select("id, result, maintenance_item_id, certificates(id, code, title, issued_on, valid_until, status, company_id)").eq("asset_id", assetId)) ?? [];
+      return withHistoricalResults(orgId, rows.filter((r) => (r.certificates as { company_id?: string } | null)?.company_id === orgId));
     },
 
     findSessionCertificate,
