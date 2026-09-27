@@ -113,6 +113,12 @@ vi.mock("../../adapters/standalone/repos", () => ({
   get incidentsRepo() { return { openForFailures: legacy.openIncidentsForFailures }; },
   assetsRepo: {}, plansRepo: {},
 }));
+vi.mock("../certificates", () => ({
+  certificateService: {
+    findSessionCertificate: (...a: unknown[]) => (legacy.findSessionCertificate as (...x: unknown[]) => unknown)(...a),
+    emitForSession: (...a: unknown[]) => (legacy.emitSessionCertificate as (...x: unknown[]) => unknown)(...a),
+  },
+}));
 const { sessionKeys, sessionService } = await import("../sessions");
 
 beforeEach(() => { seed(); writes.length = 0; vi.clearAllMocks(); });

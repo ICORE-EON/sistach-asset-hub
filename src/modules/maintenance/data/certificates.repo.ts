@@ -37,7 +37,7 @@ const single = <T>(m: Map<string, Promise<unknown>>, k: string, fn: () => Promis
   return n;
 };
 
-export type TemplateInput = Omit<CertificateTemplate, "id" | "paper_size"> & { paper_size?: string };
+export type TemplateInput = { [K in keyof Omit<CertificateTemplate, "id">]?: unknown };
 
 export function createCertificatesRepo(c: StandaloneClient) {
   const getOwn = async (orgId: string, id: string) => {
@@ -206,11 +206,12 @@ export function createCertificatesRepo(c: StandaloneClient) {
         .select("id, result, notes, asset_id, maintenance_session_id, maintenance_item_id, assets(code, name, manufacturer, model, asset_types(code, name_i18n), locations(name))")
         .eq("certificate_id", certId)) ?? [];
       const sessionId = certItems.find((i) => i.maintenance_session_id)?.maintenance_session_id ?? null;
-      let session: { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null } | null = null;
+      type S = { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null };
+      let session = null as S | null;
       let mItems: Array<{ id: string; asset_id: string; metadata: unknown }> = [];
       if (sessionId) {
         session = ok(await c.from("maintenance_sessions").select("plan_id, status, metadata, maintenance_plans(name), locations(name)")
-          .eq("id", sessionId).eq("company_id", orgId).maybeSingle()) as typeof session;
+          .eq("id", sessionId).eq("company_id", orgId).maybeSingle()) as unknown as S | null;
         if (!session) throw new Error(CROSS);
         mItems = (ok(await c.from("maintenance_items").select("id, asset_id, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
       }
@@ -259,7 +260,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
     },
     async updateTemplate(orgId: string, id: string, patch: Partial<TemplateInput>) {
       await ownTemplate(orgId, id);
-      if (patch.logo_url && !patch.logo_url.startsWith(`${orgId}/`)) throw new Error(CROSS);
+      if (typeof patch.logo_url === "string" && !patch.logo_url.startsWith(`${orgId}/`)) throw new Error(CROSS);
       ok(await c.from("certificate_templates").update(patch as never).eq("id", id).eq("company_id", orgId));
     },
     async softDeleteTemplate(orgId: string, id: string) {
