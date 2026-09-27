@@ -7,7 +7,7 @@
   - [x] Correctivo final bloque 6: «Sin revisar» ≠ N/A, PDF versionado inmutable (pendiente de aprobación)
   - [x] Bloque 2 checklists  - [x] Bloque 3 planes (pendiente de aprobación)  - [x] Bloque 4 sesiones (pendiente de aprobación)  - [x] 5 incidencias (pendiente de aprobación)  - [x] 6 certificados (pendiente de aprobación)
   - [ ] Verificar cambio de organización con 2 empresas (cuenta actual solo tiene 1)
-- [ ] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales
+- [x] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales (pendiente de aprobación)
 - [ ] Fase 5: migraciones M1–M7 (org_id, FKs compuestas, tablas de relación, outbox)
 - [ ] Fase 6: person_ref + actor_snapshot, document_version_ref
 - [ ] Fase 7: seguridad (host_has_perm, RPC cierre/reapertura, QR con caducidad y límite)
