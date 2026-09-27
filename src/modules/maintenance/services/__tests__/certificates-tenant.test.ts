@@ -14,8 +14,9 @@ import {
 } from "../../domain/certificate-rules";
 import {
   certificateResultCounts, certificateResultHasIncident, certificateResultLabel, normalizeCertificateResult,
+  certificateResultSummary, resolveCertificateItemResult, storedCertificateResult,
 } from "../../domain/certificate-results";
-import { legacyCertificateItemResult } from "../../domain/session-rules";
+import { legacyCertificateItemResult, legacySessionOutcome } from "../../domain/session-rules";
 import { resolveCell } from "@/lib/certificate-templates/render";
 import { composePdfData } from "../../domain/certificate-pdf-source";
 
@@ -53,6 +54,8 @@ const seed = () => {
 const writes: Array<{ table: string; op: string; filters: Array<[string, unknown]>; payload?: unknown }> = [];
 const uploads: string[] = [];
 let STORE: Record<string, { bytes: Uint8Array; type: string }> = {};
+const FAIL: { upload?: boolean; download?: boolean; update?: boolean } = {};
+const OVERWRITES: string[] = [];
 const gates: Record<string, Promise<void> | undefined> = {};
 let seq = 0;
 function fakeClient() {
@@ -84,9 +87,11 @@ function fakeClient() {
           return res({ data: single ? created[0] : created, error: null });
         }
         if (op === "update") {
+          if (FAIL.update) return res({ data: null, error: { message: "db down" } });
           writes.push({ table, op, filters: [...filters], payload });
-          for (const r of rows.filter(match)) Object.assign(r, payload as Row);
-          return res({ data: null, error: null });
+          const hit = rows.filter(match);
+          for (const r of hit) Object.assign(r, payload as Row);
+          return res({ data: hit.map((r) => ({ id: r.id })), error: null });
         }
         let found = rows.filter(match);
         if (table === "certificate_items" && filters.some(([k]) => k === "maintenance_session_id") === false && lim === 1) found = found.filter((r) => r.maintenance_session_id);
@@ -101,10 +106,13 @@ function fakeClient() {
   const storage = { from: (bucket: string) => ({
     upload: async (path: string, blob: Blob, o?: { upsert?: boolean }) => {
       const key = `${bucket}:${path}`;
+      if (FAIL.upload) return { error: { message: "upload failed" } };
       if (o?.upsert === false && STORE[key]) return { error: { message: "The resource already exists" } };
+      if (o?.upsert !== false) OVERWRITES.push(key);
       uploads.push(path); STORE[key] = { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type }; return { error: null };
     },
     download: async (path: string) => {
+      if (FAIL.download && bucket === "signed-certificates" && path.endsWith(".pdf")) return { data: null, error: { message: "read failed" } };
       const f = STORE[`${bucket}:${path}`];
       return f ? { data: new Blob([f.bytes.slice().buffer as ArrayBuffer], { type: f.type }), error: null } : { data: null, error: { message: "not found" } };
     },
@@ -117,7 +125,7 @@ const render = vi.fn(async () => new Uint8Array([1, 2, 3]));
 vi.mock("../../adapters/standalone/repos", () => ({ get certificatesRepo() { return repo; }, get renderCertificatePdf() { return render; } }));
 const { certificateKeys, certificateService } = await import("../certificates");
 
-beforeEach(() => { seed(); STORE = {}; writes.length = 0; uploads.length = 0; render.mockClear(); });
+beforeEach(() => { seed(); STORE = {}; for (const k of Object.keys(FAIL)) delete FAIL[k as keyof typeof FAIL]; OVERWRITES.length = 0; writes.length = 0; uploads.length = 0; render.mockClear(); });
 const certWrites = () => writes.filter((w) => w.table === "certificates" || w.table === "certificate_items");
 
 describe("certificate rules (unchanged)", () => {
@@ -165,7 +173,7 @@ describe("snapshot precedence", () => {
     expect(d.template?.name).toBe("Plantilla al emitir");
     expect(d.vars.company_name).toBe("Empresa (al emitir)"); expect(d.vars.plan_name).toBe("Plan original");
     expect(d.rows[0].asset?.name).toBe("N-AST-1"); expect(d.rows[0].result).toBe("conditional");
-    expect(d.rows[1].asset).toBeNull(); expect(d.rows[1].result).toBe("na");
+    expect(d.rows[1].asset).toBeNull(); expect(d.rows[1].result).toBe("skipped");
     expect(d.vars.location_name).toBe("Almacén");
   });
   it("snapshot of another session is rejected (falls back)", () => {
@@ -255,12 +263,76 @@ describe("writes with the current org; cross-org refusals before writing", () =>
     expect(certWrites().every((w) => w.filters.some(([k, v]) => k === "company_id" && v === B))).toBe(true);
     expect(DB.certificates.find((c) => c.id === "cB")!.notes).toBe("n");
   });
-  it("PDF regeneration reuses one fixed path under the org (no duplicate documents)", async () => {
-    await certificateService.generatePdf(A, "cA");
-    await certificateService.generatePdf(A, "cA");
-    expect(new Set(uploads)).toEqual(new Set([`${A}/certificates/cA.pdf`]));
+  it("regeneration writes a new immutable path under the org and never overwrites", async () => {
+    STORE[`signed-certificates:${A}/certificates/cA.pdf`] = { bytes: new Uint8Array([7]), type: "application/pdf" };
+    render.mockResolvedValueOnce(new Uint8Array([1, 2, 3])).mockResolvedValueOnce(new Uint8Array([4, 5, 6]));
+    const r1 = await certificateService.generatePdf(A, "cA");
+    const r2 = await certificateService.generatePdf(A, "cA");
+    expect(r1.pdfUrl).not.toBe(r2.pdfUrl);
+    for (const u of [r1.pdfUrl, r2.pdfUrl]) expect(u).toMatch(new RegExp(`^${A}/certificates/cA/[0-9a-f]{64}\\.pdf$`));
+    expect(OVERWRITES).toHaveLength(0);
+    expect(STORE[`signed-certificates:${A}/certificates/cA.pdf`].bytes).toEqual(new Uint8Array([7])); // original kept
+    const cert = DB.certificates.find((c) => c.id === "cA")!;
+    expect(cert.pdf_url).toBe(r2.pdfUrl);
+    expect((cert.metadata as { pdf_versions: Array<{ path: string }> }).pdf_versions.map((v) => v.path))
+      .toEqual([`${A}/certificates/cA.pdf`, r1.pdfUrl, r2.pdfUrl]);
     expect(writes.filter((w) => w.table === "documents")).toHaveLength(0);
-    expect(DB.certificates.find((c) => c.id === "cA")!.pdf_hash_sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("immutable PDF versioning", () => {
+  const cA = () => DB.certificates.find((c) => c.id === "cA")!;
+  it("retrying the same generation creates no second version and no extra write", async () => {
+    const r1 = await certificateService.generatePdf(A, "cA");
+    writes.length = 0;
+    const r2 = await certificateService.generatePdf(A, "cA");
+    expect(r2.pdfUrl).toBe(r1.pdfUrl);
+    expect(Object.keys(STORE).filter((k) => k.startsWith(`signed-certificates:${A}/certificates/cA/`))).toHaveLength(1);
+    expect(writes.filter((w) => w.table === "certificates")).toHaveLength(0);
+    expect((cA().metadata as { pdf_versions: unknown[] }).pdf_versions).toHaveLength(2);
+  });
+  it("failure before upload (render or storage) keeps previous PDF and reference", async () => {
+    const before = { url: cA().pdf_url, hash: cA().pdf_hash_sha256 };
+    render.mockRejectedValueOnce(new Error("render"));
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow(/render/);
+    FAIL.upload = true;
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow();
+    expect({ url: cA().pdf_url, hash: cA().pdf_hash_sha256 }).toEqual(before);
+    expect(writes.filter((w) => w.table === "certificates")).toHaveLength(0);
+  });
+  it("failure after upload (verification or reference switch) keeps previous reference; retry reuses the stored object", async () => {
+    const before = cA().pdf_url;
+    FAIL.download = true;
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow(/Se conserva el PDF anterior/);
+    expect(cA().pdf_url).toBe(before);
+    delete FAIL.download; FAIL.update = true;
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow();
+    expect(cA().pdf_url).toBe(before);
+    delete FAIL.update;
+    const r = await certificateService.generatePdf(A, "cA");
+    expect(Object.keys(STORE).filter((k) => k.startsWith(`signed-certificates:${A}/certificates/cA/`))).toEqual([`signed-certificates:${r.pdfUrl}`]);
+    expect(cA().pdf_url).toBe(r.pdfUrl);
+  });
+  it("a stored object whose bytes do not match is never activated", async () => {
+    const hash = await repo.sha256Hex(new Uint8Array([1, 2, 3]));
+    STORE[`signed-certificates:${A}/certificates/cA/${hash}.pdf`] = { bytes: new Uint8Array([9]), type: "application/pdf" };
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow(/verificación de huella/);
+    expect(cA().pdf_url).toBe(`${A}/certificates/cA.pdf`);
+  });
+  it("concurrent reference change is detected (compare-and-set) and not overwritten", async () => {
+    const orig = repo.storePdf;
+    await expect((async () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      const p = orig(A, "cA", bytes, await repo.sha256Hex(bytes));
+      cA().pdf_url = `${A}/certificates/cA/other.pdf`;
+      return p;
+    })()).rejects.toThrow(/ha cambiado/);
+    expect(cA().pdf_url).toBe(`${A}/certificates/cA/other.pdf`);
+  });
+  it("another org cannot store, and hash mismatch is refused before writing", async () => {
+    await expect(repo.storePdf(B, "cA", new Uint8Array([1]), "0")).rejects.toThrow(/no encontrado/);
+    await expect(repo.storePdf(A, "cA", new Uint8Array([1]), "0".repeat(64))).rejects.toThrow(/huella/);
+    expect(uploads).toHaveLength(0);
   });
 });
 
@@ -369,19 +441,68 @@ describe("frozen logo (immutable at emission)", () => {
   });
 });
 
+describe("skipped through emission, detail and PDF", () => {
+  it("emission stores the constraint value, snapshot keeps «skipped», detail and PDF show «Sin revisar»", async () => {
+    DB.maintenance_items.push({ id: "iB1", session_id: "sB", asset_id: "aB", result: "ok", metadata: itemSnap("aB", "AST-B") },
+      { id: "iB2", session_id: "sB", asset_id: "aB", result: "skipped", metadata: itemSnap("aB", "AST-B") });
+    await certificateService.emitForSession(B, { requiresCertificate: true, sessionId: "sB", sessionCode: "S", planId: null, planName: null,
+      intervalMonths: null, sessionMetadata: {}, sessionLocationId: null, signerName: "Ana", signerRole: null, signature: "sig", pendingCount: 1,
+      items: [{ id: "iB1", asset_id: "aB", result: "ok", observations: null, metadata: itemSnap("aB", "AST-B") },
+        { id: "iB2", asset_id: "aB", result: "skipped", observations: null, metadata: itemSnap("aB", "AST-B") }] });
+    const cert = DB.certificates.find((c) => c.company_id === B && !["cB", "cBr"].includes(c.id as string))!;
+    expect(DB.certificate_items.filter((i) => i.certificate_id === cert.id).map((i) => i.result)).toEqual(["ok", "na"]);
+    expect(readCertificateSnapshot(cert.metadata, "sB")!.items.map((i) => i.result)).toEqual(["ok", "skipped"]);
+    expect(cert.notes).toBe("1 equipo(s) OK, 1 sin revisar.");
+    const items = await certificateService.listItems(B, cert.id as string);
+    expect(items.map((i) => certificateResultLabel(i.result))).toEqual(["OK", "Sin revisar"]);
+    expect(certificateResultCounts(items.map((i) => i.result))).toMatchObject({ complete: false, skipped: 1, na: 0 });
+    const rows = (render.mock.calls.at(-1) as unknown as [{ rows: Array<{ result: string }> }])[0].rows;
+    expect(rows.map((r) => r.result)).toEqual(["ok", "skipped"]);
+    // Same org isolation: the foreign org cannot read the items, and a foreign session never supplies results.
+    await expect(certificateService.listItems(A, cert.id as string)).rejects.toThrow(/no encontrado/);
+    DB.maintenance_sessions.find((s) => s.id === "sB")!.company_id = A;
+    expect((await certificateService.listItems(B, cert.id as string)).map((i) => i.result)).toEqual(["ok", "na"]);
+  });
+});
+
 describe("result normalization (single source)", () => {
   it("labels and counters for every canonical and legacy value", () => {
     const cases: Array<[string | null, string, boolean]> = [
       ["ok", "OK", false], ["conditional", "Con incidencia", true], ["with_incident", "Con incidencia", true],
       ["failed", "Fallo", true], ["fail", "Fallo", true], ["na", "N/A", false], ["n/a", "N/A", false],
-      ["not_applicable", "N/A", false], ["skipped", "N/A", false], [null, "OK", false],
+      ["not_applicable", "N/A", false], ["skipped", "Sin revisar", false], ["pending", "Sin revisar", false],
+      [null, "Sin revisar", false], ["weird", "Sin revisar", false],
     ];
     for (const [r, label, inc] of cases) {
       expect(certificateResultLabel(r), String(r)).toBe(label);
       expect(certificateResultHasIncident(r), String(r)).toBe(inc);
       expect(legacyCertificateItemResult(r)).toBe(normalizeCertificateResult(r));
     }
-    expect(certificateResultCounts(["ok", "conditional", "failed", "na", "with_incident"])).toEqual({ total: 5, ok: 1, withIncidents: 3, na: 1 });
+    expect(certificateResultCounts(["ok", "conditional", "failed", "na", "with_incident"])).toEqual(
+      { total: 5, ok: 1, conditional: 2, failed: 1, withIncidents: 3, na: 1, skipped: 0, reviewed: 5, complete: true });
+  });
+  it("skipped differs from N/A: not an incident, but makes the certificate incomplete", () => {
+    expect(normalizeCertificateResult("skipped")).toBe("skipped");
+    expect(normalizeCertificateResult("na")).toBe("na");
+    const withNa = certificateResultCounts(["ok", "na"]), withSkip = certificateResultCounts(["ok", "skipped"]);
+    expect(withNa).toMatchObject({ complete: true, skipped: 0, na: 1, withIncidents: 0 });
+    expect(withSkip).toMatchObject({ complete: false, skipped: 1, na: 0, withIncidents: 0, reviewed: 1 });
+    expect(certificateResultCounts([]).complete).toBe(false);
+    expect(certificateResultSummary(["ok", "conditional", "failed", "na", "skipped"]))
+      .toBe("5 equipo(s): 1 OK · 1 con incidencia · 1 con fallo · 1 N/A · 1 sin revisar. Mantenimiento incompleto.");
+    expect(legacySessionOutcome(["ok", "na"], 0)).toBe("ok");
+    expect(legacySessionOutcome(["ok", "skipped"], 0)).toBe("incomplete");
+    expect(legacySessionOutcome(["conditional", "skipped"], 0)).toBe("incomplete_with_incidents");
+    expect(emissionSummary(["ok", "na", "skipped"], 0)).toBe("1 equipo(s) OK, 1 sin revisar.");
+  });
+  it("storage keeps the constraint values; the historical source restores «Sin revisar» without changing other results", () => {
+    expect(["ok", "conditional", "failed", "na", "skipped", "with_incident", "fail", "not_applicable"].map(storedCertificateResult))
+      .toEqual(["ok", "conditional", "failed", "na", "na", "conditional", "failed", "na"]);
+    expect(resolveCertificateItemResult("na", "skipped")).toBe("skipped");
+    expect(resolveCertificateItemResult("na", "not_applicable")).toBe("na");
+    expect(resolveCertificateItemResult("na", null)).toBe("na");
+    expect(resolveCertificateItemResult("ok", "skipped")).toBe("ok");
+    expect(resolveCertificateItemResult("conditional", "skipped")).toBe("conditional");
   });
   it("conditional counts as incident in the emission summary", () => {
     expect(emissionSummary(["ok", "conditional", "with_incident"], 0)).toBe("1 equipo(s) OK, 2 con incidencias.");
@@ -389,6 +510,8 @@ describe("result normalization (single source)", () => {
   it("PDF cell shows the translated label for conditional", () => {
     expect(resolveCell({ source: "result" } as never, { result: "conditional" })).toBe("Con incidencia");
     expect(resolveCell({ source: "result" } as never, { result: "failed" })).toBe("Fallo");
+    expect(resolveCell({ source: "result" } as never, { result: "skipped" })).toBe("Sin revisar");
+    expect(resolveCell({ source: "result" } as never, { result: "na" })).toBe("N/A");
   });
   it("detail screen uses the shared normalization, not raw values", () => {
     const src = readFileSync(resolve(__dirname, "../../../../routes/_authenticated/_app.certificates.$id.tsx"), "utf8");

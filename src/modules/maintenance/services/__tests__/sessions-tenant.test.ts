@@ -141,7 +141,7 @@ describe("session rules (unchanged)", () => {
     expect(itemResultFor("complete", 0)).toBe("ok");
     expect(itemResultFor("complete", 1)).toBe("with_incident");
     expect(["ok", "with_incident", "fail", "skipped", "not_applicable", "pending"].map(legacyCertificateItemResult))
-      .toEqual(["ok", "conditional", "failed", "na", "na", "ok"]);
+      .toEqual(["ok", "conditional", "failed", "skipped", "na", "skipped"]);
   });
 });
 
