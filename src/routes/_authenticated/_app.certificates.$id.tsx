@@ -346,7 +346,7 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function SummaryRow({ label, value, tone }: { label: string; value: number; tone?: "emerald" | "amber" }) {
+function SummaryRow({ label, value, tone }: { label: string; value: number | string; tone?: "emerald" | "amber" }) {
   const cls =
     tone === "emerald"
       ? "text-emerald-600"
