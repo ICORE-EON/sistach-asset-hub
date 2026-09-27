@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Save, History, UserPlus, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { INCIDENT_STATUSES, SEVERITY_LABELS } from "./_app.incidents.index";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { resolveIncidentOrigin } from "@/modules/maintenance/domain/incident-rules";
 
 export const Route = createFileRoute("/_authenticated/_app/incidents/$id")({
   head: () => ({ meta: [{ title: "Incidencia" }] }),
@@ -37,44 +38,24 @@ function IncidentDetail() {
   const role = activeMembership?.role;
   const canEdit = role !== undefined && role !== "auditor";
 
+  const orgId = activeMembership?.company_id ?? null;
+
   const { data: incident, isLoading } = useQuery({
-    queryKey: ["incident", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("incidents")
-        .select("*, assets(id, code, name), locations(id, name)")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    queryKey: incidentKeys.detail(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => incidentService.getIncident(orgId, id),
   });
 
   const { data: history = [] } = useQuery({
-    queryKey: ["incident-history", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("incident_status_history")
-        .select("*")
-        .eq("incident_id", id)
-        .order("changed_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryKey: incidentKeys.history(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => incidentService.listHistory(orgId, id),
   });
 
   const { data: members = [] } = useQuery({
-    queryKey: ["company-members", activeMembership?.company_id],
-    enabled: !!activeMembership?.company_id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("company_members")
-        .select("user_id, role")
-        .eq("company_id", activeMembership!.company_id)
-        .eq("active", true);
-      if (error) throw error;
-      return data;
-    },
+    queryKey: incidentKeys.members(orgId),
+    enabled: !!orgId,
+    queryFn: () => incidentService.listMembers(orgId),
   });
 
   const [editing, setEditing] = useState(false);
@@ -94,66 +75,43 @@ function IncidentDetail() {
     setEditing(true);
   }
 
+  const refreshIncident = () => {
+    qc.invalidateQueries({ queryKey: incidentKeys.detail(orgId, id), exact: true });
+    qc.invalidateQueries({ queryKey: incidentKeys.history(orgId, id), exact: true });
+    qc.invalidateQueries({ queryKey: incidentKeys.lists(orgId) });
+    if (incident?.asset_id) qc.invalidateQueries({ queryKey: incidentKeys.byAsset(orgId, incident.asset_id), exact: true });
+  };
+
   const save = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("incidents")
-        .update({
-          title: title.trim(),
-          description: description.trim() || null,
-          severity,
-          assigned_to: assignedTo !== "none" ? assignedTo : null,
-          due_date: dueDate || null,
-        })
-        .eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => incidentService.update(orgId, id, { title, description, severity, assignedTo, dueDate }),
     onSuccess: () => {
       toast.success("Cambios guardados");
-      qc.invalidateQueries({ queryKey: ["incident", id] });
+      refreshIncident();
       setEditing(false);
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const changeStatus = useMutation({
-    mutationFn: async ({ to, note }: { to: string; note?: string }) => {
+    mutationFn: async ({ to, note, resolve }: { to: string; note?: string; resolve?: boolean }) => {
       if (!incident) return;
-      const patch: {
-        status: string;
-        resolved_at?: string | null;
-        closed_at?: string | null;
-      } = { status: to };
-      if (to === "resolved") patch.resolved_at = new Date().toISOString();
-      if (to === "closed") patch.closed_at = new Date().toISOString();
-      const { error } = await supabase.from("incidents").update(patch).eq("id", id);
-      if (error) throw error;
-      const { error: hErr } = await supabase.from("incident_status_history").insert({
-        incident_id: id,
-        from_status: incident.status,
-        to_status: to,
-        note: note || null,
-        changed_by: user?.id ?? null,
-      });
-      if (hErr) throw hErr;
+      if (resolve) return incidentService.resolve(orgId, id, { from: incident.status, notes: note ?? "", userId: user?.id ?? null });
+      return incidentService.changeStatus(orgId, id, { from: incident.status, to, note, userId: user?.id ?? null });
     },
     onSuccess: () => {
       toast.success("Estado actualizado");
-      qc.invalidateQueries({ queryKey: ["incident", id] });
-      qc.invalidateQueries({ queryKey: ["incident-history", id] });
-      qc.invalidateQueries({ queryKey: ["incidents"] });
+      refreshIncident();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => { toast.error(e.message); refreshIncident(); },
   });
 
   const remove = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("incidents").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: () => incidentService.remove(orgId, id),
     onSuccess: () => {
       toast.success("Incidencia eliminada");
-      qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.removeQueries({ queryKey: incidentKeys.detail(orgId, id), exact: true });
+      qc.invalidateQueries({ queryKey: incidentKeys.lists(orgId) });
+      if (incident?.asset_id) qc.invalidateQueries({ queryKey: incidentKeys.byAsset(orgId, incident.asset_id), exact: true });
       navigate({ to: "/incidents" });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -278,6 +236,7 @@ function IncidentDetail() {
                       <dt className="text-xs text-muted-foreground">Creada</dt>
                       <dd>{format(new Date(incident.created_at), "dd/MM/yyyy HH:mm")}</dd>
                     </div>
+                    <IncidentOriginRow incident={incident} />
                     {incident.resolved_at && (
                       <div>
                         <dt className="text-xs text-muted-foreground">Resuelta</dt>
@@ -317,10 +276,7 @@ function IncidentDetail() {
                   current={incident.status}
                   onChange={(to, note) => changeStatus.mutate({ to, note })}
                   pending={changeStatus.isPending}
-                  onResolve={async (notes) => {
-                    await supabase.from("incidents").update({ resolution_notes: notes }).eq("id", id);
-                    changeStatus.mutate({ to: "resolved", note: notes });
-                  }}
+                  onResolve={(notes) => changeStatus.mutate({ to: "resolved", note: notes, resolve: true })}
                 />
               </CardContent>
             </Card>
@@ -441,6 +397,36 @@ function StatusActions({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function IncidentOriginRow({ incident }: { incident: Parameters<typeof resolveIncidentOrigin>[0] }) {
+  const o = resolveIncidentOrigin(incident);
+  if (o.kind === "none") return null;
+  return (
+    <div className="col-span-2">
+      <dt className="text-xs text-muted-foreground">Origen</dt>
+      {o.kind === "snapshot" ? (
+        <dd>
+          <Link to="/maintenance/$id" params={{ id: o.snapshot.session.id }} className="hover:underline">
+            Sesión {o.snapshot.session.code ?? "—"}
+          </Link>
+          {" · "}
+          {o.snapshot.asset.code ?? "—"}
+          {o.snapshot.asset.name ? ` ${o.snapshot.asset.name}` : ""}
+          {o.snapshot.question.prompt ? ` · ${o.snapshot.question.prompt}` : ""}
+          <span className="block text-[10px] text-muted-foreground">
+            Registrado el {format(new Date(o.snapshot.captured_at), "dd/MM/yyyy HH:mm")}
+          </span>
+        </dd>
+      ) : (
+        <dd className="text-xs text-muted-foreground">
+          {o.reason === "pre_snapshot"
+            ? "Checklist de mantenimiento (registro anterior; sin datos de procedencia guardados)"
+            : "Checklist de mantenimiento (datos de procedencia incompletos)"}
+        </dd>
+      )}
     </div>
   );
 }
