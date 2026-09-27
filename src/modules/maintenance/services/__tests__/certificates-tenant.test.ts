@@ -98,7 +98,7 @@ function fakeClient() {
         if (table === "certificate_items" && filters.some(([k]) => k === "maintenance_session_id") === false && lim === 1) found = found.filter((r) => r.maintenance_session_id);
         if (lim) found = found.slice(0, lim);
         void rej;
-        return res({ data: single ? found[0] ?? null : found, error: null });
+        found = found.map((r) => ({ ...r })); return res({ data: single ? found[0] ?? null : found, error: null });
       },
     });
     return b;
