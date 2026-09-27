@@ -12,6 +12,7 @@
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../adapters/standalone/client";
 import { assertTransition, legacySessionOutcome } from "../domain/session-rules";
+import { closeResults, historicalItem, historicalSession } from "../domain/session-history";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const DENY = "no encontrada en la organización activa";
@@ -43,17 +44,21 @@ export function createSessionsRepo(c: StandaloneClient) {
       let q = c.from("maintenance_sessions").select("*, maintenance_plans(name, code)")
         .eq("company_id", orgId).order("created_at", { ascending: false }).limit(100);
       if (status !== "all") q = q.eq("status", status);
-      return ok(await q) ?? [];
+      return (ok(await q) ?? []).map(historicalSession);
     },
+    /** Closed sessions are represented from their snapshot (see domain/session-history). */
     async getSession(orgId: string, id: string) {
-      return ok(await c.from("maintenance_sessions").select("*, maintenance_plans(name, code)")
+      const s = ok(await c.from("maintenance_sessions").select("*, maintenance_plans(name, code)")
         .eq("id", id).eq("company_id", orgId).maybeSingle());
+      return s ? historicalSession(s) : null;
     },
     async listItems(orgId: string, sessionId: string) {
-      await getOwn(orgId, sessionId);
-      return ok(await c.from("maintenance_items")
+      const s = await getOwn(orgId, sessionId);
+      const frozen = closeResults(s.metadata);
+      const rows = ok(await c.from("maintenance_items")
         .select("*, assets(id, code, name, manufacturer, model, location_id, locations(name), asset_type_id, asset_types(code, name_i18n))")
         .eq("session_id", sessionId).order("created_at")) ?? [];
+      return rows.map((it) => historicalItem(it, s.status, frozen));
     },
     async listPlansForSession(orgId: string) {
       return ok(await c.from("maintenance_plans")
@@ -75,9 +80,15 @@ export function createSessionsRepo(c: StandaloneClient) {
       const a = ok(await c.from("assets").select("id").eq("id", assetId).eq("company_id", orgId).maybeSingle());
       if (!a) throw new Error("Activo no encontrado en la organización activa");
       const rows = ok(await c.from("maintenance_items")
-        .select("id, result, completed_at, created_at, observations, maintenance_sessions(id, code, status, closed_at, scheduled_for, company_id, maintenance_plans(name))")
+        .select("id, result, completed_at, created_at, observations, maintenance_sessions(id, code, status, closed_at, scheduled_for, company_id, plan_id, metadata, maintenance_plans(name))")
         .eq("asset_id", assetId).order("created_at", { ascending: false })) ?? [];
-      return rows.filter((r) => (r.maintenance_sessions as { company_id?: string } | null)?.company_id === orgId);
+      return rows
+        .filter((r) => (r.maintenance_sessions as { company_id?: string } | null)?.company_id === orgId)
+        .map((r) => {
+          const ms = r.maintenance_sessions ? historicalSession(r.maintenance_sessions) : null;
+          const frozen = ms ? closeResults(ms.metadata).get(r.id) : undefined;
+          return { ...r, result: ms && ms.history_source !== "live" && frozen ? frozen : r.result, maintenance_sessions: ms };
+        });
     },
 
     /**
@@ -87,9 +98,9 @@ export function createSessionsRepo(c: StandaloneClient) {
     async createSession(orgId: string, v: NewSession) {
       const plan = await assertPlan(orgId, v.planId);
       const links = ok(await c.from("maintenance_plan_assets")
-        .select("asset_id, assets(id, code, name, company_id, asset_type_id, location_id, locations(name), asset_types(code))")
+        .select("asset_id, assets(id, code, name, manufacturer, model, company_id, asset_type_id, location_id, locations(name), asset_types(code, name_i18n))")
         .eq("plan_id", v.planId)) ?? [];
-      type A = { id: string; code: string; name: string | null; company_id: string; asset_type_id: string; location_id: string | null; locations: { name: string } | null; asset_types: { code: string } | null };
+      type A = { id: string; code: string; name: string | null; manufacturer?: string | null; model?: string | null; company_id: string; asset_type_id: string; location_id: string | null; locations: { name: string } | null; asset_types: { code: string; name_i18n?: unknown } | null };
       let rows = (links as Array<{ asset_id: string; assets: A | null }>).filter((pa) => pa.assets && pa.assets.company_id === orgId);
       if (v.locationId) rows = rows.filter((pa) => pa.assets?.location_id === v.locationId);
       if (rows.length === 0) throw new Error("El plan no tiene equipos para esta selección");
@@ -136,6 +147,8 @@ export function createSessionsRepo(c: StandaloneClient) {
           session_id: sessionId!, asset_id: pa.asset_id, checklist_template_version_id: ver.id, result: "pending",
           metadata: { snapshot: {
             asset: { id: a.id, code: a.code, name: a.name, asset_type_id: a.asset_type_id, type_code: a.asset_types?.code ?? null,
+              type_name: ((n) => n?.es ?? n?.ca ?? n?.en ?? a.asset_types?.code ?? null)(a.asset_types?.name_i18n as Record<string, string> | null | undefined),
+              manufacturer: a.manufacturer ?? null, model: a.model ?? null,
               location_id: a.location_id, location_name: a.locations?.name ?? null },
             checklist: { template_id: tpl, version_id: ver.id, version: ver.version },
           } } as unknown as Json,

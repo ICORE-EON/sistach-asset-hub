@@ -156,6 +156,11 @@ function SessionDetail() {
               {session.code} · {completedCount}/{totalCount} activos completados
               {session.technician_name ? ` · ${session.technician_name}` : ""}
             </p>
+            {session.history_source === "legacy" && (
+              <p className="text-xs text-muted-foreground">
+                Sesión anterior al registro histórico: se muestran los datos actuales del plan.
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
