@@ -19,6 +19,7 @@
 import type { RowSource } from "@/lib/certificate-templates/render";
 import type { CertificateTemplate } from "@/lib/certificate-templates/types";
 import { legacyCertificateItemResult } from "./session-rules";
+import { certificateResultCounts } from "./certificate-results";
 
 type Obj = Record<string, unknown>;
 const obj = (v: unknown): Obj | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : null);
@@ -35,8 +36,7 @@ export function validUntilFrom(today: Date, intervalMonths: number | null | unde
 
 /** Same notes summary as before. */
 export function emissionSummary(results: string[], pendingCount: number): string {
-  const okCount = results.filter((r) => r === "ok").length;
-  const failCount = results.filter((r) => r === "with_incident" || r === "fail").length;
+  const { ok: okCount, withIncidents: failCount } = certificateResultCounts(results);
   return `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
     pendingCount > 0 ? `, ${pendingCount} sin revisar` : ""}.`;
 }

@@ -8,6 +8,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { certificateResultCounts, certificateResultLabel, normalizeCertificateResult } from "@/modules/maintenance/domain/certificate-results";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -198,12 +199,12 @@ function CertificateDetail() {
             <SummaryRow label="Activos cubiertos" value={items.length} />
             <SummaryRow
               label="Activos OK"
-              value={items.filter((i) => i.result === "ok").length}
+              value={certificateResultCounts(items.map((i) => i.result)).ok}
               tone="emerald"
             />
             <SummaryRow
               label="Con incidencias"
-              value={items.filter((i) => i.result === "with_incident" || i.result === "fail").length}
+              value={certificateResultCounts(items.map((i) => i.result)).withIncidents}
               tone="amber"
             />
             <SummaryRow label="Incidencias abiertas" value={incidents.filter((i) => i.status !== "closed").length} />
@@ -253,7 +254,7 @@ function CertificateDetail() {
             <p className="text-sm text-muted-foreground">Sin activos vinculados.</p>
           ) : (
             items.map((it) => {
-              const isOk = it.result === "ok";
+              const isOk = normalizeCertificateResult(it.result) === "ok";
               return (
                 <div key={it.id} className="flex items-start gap-3 rounded-md border p-3">
                   {isOk ? (
@@ -277,7 +278,7 @@ function CertificateDetail() {
                       <p className="text-xs text-muted-foreground">{it.notes}</p>
                     )}
                   </div>
-                  <Badge variant="outline" className="text-xs">{it.result}</Badge>
+                  <Badge variant="outline" className="text-xs">{certificateResultLabel(it.result)}</Badge>
                 </div>
               );
             })
