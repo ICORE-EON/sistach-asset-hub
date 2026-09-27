@@ -56,6 +56,7 @@ const uploads: string[] = [];
 let STORE: Record<string, { bytes: Uint8Array; type: string }> = {};
 const FAIL: { upload?: boolean; download?: boolean; update?: boolean } = {};
 const OVERWRITES: string[] = [];
+const AFTER_UPLOAD: { fn?: () => void } = {};
 const gates: Record<string, Promise<void> | undefined> = {};
 let seq = 0;
 function fakeClient() {
@@ -109,7 +110,7 @@ function fakeClient() {
       if (FAIL.upload) return { error: { message: "upload failed" } };
       if (o?.upsert === false && STORE[key]) return { error: { message: "The resource already exists" } };
       if (o?.upsert !== false) OVERWRITES.push(key);
-      uploads.push(path); STORE[key] = { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type }; return { error: null };
+      AFTER_UPLOAD.fn?.(); uploads.push(path); STORE[key] = { bytes: new Uint8Array(await blob.arrayBuffer()), type: blob.type }; return { error: null };
     },
     download: async (path: string) => {
       if (FAIL.download && bucket === "signed-certificates" && path.endsWith(".pdf")) return { data: null, error: { message: "read failed" } };
@@ -125,7 +126,7 @@ const render = vi.fn(async () => new Uint8Array([1, 2, 3]));
 vi.mock("../../adapters/standalone/repos", () => ({ get certificatesRepo() { return repo; }, get renderCertificatePdf() { return render; } }));
 const { certificateKeys, certificateService } = await import("../certificates");
 
-beforeEach(() => { seed(); STORE = {}; for (const k of Object.keys(FAIL)) delete FAIL[k as keyof typeof FAIL]; OVERWRITES.length = 0; writes.length = 0; uploads.length = 0; render.mockClear(); });
+beforeEach(() => { seed(); STORE = {}; for (const k of Object.keys(FAIL)) delete FAIL[k as keyof typeof FAIL]; OVERWRITES.length = 0; delete AFTER_UPLOAD.fn; writes.length = 0; uploads.length = 0; render.mockClear(); });
 const certWrites = () => writes.filter((w) => w.table === "certificates" || w.table === "certificate_items");
 
 describe("certificate rules (unchanged)", () => {
@@ -320,13 +321,8 @@ describe("immutable PDF versioning", () => {
     expect(cA().pdf_url).toBe(`${A}/certificates/cA.pdf`);
   });
   it("concurrent reference change is detected (compare-and-set) and not overwritten", async () => {
-    const orig = repo.storePdf;
-    await expect((async () => {
-      const bytes = new Uint8Array([1, 2, 3]);
-      const p = orig(A, "cA", bytes, await repo.sha256Hex(bytes));
-      cA().pdf_url = `${A}/certificates/cA/other.pdf`;
-      return p;
-    })()).rejects.toThrow(/ha cambiado/);
+    AFTER_UPLOAD.fn = () => { cA().pdf_url = `${A}/certificates/cA/other.pdf`; };
+    await expect(certificateService.generatePdf(A, "cA")).rejects.toThrow(/ha cambiado/);
     expect(cA().pdf_url).toBe(`${A}/certificates/cA/other.pdf`);
   });
   it("another org cannot store, and hash mismatch is refused before writing", async () => {
