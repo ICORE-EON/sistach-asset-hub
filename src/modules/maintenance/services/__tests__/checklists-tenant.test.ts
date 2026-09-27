@@ -90,8 +90,8 @@ describe("checklist query keys", () => {
 
   it("migrated screens use checklistKeys/assetKeys and never import the client", () => {
     for (const f of [
-      "src/routes/_authenticated/_app.checklist-templates.index.tsx",
-      "src/routes/_authenticated/_app.checklist-templates.$id.tsx",
+      "src/modules/maintenance/ui/pages/ChecklistTemplatesListPage.tsx",
+      "src/modules/maintenance/ui/pages/ChecklistTemplateEditorPage.tsx",
     ]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/@\/integrations\/supabase|supabase\./);
@@ -100,19 +100,19 @@ describe("checklist query keys", () => {
         expect(line, `${f}: ${line.trim()}`).toMatch(/checklistKeys\.|assetKeys\./);
       }
     }
-    const session = readFileSync(resolve(process.cwd(), "src/routes/_authenticated/_app.maintenance.$id.tsx"), "utf8");
+    const session = readFileSync(resolve(process.cwd(), "src/modules/maintenance/ui/pages/SessionDetailPage.tsx"), "utf8");
     expect(session).not.toMatch(/from\("checklist_/);
   });
 
   it("migrated domains never invalidate a bare, org-less prefix", () => {
     for (const f of [
-      "src/routes/_authenticated/_app.checklist-templates.index.tsx",
-      "src/routes/_authenticated/_app.checklist-templates.$id.tsx",
-      "src/routes/_authenticated/_app.asset-families.tsx",
-      "src/routes/_authenticated/_app.asset-types.tsx",
-      "src/routes/_authenticated/_app.assets.index.tsx",
-      "src/routes/_authenticated/_app.assets.$id.tsx",
-      "src/components/first-aid-kit-panel.tsx",
+      "src/modules/maintenance/ui/pages/ChecklistTemplatesListPage.tsx",
+      "src/modules/maintenance/ui/pages/ChecklistTemplateEditorPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetFamiliesPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetTypesPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetsListPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetDetailPage.tsx",
+      "src/modules/maintenance/ui/components/first-aid-kit-panel.tsx",
     ]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[/);

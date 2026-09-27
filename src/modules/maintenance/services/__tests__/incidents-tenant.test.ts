@@ -105,13 +105,13 @@ describe("keys and screens", () => {
     for (const [n, k] of f) { expect(k(A, "x")[1], n).toBe(A); expect(JSON.stringify(k(A, "x"))).not.toBe(JSON.stringify(k(B, "x"))); }
   });
   it("incident screens and the asset tab never import the client nor invalidate bare prefixes", () => {
-    for (const f of ["src/routes/_authenticated/_app.incidents.index.tsx", "src/routes/_authenticated/_app.incidents.$id.tsx"]) {
+    for (const f of ["src/modules/maintenance/ui/pages/IncidentsListPage.tsx", "src/modules/maintenance/ui/pages/IncidentDetailPage.tsx"]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/@\/integrations\/supabase|supabase\.|\.from\(|\.rpc\(/);
       expect(src, f).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[/);
       for (const l of src.split("\n")) if (l.includes("queryKey:")) expect(l, l).toMatch(/incidentKeys\./);
     }
-    const hist = readFileSync(resolve(process.cwd(), "src/components/asset-history-panel.tsx"), "utf8");
+    const hist = readFileSync(resolve(process.cwd(), "src/modules/maintenance/ui/components/asset-history-panel.tsx"), "utf8");
     expect(hist).not.toMatch(/from\("incidents"\)/);
   });
 });

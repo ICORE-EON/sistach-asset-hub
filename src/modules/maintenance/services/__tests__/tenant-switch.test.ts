@@ -95,11 +95,11 @@ describe("query keys", () => {
 
   it("migrated screens only build read keys through assetKeys (static scan)", () => {
     const files = [
-      "src/routes/_authenticated/_app.asset-families.tsx",
-      "src/routes/_authenticated/_app.asset-types.tsx",
-      "src/routes/_authenticated/_app.assets.index.tsx",
-      "src/routes/_authenticated/_app.assets.$id.tsx",
-      "src/components/first-aid-kit-panel.tsx",
+      "src/modules/maintenance/ui/pages/AssetFamiliesPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetTypesPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetsListPage.tsx",
+      "src/modules/maintenance/ui/pages/AssetDetailPage.tsx",
+      "src/modules/maintenance/ui/components/first-aid-kit-panel.tsx",
     ];
     for (const f of files) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");

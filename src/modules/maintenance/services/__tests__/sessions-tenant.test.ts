@@ -156,8 +156,8 @@ describe("session query keys and screens", () => {
   });
   it("session screens never import the client and never invalidate bare prefixes", () => {
     for (const f of [
-      "src/routes/_authenticated/_app.maintenance.index.tsx",
-      "src/routes/_authenticated/_app.maintenance.$id.tsx",
+      "src/modules/maintenance/ui/pages/SessionsListPage.tsx",
+      "src/modules/maintenance/ui/pages/SessionDetailPage.tsx",
     ]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/@\/integrations\/supabase|supabase\.|\.from\(|\.rpc\(/);
@@ -167,7 +167,7 @@ describe("session query keys and screens", () => {
         expect(line, `${f}: ${line.trim()}`).toMatch(/sessionKeys\.|checklistKeys\./);
       }
     }
-    const hist = readFileSync(resolve(process.cwd(), "src/components/asset-history-panel.tsx"), "utf8");
+    const hist = readFileSync(resolve(process.cwd(), "src/modules/maintenance/ui/components/asset-history-panel.tsx"), "utf8");
     expect(hist).not.toMatch(/from\("maintenance_items"\)/);
   });
 });

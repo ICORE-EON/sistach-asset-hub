@@ -110,8 +110,8 @@ describe("plan query keys", () => {
 
   it("plan screens never import the client, build keys through factories and never invalidate bare prefixes", () => {
     for (const f of [
-      "src/routes/_authenticated/_app.maintenance-plans.index.tsx",
-      "src/routes/_authenticated/_app.maintenance-plans.$id.tsx",
+      "src/modules/maintenance/ui/pages/PlansListPage.tsx",
+      "src/modules/maintenance/ui/pages/PlanDetailPage.tsx",
     ]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/@\/integrations\/supabase|supabase\.|@\/lib\/maintenance-scope|@\/lib\/asset-families/);
