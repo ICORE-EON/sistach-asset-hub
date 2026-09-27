@@ -2,7 +2,8 @@
  * Maintenance session use-cases and org-scoped query keys (orgId always at position 1).
  * Messages, order of validations and results are identical to the previous inline screens.
  */
-import { checklistsRepo, incidentsRepo, legacyIntegrations as legacy, sessionsRepo as repo } from "../adapters/standalone/repos";
+import { checklistsRepo, incidentsRepo, sessionsRepo as repo } from "../adapters/standalone/repos";
+import { certificateService } from "./certificates";
 import { itemResultFor } from "../domain/session-rules";
 
 export const sessionKeys = {
@@ -34,7 +35,7 @@ export const sessionService = {
   listPlansForSession: (orgId: string | null) => repo.listPlansForSession(need(orgId)),
   listPlanLocations: (orgId: string | null, planId: string) => repo.listPlanLocations(need(orgId), planId),
   listAssetHistory: (orgId: string | null, assetId: string) => repo.listAssetHistory(need(orgId), assetId),
-  getSessionCertificate: (orgId: string | null, id: string) => legacy.findSessionCertificate(need(orgId), id),
+  getSessionCertificate: (orgId: string | null, id: string) => certificateService.findSessionCertificate(orgId, id),
 
   createSession: (orgId: string | null, v: { requestId: string; planId: string; locationId: string; scheduledFor: string; technicianName: string }) => {
     if (!v.planId) throw new Error("Selecciona un plan");
@@ -91,12 +92,15 @@ export const sessionService = {
     const plan = r.session.maintenance_plans as { name: string; interval_months: number | null; asset_families: { requires_certificate: boolean } | null } | null;
     if (plan?.asset_families?.requires_certificate === false) return { cert: null, pdfFailed: false };
     if (!r.closedNow) {
-      const existing = await legacy.findSessionCertificate(org, sessionId);
+      const existing = await certificateService.findSessionCertificate(org, sessionId);
       if (existing) return { cert: { id: existing.id, code: existing.code }, pdfFailed: false };
       if (r.session.status !== "closed") throw new Error("La sesión ya se ha cerrado en otro dispositivo");
     }
-    return legacy.emitSessionCertificate(org, {
-      sessionId, sessionCode: r.session.code, planName: plan?.name ?? null, intervalMonths: plan?.interval_months ?? null,
+    return certificateService.emitForSession(org, {
+      requiresCertificate: plan?.asset_families?.requires_certificate,
+      sessionId, sessionCode: r.session.code, planId: r.session.plan_id ?? null,
+      sessionMetadata: r.session.metadata, sessionLocationId: r.session.location_id ?? null,
+      planName: plan?.name ?? null, intervalMonths: plan?.interval_months ?? null,
       signerName: r.closedNow ? signer.signerName : (r.session.signer_name ?? signer.signerName),
       signerRole: r.closedNow ? signer.signerRole : (r.session.signer_role ?? signer.signerRole),
       signature: r.closedNow ? signer.signature : (r.session.signature_image_url ?? signer.signature),

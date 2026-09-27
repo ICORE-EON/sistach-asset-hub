@@ -89,6 +89,14 @@ export function createCertificatesRepo(c: StandaloneClient) {
       .eq("company_id", orgId).in("source_maintenance_item_id", itemIds)) ?? [];
   };
 
+  const findSessionCertificate = async (orgId: string, sessionId: string) => {
+    const rows = ok(await c.from("certificate_items").select("certificates(id, code, status, company_id, issuer_name, issuer_role, signature_image_url)")
+      .eq("maintenance_session_id", sessionId).limit(1)) ?? [];
+    const cert = rows[0]?.certificates as { id: string; code: string; status: string; company_id: string } | null | undefined;
+    return cert && cert.company_id === orgId ? { id: cert.id, code: cert.code, status: cert.status } : null;
+  };
+
+
   return {
     resolveTemplate,
 
@@ -138,12 +146,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
       return rows.filter((r) => (r.certificates as { company_id?: string } | null)?.company_id === orgId);
     },
 
-    async findSessionCertificate(orgId: string, sessionId: string) {
-      const rows = ok(await c.from("certificate_items").select("certificates(id, code, status, company_id, issuer_name, issuer_role, signature_image_url)")
-        .eq("maintenance_session_id", sessionId).limit(1)) ?? [];
-      const cert = rows[0]?.certificates as { id: string; code: string; status: string; company_id: string } | null | undefined;
-      return cert && cert.company_id === orgId ? { id: cert.id, code: cert.code, status: cert.status } : null;
-    },
+    findSessionCertificate,
 
     /** Emits the session certificate once. Rejects non-closed or foreign sessions before writing. */
     emitForSession(orgId: string, a: {
@@ -155,7 +158,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
       return single(inflightEmit, `${orgId}:${a.sessionId}`, async () => {
         const s = await assertSession(orgId, a.sessionId);
         if (s.status !== "closed") throw new Error("La sesión no está cerrada");
-        const existing = await this.findSessionCertificate(orgId, a.sessionId);
+        const existing = await findSessionCertificate(orgId, a.sessionId);
         if (existing) return { cert: { id: existing.id, code: existing.code }, created: false };
 
         const [company, loc, tpl, incs] = await Promise.all([
