@@ -198,9 +198,9 @@ describe("keys and screens", () => {
     for (const [n, k] of f) { expect(k(A, "x")[1], n).toBe(A); expect(JSON.stringify(k(A, "x"))).not.toBe(JSON.stringify(k(B, "x"))); }
   });
   it("migrated screens never import the client nor invalidate bare prefixes", () => {
-    for (const f of ["src/routes/_authenticated/_app.certificates.index.tsx", "src/routes/_authenticated/_app.certificates.$id.tsx",
-      "src/routes/_authenticated/_app.certificate-templates.index.tsx", "src/routes/_authenticated/_app.certificate-templates.$id.tsx",
-      "src/components/external-certificate-dialog.tsx", "src/components/asset-history-panel.tsx"]) {
+    for (const f of ["src/modules/maintenance/ui/pages/CertificatesListPage.tsx", "src/modules/maintenance/ui/pages/CertificateDetailPage.tsx",
+      "src/modules/maintenance/ui/pages/CertificateTemplatesListPage.tsx", "src/modules/maintenance/ui/pages/CertificateTemplateEditorPage.tsx",
+      "src/modules/maintenance/ui/components/external-certificate-dialog.tsx", "src/modules/maintenance/ui/components/asset-history-panel.tsx"]) {
       const src = readFileSync(resolve(process.cwd(), f), "utf8");
       expect(src, f).not.toMatch(/@\/integrations\/supabase|supabase\.|\.from\(|\.rpc\(|\.storage/);
       expect(src, f).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[/);
@@ -510,7 +510,7 @@ describe("result normalization (single source)", () => {
     expect(resolveCell({ source: "result" } as never, { result: "na" })).toBe("N/A");
   });
   it("detail screen uses the shared normalization, not raw values", () => {
-    const src = readFileSync(resolve(__dirname, "../../../../routes/_authenticated/_app.certificates.$id.tsx"), "utf8");
+    const src = readFileSync(resolve(__dirname, "../../ui/pages/CertificateDetailPage.tsx"), "utf8");
     expect(src).toMatch(/certificateResultCounts\(items.map\(\(i\) => i.result\)\).withIncidents/);
     expect(src).toMatch(/certificateResultLabel\(it.result\)/);
     expect(src).not.toMatch(/i\.result === "with_incident"/);

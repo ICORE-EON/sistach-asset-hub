@@ -1,0 +1,691 @@
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useMemo, useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  AlertTriangle,
+  PlayCircle,
+  Lock,
+  PenLine,
+  Eraser,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useCompany } from "@/contexts/CompanyContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { AttachmentsPanel } from "@/components/attachments-panel";
+import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
+
+
+const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+  draft: { label: "Borrador", variant: "outline" },
+  in_progress: { label: "En curso", variant: "secondary" },
+  closed: { label: "Cerrada", variant: "default" },
+  cancelled: { label: "Cancelada", variant: "destructive" },
+};
+
+export function SessionDetailPage() {
+  const { id } = useParams({ from: "/_authenticated/_app/maintenance/$id" });
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { activeMembership, activeCompanyId } = useCompany();
+  const orgId = activeCompanyId;
+  const role = activeMembership?.role;
+  const canRun =
+    role === "administrator" || role === "system_manager" || role === "manager";
+
+  const { data: session } = useQuery({
+    queryKey: sessionKeys.detail(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.getSession(orgId, id),
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: sessionKeys.items(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.listItems(orgId, id),
+  });
+
+  const { data: linkedCert } = useQuery({
+    queryKey: sessionKeys.certificate(orgId, id),
+    enabled: !!orgId,
+    queryFn: () => sessionService.getSessionCertificate(orgId, id),
+  });
+
+  const itemGroups = useMemo(() => {
+    type It = (typeof items)[number];
+    const locMap = new Map<string, { locationId: string; locationName: string; types: Map<string, { typeId: string; typeName: string; items: It[] }> }>();
+    for (const it of items) {
+      const locId = it.assets?.location_id ?? "__none__";
+      const locName = it.assets?.locations?.name ?? "Sin ubicación";
+      if (!locMap.has(locId)) locMap.set(locId, { locationId: locId, locationName: locName, types: new Map() });
+      const loc = locMap.get(locId)!;
+      const typeId = it.assets?.asset_type_id ?? "__none__";
+      const n = it.assets?.asset_types?.name_i18n as
+        | { es?: string; ca?: string; en?: string }
+        | null
+        | undefined;
+      const typeName = n?.es ?? n?.ca ?? n?.en ?? it.assets?.asset_types?.code ?? "Sin tipo";
+      if (!loc.types.has(typeId)) loc.types.set(typeId, { typeId, typeName, items: [] });
+      loc.types.get(typeId)!.items.push(it);
+    }
+    return [...locMap.values()]
+      .sort((a, b) => a.locationName.localeCompare(b.locationName))
+      .map((loc) => {
+        const types = [...loc.types.values()]
+          .sort((a, b) => a.typeName.localeCompare(b.typeName))
+          .map((t) => ({ ...t, done: t.items.filter((i) => i.result !== "pending").length }));
+        return {
+          ...loc,
+          types,
+          total: types.reduce((n2, t) => n2 + t.items.length, 0),
+          done: types.reduce((n2, t) => n2 + t.done, 0),
+        };
+      });
+  }, [items]);
+
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const activeItem = useMemo(
+    () => items.find((i) => i.id === selectedItemId) ?? items[0] ?? null,
+    [items, selectedItemId],
+  );
+
+  const start = useMutation({
+    mutationFn: () => sessionService.startSession(orgId, id),
+    onSuccess: () => {
+      toast.success("Sesión iniciada");
+      qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+      qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const [closeOpen, setCloseOpen] = useState(false);
+
+  if (!session) return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
+
+  const pendingCount = items.filter((i) => i.result === "pending").length;
+  const status = STATUS_LABELS[session.status] ?? { label: session.status, variant: "outline" as const };
+  const isLocked = session.status === "closed" || session.status === "cancelled";
+  const editable = canRun && !isLocked;
+  const completedCount = items.filter((i) => i.result !== "pending").length;
+  const totalCount = items.length;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate({ to: "/maintenance" })}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {session.maintenance_plans?.name ?? "Sesión ad-hoc"}
+              </h1>
+              <Badge variant={status.variant}>{status.label}</Badge>
+            </div>
+            <p className="font-mono text-xs text-muted-foreground">
+              {session.code} · {completedCount}/{totalCount} activos completados
+              {session.technician_name ? ` · ${session.technician_name}` : ""}
+            </p>
+            {session.history_source === "legacy" && (
+              <p className="text-xs text-muted-foreground">
+                Sesión anterior al registro histórico: se muestran los datos actuales del plan.
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {session.status === "draft" && canRun && (
+            <Button onClick={() => start.mutate()} disabled={start.isPending}>
+              <PlayCircle className="mr-2 h-4 w-4" />
+              Iniciar
+            </Button>
+          )}
+          {session.status === "in_progress" && canRun && (
+            <Button onClick={() => setCloseOpen(true)}>
+              <Lock className="mr-2 h-4 w-4" />
+              Cerrar y firmar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Activos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {items.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sin activos.</p>
+            ) : (
+              itemGroups.map((g) => (
+                <div key={g.locationId} className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {g.locationName}
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      {g.done}/{g.total}
+                    </span>
+                  </div>
+                  {g.types.map((t) => (
+                    <div key={t.typeId} className="space-y-1">
+                      <div className="flex items-center justify-between gap-2 pl-1">
+                        <p className="text-xs font-medium">{t.typeName}</p>
+                        <span className="text-[11px] text-muted-foreground">
+                          {t.done}/{t.items.length}
+                        </span>
+                      </div>
+                      {t.items.map((it) => (
+                        <button
+                          key={it.id}
+                          onClick={() => setSelectedItemId(it.id)}
+                          className={`flex w-full items-start gap-2 rounded-md px-3 py-2 text-left text-sm transition ${
+                            activeItem?.id === it.id ? "bg-muted" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <ItemStatusIcon result={it.result} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">
+                              {it.assets?.name ?? it.assets?.code ?? "—"}
+                            </p>
+                            <p className="truncate font-mono text-xs text-muted-foreground">
+                              {it.assets?.code}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        {activeItem ? (
+          <ItemChecklist
+            key={activeItem.id}
+            item={activeItem}
+            editable={editable && session.status === "in_progress"}
+            companyId={orgId ?? session.company_id}
+            sessionId={id}
+          />
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">
+              Selecciona un activo para ejecutar el checklist.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {linkedCert && (
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 py-3">
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>Certificado emitido para esta sesión:</span>
+              <span className="font-mono text-xs text-muted-foreground">{linkedCert.code}</span>
+            </div>
+            <Link to="/certificates/$id" params={{ id: linkedCert.id }}>
+              <Button variant="outline" size="sm">Ver certificado</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      <AttachmentsPanel entity="maintenance_session" entityId={id} defaultCategory="maintenance_evidence" />
+
+
+
+      {closeOpen && (
+        <CloseSessionDialog
+          orgId={orgId}
+          sessionId={id}
+          pendingCount={pendingCount}
+          open={closeOpen}
+          onOpenChange={setCloseOpen}
+          onClosed={() => {
+            qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.items(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.certificate(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ItemStatusIcon({ result }: { result: string }) {
+  if (result === "ok") return <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />;
+  if (result === "with_incident" || result === "fail")
+    return <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />;
+  if (result === "not_applicable" || result === "na" || result === "skipped")
+    return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
+  return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
+}
+
+function ItemChecklist({
+  item,
+  editable,
+  companyId,
+  sessionId,
+}: {
+  item: { id: string; asset_id: string; checklist_template_version_id: string; result: string; observations: string | null; assets: { code: string; name: string | null; manufacturer: string | null; model: string | null } | null };
+  editable: boolean;
+  companyId: string;
+  sessionId: string;
+}) {
+  const qc = useQueryClient();
+  const [observations, setObservations] = useState(item.observations ?? "");
+
+  const { data: questions = [] } = useQuery({
+    queryKey: checklistKeys.itemQuestions(companyId, item.checklist_template_version_id),
+    queryFn: () => checklistService.listQuestions(companyId, item.checklist_template_version_id),
+  });
+
+  const { data: responses = [] } = useQuery({
+    queryKey: checklistKeys.itemResponses(companyId, item.id),
+    queryFn: () => checklistService.listResponses(companyId, item.id),
+  });
+
+  const responseMap = useMemo(() => {
+    const m = new Map<string, typeof responses[number]>();
+    responses.forEach((r) => m.set(r.question_id, r));
+    return m;
+  }, [responses]);
+
+  const saveResponse = useMutation({
+    mutationFn: async (args: { question: typeof questions[number]; answer: unknown; isFail: boolean; observations?: string }) => {
+      await checklistService.saveResponse(companyId, item.id, item.checklist_template_version_id, {
+        question_id: args.question.id,
+        answer: args.answer,
+        is_fail: args.isFail,
+        observations: args.observations ?? null,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const completeItem = useMutation({
+    mutationFn: (intent: "complete" | "na") =>
+      sessionService.completeItem(companyId, {
+        sessionId, item: { id: item.id, asset_id: item.asset_id }, intent, observations, questions,
+      }),
+    onSuccess: ({ dbResult, createdIncidents, failsWithoutIncident }) => {
+      if (dbResult === "not_applicable") {
+        toast.success("Activo marcado como N/A");
+      } else if (createdIncidents > 0) {
+        toast.success(
+          `Activo guardado con ${createdIncidents} incidencia${createdIncidents === 1 ? "" : "s"} abierta${createdIncidents === 1 ? "" : "s"}.`,
+        );
+      } else if (failsWithoutIncident > 0) {
+        toast.warning(
+          "Activo guardado con fallos. Ninguna pregunta del checklist está configurada para abrir incidencia.",
+        );
+      } else {
+        toast.success("Activo guardado");
+      }
+      qc.invalidateQueries({ queryKey: sessionKeys.items(companyId, sessionId), exact: true });
+      qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const allRequiredAnswered = questions
+    .filter((q) => q.required)
+    .every((q) => responseMap.has(q.id));
+  const anyFail = responses.some((r) => r.is_fail);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">
+              {item.assets?.name ?? item.assets?.code}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {item.assets?.code}
+              {item.assets?.manufacturer ? ` · ${item.assets.manufacturer}` : ""}
+              {item.assets?.model ? ` ${item.assets.model}` : ""}
+            </p>
+          </div>
+          <Badge variant={item.result === "pending" ? "outline" : item.result === "fail" ? "destructive" : "default"}>
+            {item.result === "pending" ? "Pendiente" : item.result === "ok" ? "OK" : item.result === "fail" ? "Falla" : "N/A"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {questions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">La plantilla no tiene preguntas.</p>
+        ) : (
+          questions.map((q, idx) => (
+            <QuestionInput
+              key={q.id}
+              index={idx}
+              question={q}
+              response={responseMap.get(q.id)}
+              disabled={!editable}
+              onSave={(answer, isFail, obs) =>
+                saveResponse.mutate({ question: q, answer, isFail, observations: obs })
+              }
+            />
+          ))
+        )}
+
+        <div className="space-y-2 border-t pt-4">
+          <Label>Observaciones del activo</Label>
+          <Textarea
+            value={observations}
+            onChange={(e) => setObservations(e.target.value)}
+            disabled={!editable}
+            rows={2}
+          />
+        </div>
+
+        {editable && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => completeItem.mutate("na")}>
+              Marcar N/A
+            </Button>
+            <Button
+              variant={anyFail ? "destructive" : "default"}
+              onClick={() => completeItem.mutate("complete")}
+              disabled={!allRequiredAnswered}
+            >
+              {anyFail ? "Guardar con fallos" : "Marcar OK"}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuestionInput({
+  index,
+  question,
+  response,
+  disabled,
+  onSave,
+}: {
+  index: number;
+  question: { id: string; prompt: string; help_text: string | null; response_type: string; options: unknown; required: boolean; creates_incident: boolean };
+  response?: { answer: unknown; is_fail: boolean; observations: string | null };
+  disabled: boolean;
+  onSave: (answer: unknown, isFail: boolean, observations?: string) => void;
+}) {
+  const current = (response?.answer as { value?: unknown } | null | undefined)?.value;
+  const [obs, setObs] = useState(response?.observations ?? "");
+
+  const handleBoolean = (value: boolean) => {
+    onSave(value, !value, obs);
+  };
+  const handleChoice = (value: string) => {
+    const opts = (question.options as { choices?: string[]; failOn?: string[] } | null) ?? {};
+    const failOn = opts.failOn ?? [];
+    onSave(value, failOn.includes(value), obs);
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border bg-card p-3">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+          {index + 1}
+        </div>
+        <div className="flex-1 space-y-1">
+          <p className="text-sm font-medium">
+            {question.prompt}
+            {question.required && <span className="text-destructive"> *</span>}
+          </p>
+          {question.help_text && (
+            <p className="text-xs text-muted-foreground">{question.help_text}</p>
+          )}
+        </div>
+        {response?.is_fail && (
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="destructive" className="text-xs">Falla</Badge>
+            {!question.creates_incident && (
+              <span className="text-[10px] text-muted-foreground">
+                No abre incidencia automática
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="pl-9">
+        {question.response_type === "boolean" && (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={current === true ? "default" : "outline"}
+              onClick={() => handleBoolean(true)}
+              disabled={disabled}
+            >
+              Sí
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={current === false ? "destructive" : "outline"}
+              onClick={() => handleBoolean(false)}
+              disabled={disabled}
+            >
+              No
+            </Button>
+          </div>
+        )}
+        {question.response_type === "text" && (
+          <Input
+            defaultValue={typeof current === "string" ? current : ""}
+            disabled={disabled}
+            onBlur={(e) => onSave(e.target.value, false, obs)}
+            placeholder="Respuesta"
+          />
+        )}
+        {question.response_type === "number" && (
+          <Input
+            type="number"
+            defaultValue={typeof current === "number" ? current : ""}
+            disabled={disabled}
+            onBlur={(e) => onSave(Number(e.target.value), false, obs)}
+          />
+        )}
+        {question.response_type === "choice" && (
+          <Select
+            value={typeof current === "string" ? current : ""}
+            onValueChange={handleChoice}
+            disabled={disabled}
+          >
+            <SelectTrigger className="w-[260px]">
+              <SelectValue placeholder="Selecciona…" />
+            </SelectTrigger>
+            <SelectContent>
+              {((question.options as { choices?: string[] } | null)?.choices ?? []).map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {(response?.is_fail || obs) && (
+          <Textarea
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+            onBlur={() => onSave(current, response?.is_fail ?? false, obs)}
+            disabled={disabled}
+            rows={2}
+            placeholder="Observaciones / motivo del fallo"
+            className="mt-2"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CloseSessionDialog({
+  orgId,
+  sessionId,
+  pendingCount,
+  open,
+  onOpenChange,
+  onClosed,
+}: {
+  orgId: string | null;
+  sessionId: string;
+  pendingCount: number;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onClosed: () => void;
+}) {
+  const [signerName, setSignerName] = useState("");
+  const [signerRole, setSignerRole] = useState("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+  const hasInk = useRef(false);
+
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current;
+    if (!c) return;
+    drawing.current = true;
+    const r = c.getBoundingClientRect();
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - r.left, e.clientY - r.top);
+  };
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const c = canvasRef.current;
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineTo(e.clientX - r.left, e.clientY - r.top);
+    ctx.stroke();
+    hasInk.current = true;
+  };
+  const end = () => {
+    drawing.current = false;
+  };
+  const clear = () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    ctx?.clearRect(0, 0, c.width, c.height);
+    hasInk.current = false;
+  };
+
+  const close = useMutation({
+    mutationFn: async () => {
+      if (!signerName.trim()) throw new Error("Indica el nombre del firmante");
+      if (!hasInk.current) throw new Error("Firma para continuar");
+      const signature = canvasRef.current!.toDataURL("image/png");
+      const { cert, pdfFailed } = await sessionService.closeSession(orgId, sessionId, { signerName, signerRole, signature });
+      if (pdfFailed)
+        toast.warning("Certificado emitido, pero no se pudo generar el PDF. Podrás regenerarlo desde el detalle.");
+      return cert;
+    },
+    onSuccess: (cert) => {
+      toast.success(
+        cert
+          ? `Sesión cerrada. Certificado ${cert.code} emitido.`
+          : "Sesión cerrada. Esta familia no requiere certificado.",
+      );
+      onClosed();
+      onOpenChange(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Cerrar y firmar sesión</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          {pendingCount > 0 && (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              Quedan {pendingCount} equipo(s) sin revisar. Se marcarán como no revisados y
+              constarán así en el certificado.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Firmante *</Label>
+              <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Cargo</Label>
+              <Input value={signerRole} onChange={(e) => setSignerRole(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <PenLine className="h-3.5 w-3.5" />
+                Firma
+              </Label>
+              <Button type="button" variant="ghost" size="sm" onClick={clear}>
+                <Eraser className="mr-1.5 h-3.5 w-3.5" />
+                Limpiar
+              </Button>
+            </div>
+            <canvas
+              ref={canvasRef}
+              width={460}
+              height={160}
+              onPointerDown={start}
+              onPointerMove={move}
+              onPointerUp={end}
+              onPointerLeave={end}
+              className="w-full touch-none rounded-md border bg-background"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => close.mutate()} disabled={close.isPending}>
+            {close.isPending ? "Cerrando…" : "Cerrar sesión"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
