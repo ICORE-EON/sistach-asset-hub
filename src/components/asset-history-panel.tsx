@@ -8,6 +8,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
 import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
 import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
+import { certificateResultLabel } from "@/modules/maintenance/domain/certificate-results";
 
 const RESULT_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ok: { label: "OK", variant: "default" },
@@ -142,7 +143,7 @@ export function AssetHistoryPanel({ assetId }: { assetId: string }) {
                         : ""}
                     </p>
                   </div>
-                  <Badge variant="outline">{c.result}</Badge>
+                  <Badge variant="outline">{certificateResultLabel(c.result)}</Badge>
                 </Link>
               ))
             )}
