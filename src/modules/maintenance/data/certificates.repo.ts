@@ -14,8 +14,8 @@ import type { StandaloneClient } from "../adapters/standalone/client";
 import type { Json } from "@/integrations/supabase/types";
 import type { CertificateTemplate } from "@/lib/certificate-templates/types";
 import {
-  assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, pickTemplate, validUntilFrom,
-  type CertificateSnapshot, type FrozenIncident, type TemplateSourceKind,
+  assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
+  type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,
 } from "../domain/certificate-rules";
 import { legacyCertificateItemResult } from "../domain/session-rules";
 
@@ -36,6 +36,13 @@ const single = <T>(m: Map<string, Promise<unknown>>, k: string, fn: () => Promis
   m.set(k, n);
   return n;
 };
+
+const sha256Hex = async (bytes: Uint8Array) => {
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", ab))).map((b) => b.toString(16).padStart(2, "0")).join("");
+};
+/** Immutable bucket (insert-only policy, same permission as closing a session). */
+const FROZEN_BUCKET = "signed-certificates";
 
 export type TemplateInput = { [K in keyof Omit<CertificateTemplate, "id">]?: unknown };
 
@@ -61,6 +68,30 @@ export function createCertificatesRepo(c: StandaloneClient) {
   };
 
   /** plan → family → company default → built-in (null), all within orgId. */
+  /**
+   * Copies the logo used at emission into a content-addressed, insert-only path and records its SHA-256.
+   * Never throws: failure is recorded as "unavailable" so emission proceeds and the PDF omits the logo.
+   */
+  const freezeLogo = async (orgId: string, sourcePath: string | null): Promise<FrozenLogo> => {
+    if (!sourcePath) return { status: "none" };
+    if (!isOrgPath(orgId, sourcePath)) return { status: "unavailable", source_path: sourcePath, reason: "foreign_path" };
+    try {
+      const { data, error } = await c.storage.from("company-logos").download(sourcePath);
+      if (error || !data) return { status: "unavailable", source_path: sourcePath, reason: "download_failed" };
+      const bytes = new Uint8Array(await data.arrayBuffer());
+      const contentType = data.type || (sourcePath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+      const sha256 = await sha256Hex(bytes);
+      const path = frozenLogoPath(orgId, sha256, contentType);
+      const up = await c.storage.from(FROZEN_BUCKET).upload(path, new Blob([bytes.slice().buffer as ArrayBuffer], { type: contentType }), { contentType, upsert: false });
+      // Content-addressed: an existing object with this name already holds identical bytes.
+      if (up.error && !/exist|duplicate|409/i.test(String((up.error as { message?: string }).message ?? up.error)))
+        return { status: "unavailable", source_path: sourcePath, reason: "copy_failed" };
+      return { status: "frozen", path, sha256, content_type: contentType, source_path: sourcePath };
+    } catch {
+      return { status: "unavailable", source_path: sourcePath, reason: "copy_failed" };
+    }
+  };
+
   const resolveTemplate = async (orgId: string, planId: string | null) => {
     let plan = null, family = null;
     if (planId) {
@@ -173,7 +204,9 @@ export function createCertificatesRepo(c: StandaloneClient) {
             severity: i.severity, description: [i.title, i.description].filter(Boolean).join(" — ") };
         });
         const today = new Date();
-        const snapshot = buildEmissionSnapshot({
+        const showLogo = tpl.template ? tpl.template.show_logo !== false : true;
+        const logo = await freezeLogo(orgId, showLogo ? (tpl.template?.logo_url ?? company?.logo_url ?? null) : null);
+        const snapshot = buildEmissionSnapshot({ logo,
           now: today, sessionId: a.sessionId, sessionCode: a.sessionCode, sessionMetadata: a.sessionMetadata,
           sessionLocationName: (loc as { name?: string } | null)?.name ?? null,
           company: { name: company?.name ?? "", cif: company?.cif ?? "", address: company?.address ?? "", logo_url: company?.logo_url ?? null },
@@ -222,6 +255,17 @@ export function createCertificatesRepo(c: StandaloneClient) {
       return { cert, certItems, sessionId, session, mItems, company, incidents: incs };
     },
     resolveTemplateForSession: async (orgId: string, planId: string | null) => resolveTemplate(orgId, planId),
+
+    /** Bytes of a frozen logo, only under the active org. Null when it cannot be read. */
+    async readFrozenLogo(orgId: string, path: string): Promise<{ bytes: Uint8Array; contentType: string } | null> {
+      if (!isOrgPath(orgId, path)) throw new Error(CROSS);
+      try {
+        const { data, error } = await c.storage.from(FROZEN_BUCKET).download(path);
+        if (error || !data) return null;
+        return { bytes: new Uint8Array(await data.arrayBuffer()), contentType: data.type || (path.endsWith(".png") ? "image/png" : "image/jpeg") };
+      } catch { return null; }
+    },
+    sha256Hex,
 
     async signedLogoUrl(path: string, seconds = 60) {
       try { const { data } = await c.storage.from("company-logos").createSignedUrl(path, seconds); return data?.signedUrl ?? path; }
