@@ -2,7 +2,7 @@
  * Maintenance session use-cases and org-scoped query keys (orgId always at position 1).
  * Messages, order of validations and results are identical to the previous inline screens.
  */
-import { checklistsRepo, legacyIntegrations as legacy, sessionsRepo as repo } from "../adapters/standalone/repos";
+import { checklistsRepo, incidentsRepo, legacyIntegrations as legacy, sessionsRepo as repo } from "../adapters/standalone/repos";
 import { itemResultFor } from "../domain/session-rules";
 
 export const sessionKeys = {
@@ -21,7 +21,7 @@ const need = (orgId: string | null | undefined): string => {
   return orgId;
 };
 
-type Question = { id: string; prompt: string; creates_incident: boolean };
+type Question = { id: string; prompt: string; creates_incident: boolean; template_version_id?: string | null };
 
 export const sessionService = {
   listSessions: (orgId: string | null, status: string) => repo.listSessions(need(orgId), status),
@@ -60,8 +60,18 @@ export const sessionService = {
       failCount = fails.length;
       const withIncident = fails.filter((r) => a.questions.find((q) => q.id === r.question_id)?.creates_incident);
       failsWithoutIncident = fails.length - withIncident.length;
-      createdIncidents = await legacy.openIncidentsForFailures(org, { id: it.id, asset_id: it.asset_id },
-        withIncident.map((r) => ({ id: r.id, observations: r.observations, prompt: a.questions.find((q) => q.id === r.question_id)?.prompt })));
+      if (withIncident.length > 0) {
+        const session = await repo.getSession(org, a.sessionId);
+        const snap = ((it.metadata as { snapshot?: { asset?: { code?: string; name?: string } } } | null)?.snapshot?.asset) ?? {};
+        createdIncidents = await incidentsRepo.openForFailures(org, {
+          session: { id: a.sessionId, code: (session?.code as string | undefined) ?? null },
+          item: { id: it.id, asset_id: it.asset_id },
+          asset: { code: snap.code ?? null, name: snap.name ?? null },
+        }, withIncident.map((r) => {
+          const q = a.questions.find((x) => x.id === r.question_id);
+          return { id: r.id, observations: r.observations, prompt: q?.prompt, question_id: r.question_id, version_id: q?.template_version_id ?? null };
+        }));
+      }
     }
     const dbResult = itemResultFor(a.intent, failCount);
     await repo.setItemResult(org, a.sessionId, a.item.id, dbResult, a.observations || null, failCount);

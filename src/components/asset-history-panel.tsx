@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCompany } from "@/contexts/CompanyContext";
 import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
+import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
 
 const RESULT_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ok: { label: "OK", variant: "default" },
@@ -32,20 +33,13 @@ export function AssetHistoryPanel({ assetId }: { assetId: string }) {
     queryFn: () => sessionService.listAssetHistory(activeCompanyId, assetId),
   });
 
-  // Residual (blocks 5 and 6): incidents and certificates tabs keep their current reads.
   const { data: incidents = [] } = useQuery({
-    queryKey: ["asset-incidents", assetId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("incidents")
-        .select("id, code, title, severity, status, created_at")
-        .eq("asset_id", assetId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryKey: incidentKeys.byAsset(activeCompanyId, assetId),
+    enabled: !!activeCompanyId,
+    queryFn: () => incidentService.listAssetIncidents(activeCompanyId, assetId),
   });
 
+  // Residual (block 6): certificates tab keeps its current read.
   const { data: certificates = [] } = useQuery({
     queryKey: ["asset-certificates", assetId],
     queryFn: async () => {

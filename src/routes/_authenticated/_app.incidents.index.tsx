@@ -3,7 +3,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, AlertTriangle, Search, LayoutGrid, List as ListIcon } from "lucide-react";
 import { format } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
 
 export const Route = createFileRoute("/_authenticated/_app/incidents/")({
   head: () => ({ meta: [{ title: "Incidencias" }] }),
@@ -58,20 +58,9 @@ function IncidentsList() {
   const [view, setView] = useState<"kanban" | "list">("kanban");
 
   const { data: incidents = [] } = useQuery({
-    queryKey: ["incidents", companyId, severityFilter],
+    queryKey: incidentKeys.list(companyId ?? null, severityFilter),
     enabled: !!companyId,
-    queryFn: async () => {
-      let q = supabase
-        .from("incidents")
-        .select("*, assets(code, name)")
-        .eq("company_id", companyId!)
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (severityFilter !== "all") q = q.eq("severity", severityFilter);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => incidentService.listIncidents(companyId ?? null, severityFilter),
   });
 
   const filtered = incidents.filter((i) => {
@@ -250,50 +239,16 @@ function CreateIncidentDialog({ companyId }: { companyId: string }) {
   const [assetId, setAssetId] = useState<string>("none");
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["assets-for-incident", companyId],
+    queryKey: incidentKeys.assetOptions(companyId),
     enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("assets")
-        .select("id, code, name")
-        .eq("company_id", companyId)
-        .is("deleted_at", null)
-        .order("code")
-        .limit(500);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => incidentService.listAssetOptions(companyId),
   });
 
   const create = useMutation({
-    mutationFn: async () => {
-      if (!title.trim()) throw new Error("El título es obligatorio");
-      const { data: code, error: codeErr } = await supabase.rpc("next_code", {
-        p_company_id: companyId,
-        p_scope: "incidents",
-        p_prefix: "INC",
-      });
-      if (codeErr) throw codeErr;
-      const { data, error } = await supabase
-        .from("incidents")
-        .insert({
-          company_id: companyId,
-          code,
-          title: title.trim(),
-          description: description.trim() || null,
-          severity,
-          status: "open",
-          source: "manual",
-          asset_id: assetId !== "none" ? assetId : null,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
+    mutationFn: () => incidentService.createManual(companyId, { title, description, severity, assetId }),
     onSuccess: () => {
       toast.success("Incidencia creada");
-      qc.invalidateQueries({ queryKey: ["incidents"] });
+      qc.invalidateQueries({ queryKey: incidentKeys.lists(companyId) });
       setOpen(false);
       setTitle("");
       setDescription("");

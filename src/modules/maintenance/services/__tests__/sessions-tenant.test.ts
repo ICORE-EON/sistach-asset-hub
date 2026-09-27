@@ -110,6 +110,7 @@ const legacy = {
 };
 vi.mock("../../adapters/standalone/repos", () => ({
   get sessionsRepo() { return repo; }, get checklistsRepo() { return chkRepo; }, get legacyIntegrations() { return legacy; },
+  get incidentsRepo() { return { openForFailures: legacy.openIncidentsForFailures }; },
   assetsRepo: {}, plansRepo: {},
 }));
 const { sessionKeys, sessionService } = await import("../sessions");

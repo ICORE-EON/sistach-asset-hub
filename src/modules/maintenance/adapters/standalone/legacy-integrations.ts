@@ -1,35 +1,15 @@
 /**
  * RESIDUAL integrations kept verbatim for domains not migrated yet. Adapter layer only.
- *  - incidents (block 5): automatic incidents from failed checklist answers
  *  - certificates (block 6): certificate emission on close, PDF generation, session certificate link
- * Every call is scoped to orgId. They will move to their own repositories in blocks 5 and 6.
+ * Every call is scoped to orgId. They will move to their own repository in block 6.
  */
 import type { StandaloneClient } from "./client";
 import { legacyCertificateItemResult } from "../../domain/session-rules";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 
-export type FailedResponse = { id: string; observations: string | null; prompt: string | undefined };
-
 export function createLegacyIntegrations(c: StandaloneClient, generatePdf: (certId: string) => Promise<unknown>) {
   return {
-    /** Incidents: one per failed response flagged creates_incident; never duplicated. */
-    async openIncidentsForFailures(orgId: string, item: { id: string; asset_id: string }, failed: FailedResponse[]) {
-      let created = 0;
-      for (const r of failed) {
-        const { data: existing } = await c.from("incidents").select("id").eq("source_response_id", r.id).maybeSingle();
-        if (existing) continue;
-        const { data: code } = await c.rpc("next_code", { p_company_id: orgId, p_scope: "incidents", p_prefix: "INC" });
-        ok(await c.from("incidents").insert({
-          company_id: orgId, code: (code as string) ?? "", title: `Fallo en checklist: ${r.prompt ?? "pregunta"}`,
-          description: r.observations || null, severity: "medium", status: "open", source: "maintenance",
-          asset_id: item.asset_id, source_maintenance_item_id: item.id, source_response_id: r.id,
-        }));
-        created += 1;
-      }
-      return created;
-    },
-
     async findSessionCertificate(orgId: string, sessionId: string) {
       const data = ok(await c.from("certificate_items").select("certificates(id, code, status, company_id)")
         .eq("maintenance_session_id", sessionId).limit(1).maybeSingle());
