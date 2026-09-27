@@ -6,7 +6,7 @@ import { certificatesRepo as repo, renderCertificatePdf } from "../adapters/stan
 import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/lib/certificate-templates/default";
 import type { TemplateColumn } from "@/lib/certificate-templates/types";
 import { composePdfData } from "../domain/certificate-pdf-source";
-import { readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
+import { LOGO_INTEGRITY_ERROR, isOrgPath, readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
 import type { TemplateInput } from "../data/certificates.repo";
 
 export const certificateKeys = {
@@ -25,6 +25,12 @@ export const certificateKeys = {
 const need = (orgId: string | null | undefined): string => {
   if (!orgId) throw new Error("Sin empresa activa");
   return orgId;
+};
+
+const toDataUrl = (bytes: Uint8Array, type: string) => {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return `data:${type};base64,${btoa(bin)}`;
 };
 
 const sha256Hex = async (bytes: Uint8Array) => {
@@ -46,21 +52,43 @@ export const certificateService = {
   findSessionCertificate: (orgId: string | null, sessionId: string) => repo.findSessionCertificate(need(orgId), sessionId),
   pdfDownloadUrl: (orgId: string | null, id: string) => repo.pdfDownloadUrl(need(orgId), id),
 
-  /** Builds and stores the PDF from the snapshot precedence. Same storage path and hash as before. */
-  generatePdf: async (orgId: string | null, id: string) => {
+  /**
+   * Builds and stores the PDF from the snapshot precedence. Snapshot certificates use ONLY the logo frozen
+   * at emission, verified by SHA-256; if it cannot be verified and a PDF already exists, nothing is
+   * regenerated (the issued PDF is kept) and LOGO_INTEGRITY_ERROR is raised. On first build the PDF is
+   * produced without logo and a warning is returned. The current logo is never used for them.
+   */
+  generatePdf: async (orgId: string | null, id: string): Promise<{ pdfUrl: string; warning: string | null }> => {
     const org = need(orgId);
     const src = await repo.loadPdfSource(org, id);
     const current = readCertificateSnapshot(src.cert.metadata, src.sessionId)
       ? { source: "builtin" as const, template: null }
       : await repo.resolveTemplateForSession(org, src.session?.plan_id ?? null);
-    const data = composePdfData({ ...src, currentTemplate: current });
+    const data = composePdfData({ ...src, orgId: org, currentTemplate: current });
     const template = data.template ?? DEFAULT_CERTIFICATE_TEMPLATE;
-    const logoUrl = data.logoPath ? await repo.signedLogoUrl(data.logoPath) : null;
+    let logoUrl: string | null = null;
+    let warning: string | null = null;
+    if (data.logo.kind === "frozen") {
+      const f = await repo.readFrozenLogo(org, data.logo.path);
+      if (f && (await repo.sha256Hex(f.bytes)) === data.logo.sha256) logoUrl = toDataUrl(f.bytes, f.contentType);
+      else warning = "El logo congelado no se encuentra o su huella no coincide";
+    } else if (data.logo.kind === "missing") {
+      warning = data.logo.reason;
+    } else if (data.logo.kind === "current") {
+      if (!isOrgPath(org, data.logo.path)) throw new Error("El recurso no pertenece a la organización activa");
+      logoUrl = await repo.signedLogoUrl(data.logo.path); // legacy only, flagged in the detail screen
+    }
+    if (warning && src.cert.pdf_url) {
+      console.warn(`[certificates] ${id}: ${warning}`);
+      throw new Error(LOGO_INTEGRITY_ERROR);
+    }
     const bytes = await renderCertificatePdf({
       template: { ...DEFAULT_CERTIFICATE_TEMPLATE, ...template, columns: (Array.isArray(template.columns) ? template.columns : []) as TemplateColumn[] },
       vars: data.vars, rows: data.rows, incidents: data.incidents, logoUrl, signatureDataUrl: data.signature,
     });
-    return repo.storePdf(org, id, bytes, await sha256Hex(bytes));
+    const r = await repo.storePdf(org, id, bytes, await sha256Hex(bytes));
+    if (warning) console.warn(`[certificates] ${id}: PDF generado sin logo — ${warning}`);
+    return { ...r, warning: warning ? `PDF generado sin logo: ${warning}` : null };
   },
 
   /** Emission after close (called by sessionService). Idempotent; PDF failure keeps the previous warning. */
