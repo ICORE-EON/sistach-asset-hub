@@ -1,0 +1,16 @@
+ALTER TABLE public.assets DROP CONSTRAINT IF EXISTS assets_location_org_fk;
+ALTER TABLE public.certificate_items DROP CONSTRAINT IF EXISTS certificate_items_asset_org_fk, DROP CONSTRAINT IF EXISTS certificate_items_certificate_org_fk, DROP CONSTRAINT IF EXISTS certificate_items_session_org_fk;
+ALTER TABLE public.checklist_questions DROP CONSTRAINT IF EXISTS checklist_questions_version_org_fk;
+ALTER TABLE public.checklist_responses DROP CONSTRAINT IF EXISTS checklist_responses_item_org_fk;
+ALTER TABLE public.checklist_template_versions DROP CONSTRAINT IF EXISTS checklist_template_versions_template_org_fk;
+ALTER TABLE public.first_aid_kit_contents DROP CONSTRAINT IF EXISTS first_aid_kit_contents_kit_org_fk;
+ALTER TABLE public.incident_status_history DROP CONSTRAINT IF EXISTS incident_status_history_incident_org_fk;
+ALTER TABLE public.incidents DROP CONSTRAINT IF EXISTS incidents_location_org_fk, DROP CONSTRAINT IF EXISTS incidents_asset_org_fk;
+ALTER TABLE public.maintenance_items DROP CONSTRAINT IF EXISTS maintenance_items_session_org_fk, DROP CONSTRAINT IF EXISTS maintenance_items_asset_org_fk;
+ALTER TABLE public.maintenance_plan_assets DROP CONSTRAINT IF EXISTS maintenance_plan_assets_asset_org_fk, DROP CONSTRAINT IF EXISTS maintenance_plan_assets_plan_org_fk;
+ALTER TABLE public.maintenance_plan_type_templates DROP CONSTRAINT IF EXISTS maintenance_plan_type_templates_plan_org_fk, DROP CONSTRAINT IF EXISTS maintenance_plan_type_templates_template_org_fk;
+ALTER TABLE public.maintenance_plans DROP CONSTRAINT IF EXISTS maintenance_plans_checklist_template_org_fk, DROP CONSTRAINT IF EXISTS maintenance_plans_certificate_template_org_fk;
+ALTER TABLE public.maintenance_sessions DROP CONSTRAINT IF EXISTS maintenance_sessions_location_org_fk, DROP CONSTRAINT IF EXISTS maintenance_sessions_plan_org_fk;
+ALTER TABLE public.session_reopen_log DROP CONSTRAINT IF EXISTS session_reopen_log_session_org_fk;
+ALTER TABLE public.vehicle_mounts DROP CONSTRAINT IF EXISTS vehicle_mounts_mounted_org_fk, DROP CONSTRAINT IF EXISTS vehicle_mounts_vehicle_org_fk;
+NOTIFY pgrst, 'reload schema';
