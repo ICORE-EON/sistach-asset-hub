@@ -16,3 +16,7 @@ NO se exporta:
 Requisitos del host: registrar un adaptador con `registerMaintenanceAdapter({ id, repositories })` una sola vez al arrancar,
 montar `MaintenanceUiProvider` con `{ request: { orgId, userId, role }, Attachments }`, y proveer el kit UI `@/components/ui/*` y `@/lib/utils`.
 La prueba `ui/__tests__/module-boundary.test.ts` impide que las capas exportables dependan de esta app.
+
+Manifiesto exacto de archivos incluidos/excluidos: `spec/EXPORT_MANIFEST.json`. Especificación de integración en `spec/`
+(`ICORE_ADAPTER_SPEC.md`, `HOST_CONTRACTS.md`, `DTO_MAPPING.md`, `INSTALL_ICORE.md`, `ICORE_DECISIONS.md`).
+El esqueleto `adapters/icore/repositories.ts` sí se exporta; no se registra en esta app.

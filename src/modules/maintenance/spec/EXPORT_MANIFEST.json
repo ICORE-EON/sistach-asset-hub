@@ -53,6 +53,7 @@
     "src/modules/maintenance/spec/EXPORT_MANIFEST.json",
     "src/modules/maintenance/spec/HOST_CONTRACTS.md",
     "src/modules/maintenance/spec/ICORE_ADAPTER_SPEC.md",
+    "src/modules/maintenance/spec/ICORE_DECISIONS.md",
     "src/modules/maintenance/spec/INSTALL_ICORE.md",
     "src/modules/maintenance/sql/INTEGRATION.md",
     "src/modules/maintenance/sql/__tests__/fixtures/concurrency_setup.sql",
