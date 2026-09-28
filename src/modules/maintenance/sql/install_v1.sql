@@ -366,7 +366,7 @@ CREATE OR REPLACE FUNCTION public.mnt_type_usable(p_org uuid, p_type uuid) RETUR
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM public.mnt_asset_types t WHERE t.id = p_type AND t.active AND (
            t.org_id = p_org OR (t.org_id IS NULL AND EXISTS (
-             SELECT 1 FROM public.mnt_org_asset_types a WHERE a.org_id = p_org AND a.asset_type_id = t.id AND a.enabled)))))
+             SELECT 1 FROM public.mnt_org_asset_types a WHERE a.org_id = p_org AND a.asset_type_id = t.id AND a.enabled))))
 $$;
 
 -- ------------------------------------------------------ trigger functions --
