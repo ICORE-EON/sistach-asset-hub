@@ -468,9 +468,11 @@ BEGIN
     IF st IS NULL OR st IN ('closed','cancelled') THEN
       RAISE EXCEPTION 'mnt: sesión cerrada, datos inmutables' USING ERRCODE = '55000';
     END IF;
-    IF TG_TABLE_NAME = 'mnt_session_items' AND TG_OP = 'UPDATE' AND (NEW.session_id <> OLD.session_id
-       OR NEW.asset_id <> OLD.asset_id OR NEW.checklist_version_id <> OLD.checklist_version_id OR NEW.org_id <> OLD.org_id) THEN
-      RAISE EXCEPTION 'mnt: vínculos del equipo inmutables' USING ERRCODE = '42501';
+    IF TG_TABLE_NAME = 'mnt_session_items' AND TG_OP = 'UPDATE' THEN
+      IF NEW.session_id <> OLD.session_id OR NEW.asset_id <> OLD.asset_id
+         OR NEW.checklist_version_id <> OLD.checklist_version_id OR NEW.org_id <> OLD.org_id THEN
+        RAISE EXCEPTION 'mnt: vínculos del equipo inmutables' USING ERRCODE = '42501';
+      END IF;
     END IF;
   END IF;
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
