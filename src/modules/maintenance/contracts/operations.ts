@@ -107,7 +107,7 @@ export const OPERATIONS = {
   "certificates.createTemplate": { kind: "write", perm: "mnt.admin", authority: "RLS mnt_certificate_templates", host: [], orgScoped: true },
   "certificates.updateTemplate": { kind: "write", perm: "mnt.admin", authority: "RLS mnt_certificate_templates", host: [], orgScoped: true },
   "certificates.softDeleteTemplate": { kind: "write", perm: "mnt.admin", authority: "RLS mnt_certificate_templates", host: [], orgScoped: true },
-  "certificates.uploadTemplateLogo": { kind: "host", perm: "mnt.admin", authority: "Almacenamiento del host (bytes, sin File/Blob)", host: ["storage"], orgScoped: true },
+  "certificates.uploadTemplateLogo": { kind: "host", perm: "mnt.admin", authority: "Almacenamiento del host (bytes Uint8Array)", host: ["storage"], orgScoped: true },
   "certificates.listAssetsForExternal": { kind: "read", perm: "mnt.certify", authority: "RLS mnt_assets", host: [], orgScoped: true },
   "certificates.registerExternal": { kind: "atomic", perm: "mnt.certify", authority: "RPC mnt_register_external_certificate", host: ["documents", "people"], orgScoped: true },
 } as const satisfies Record<string, OperationSpec>;

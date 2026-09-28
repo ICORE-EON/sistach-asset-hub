@@ -143,6 +143,6 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `createTemplate` | `orgId: string, t: TemplateInput` | `string` | write | mnt.admin | RLS mnt_certificate_templates | — |
 | `updateTemplate` | `orgId: string, id: string, patch: TemplateInput` | `void` | write | mnt.admin | RLS mnt_certificate_templates | — |
 | `softDeleteTemplate` | `orgId: string, id: string` | `void` | write | mnt.admin | RLS mnt_certificate_templates | — |
-| `uploadTemplateLogo` | `orgId: string, templateId: string, file: BinaryUpload` | `string` | host | mnt.admin | Almacenamiento del host (bytes, sin File/Blob) | storage |
+| `uploadTemplateLogo` | `orgId: string, templateId: string, file: BinaryUpload` | `string` | host | mnt.admin | Almacenamiento del host (bytes Uint8Array) | storage |
 | `listAssetsForExternal` | `orgId: string` | `{ id: string; code: string; name: string \| null; }[]` | read | mnt.certify | RLS mnt_assets | — |
 | `registerExternal` | `orgId: string, v: { title: string; issuedOn: string; validUntil: string \| null; issuerName: string \| null; issuerRole: string \| null; provider: string; externalNumber: string \| null; notes: string \| null; assetId: string \| null; file: BinaryUpload; }` | `DTO (ver contrato)` | atomic | mnt.certify | RPC mnt_register_external_certificate | documents, people |
