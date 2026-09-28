@@ -322,7 +322,7 @@ CREATE INDEX IF NOT EXISTS mnt_outbox_pending_idx ON public.mnt_outbox(occurred_
 
 -- ------------------------------------------------------- helper functions --
 CREATE OR REPLACE FUNCTION public.mnt_can(p_org uuid, p_perm text) RETURNS boolean
-LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public, pg_temp AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT p_org IS NOT NULL
      AND EXISTS (SELECT 1 FROM public.mnt_orgs o WHERE o.org_id = p_org)
      AND coalesce(public.host_has_perm(p_org, p_perm), false)
@@ -392,11 +392,9 @@ CREATE OR REPLACE FUNCTION public.mnt_tg_catalog_scope() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE fam uuid; typ uuid; o uuid;
 BEGIN
-  fam := CASE TG_TABLE_NAME
-    WHEN 'mnt_asset_types' THEN NEW.family_id
-    WHEN 'mnt_checklist_templates' THEN NEW.asset_family_id
-    WHEN 'mnt_certificate_templates' THEN NEW.asset_family_id
-    WHEN 'mnt_plans' THEN NEW.asset_family_id ELSE NULL END;
+  IF TG_TABLE_NAME = 'mnt_asset_types' THEN fam := NEW.family_id;
+  ELSIF TG_TABLE_NAME IN ('mnt_checklist_templates','mnt_certificate_templates','mnt_plans') THEN fam := NEW.asset_family_id;
+  END IF;
   IF fam IS NOT NULL THEN
     SELECT org_id INTO o FROM public.mnt_asset_families WHERE id = fam;
     IF o IS NOT NULL AND o IS DISTINCT FROM NEW.org_id THEN
@@ -865,7 +863,6 @@ BEGIN
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
     EXECUTE format('GRANT SELECT ON public.%I TO service_role', t);
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
     FOR p IN SELECT policyname FROM pg_policies WHERE schemaname = 'public' AND tablename = t LOOP
       EXECUTE format('DROP POLICY %I ON public.%I', p, t);
     END LOOP;
