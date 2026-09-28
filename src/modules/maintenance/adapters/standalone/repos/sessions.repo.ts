@@ -11,6 +11,8 @@
  */
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
+import type { NewSession } from "../../../contracts/repositories";
+export type { NewSession };
 import { assertTransition, legacySessionOutcome } from "../../../domain/session-rules";
 import { closeResults, historicalItem, historicalSession } from "../../../domain/session-history";
 
@@ -18,11 +20,6 @@ const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.erro
 const DENY = "no encontrada en la organización activa";
 type Meta = Record<string, unknown>;
 const meta = (m: unknown): Meta => (m && typeof m === "object" && !Array.isArray(m) ? (m as Meta) : {});
-
-export type NewSession = {
-  requestId: string; planId: string; locationId: string | null;
-  scheduledFor: string | null; technicianName: string | null;
-};
 
 export function createSessionsRepo(c: StandaloneClient) {
   const getOwn = async (orgId: string, sessionId: string) => {

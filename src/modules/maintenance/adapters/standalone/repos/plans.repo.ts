@@ -7,23 +7,14 @@
  * scope_location_ids stays an array until the phase-5 normalization.
  */
 import type { StandaloneClient } from "../client";
+import type { NewPlan, ScopeQuery } from "../../../contracts/repositories";
+export type { NewPlan, ScopeQuery };
 import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../../../domain/scope";
 
 export const PLAN_LIST_SELECT =
   "*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name)";
 export const PLAN_DETAIL_SELECT =
   "*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name, current_version), certificate_templates(id, code, name)";
-
-export type NewPlan = {
-  code: string; name: string; asset_family_id: string; frequency: string; interval_months: number | null;
-  notes: string | null; scope_mode: "scoped" | "manual"; scope_location_ids: string[];
-  scope_include_sublocations: boolean; certificate_template_id: string | null;
-  asset_ids: string[]; type_templates: Array<{ asset_type_id: string; checklist_template_id: string }>;
-};
-
-export type ScopeQuery = {
-  assetTypeIds: string[]; locationIds: string[]; includeSublocations: boolean; locations?: ScopeLocation[];
-};
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const uniq = (xs: string[]) => [...new Set(xs)];

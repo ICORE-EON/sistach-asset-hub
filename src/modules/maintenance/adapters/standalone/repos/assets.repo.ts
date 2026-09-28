@@ -3,23 +3,8 @@
  * Every read and write is scoped by orgId (company_id) to keep tenant isolation.
  */
 import type { StandaloneClient } from "../client";
-
-export type AssetFilters = {
-  status?: string; typeIds?: string[] | null; siteId?: string; q?: string;
-};
-
-export type NewAsset = {
-  asset_type_id: string; location_id: string | null; name: string | null;
-  manufacturer: string | null; model: string | null; serial_number: string | null;
-  install_date: string | null; notes: string | null;
-};
-
-export type AssetPatch = NewAsset & { warranty_until: string | null; status: string };
-
-export type KitItemInput = {
-  product_code: string | null; product_name: string; quantity: number;
-  unit: string | null; batch_code?: string | null; expires_on?: string | null; notes?: string | null;
-};
+import type { AssetFilters, NewAsset, AssetPatch, KitItemInput } from "../../../contracts/repositories";
+export type { AssetFilters, NewAsset, AssetPatch, KitItemInput };
 
 const NO_MATCH = "00000000-0000-0000-0000-000000000000";
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };

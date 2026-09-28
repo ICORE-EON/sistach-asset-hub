@@ -11,6 +11,8 @@
  *    then activated by compare-and-set; never overwrites or deletes (see storePdf).
  */
 import type { StandaloneClient } from "../client";
+import type { TemplateInput } from "../../../contracts/repositories";
+export type { TemplateInput };
 import type { BinaryUpload } from "../../../contracts/repositories";
 import type { Json } from "@/integrations/supabase/types";
 import type { CertificateTemplate } from "@/modules/maintenance/domain/certificate-templates/types";
@@ -45,8 +47,6 @@ const sha256Hex = async (bytes: Uint8Array) => {
 };
 /** Immutable bucket (insert-only policy, same permission as closing a session). */
 const FROZEN_BUCKET = "signed-certificates";
-
-export type TemplateInput = { [K in keyof Omit<CertificateTemplate, "id">]?: unknown };
 
 export function createCertificatesRepo(c: StandaloneClient) {
   const getOwn = async (orgId: string, id: string) => {
