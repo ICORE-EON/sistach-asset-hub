@@ -2,8 +2,11 @@
  * Checklist use-cases and org-scoped query keys. Every key has orgId at position 1.
  * Template selection priority stays in domain/checklist-scope (unchanged).
  */
-import { checklistsRepo as repo } from "../adapters/standalone/repos";
-import type { NewQuestion, ResponseInput, TemplateScopeInput } from "../data/checklists.repo";
+import { getRepositories } from "../contracts/registry";
+import type { NewQuestion, ResponseInput, TemplateScopeInput } from "../contracts/repositories";
+
+/** Resolved per call from the registered host adapter (no org/user state is kept). */
+const repo = () => getRepositories().checklists;
 
 export type { NewQuestion, ResponseInput, TemplateScopeInput };
 
@@ -24,14 +27,14 @@ const need = (orgId: string | null | undefined): string => {
 };
 
 export const checklistService = {
-  listTemplates: (orgId: string | null) => repo.listTemplates(need(orgId)),
+  listTemplates: (orgId: string | null) => repo().listTemplates(need(orgId)),
   getTemplate: async (orgId: string | null, id: string) => {
-    const t = await repo.getTemplate(need(orgId), id);
+    const t = await repo().getTemplate(need(orgId), id);
     if (!t) throw new Error("Plantilla no encontrada");
     return t;
   },
   getTemplateScope: async (orgId: string | null, id: string) => {
-    const s = await repo.getTemplateScope(need(orgId), id);
+    const s = await repo().getTemplateScope(need(orgId), id);
     if (!s) throw new Error("Plantilla no encontrada");
     return s as unknown as { asset_family_id: string | null; asset_type_ids: string[] | null; location_ids: string[] | null; include_sublocations: boolean | null };
   },
@@ -46,32 +49,32 @@ export const checklistService = {
     if (!v.allTypes && !types.length) throw new Error("Selecciona al menos un tipo de activo");
     const locs = v.allLocations ? [] : v.locationIds;
     if (!v.allLocations && !locs.length) throw new Error("Selecciona al menos un centro");
-    return repo.createTemplate(org, {
+    return repo().createTemplate(org, {
       code: v.code.toUpperCase(), name: v.name, asset_family_id: v.familyId, asset_type_ids: types,
       location_ids: locs, include_sublocations: v.includeSub, description: v.description || null,
     });
   },
   updateTemplateScope: (orgId: string | null, id: string, v: TemplateScopeInput) =>
-    repo.updateTemplateScope(need(orgId), id, v),
-  listPublishedTemplates: (orgId: string | null) => repo.listPublishedTemplates(need(orgId)),
+    repo().updateTemplateScope(need(orgId), id, v),
+  listPublishedTemplates: (orgId: string | null) => repo().listPublishedTemplates(need(orgId)),
 
-  listVersions: (orgId: string | null, templateId: string) => repo.listVersions(need(orgId), templateId),
+  listVersions: (orgId: string | null, templateId: string) => repo().listVersions(need(orgId), templateId),
   latestPublishedVersions: (orgId: string | null, templateIds: string[]) =>
-    repo.latestPublishedVersions(need(orgId), templateIds),
+    repo().latestPublishedVersions(need(orgId), templateIds),
   publishVersion: (orgId: string | null, templateId: string, versionId: string, version: number) =>
-    repo.publishVersion(need(orgId), templateId, versionId, version),
+    repo().publishVersion(need(orgId), templateId, versionId, version),
   createVersion: (orgId: string | null, templateId: string, next: number, cloneFrom: string | null) =>
-    repo.createVersion(need(orgId), templateId, next, cloneFrom),
+    repo().createVersion(need(orgId), templateId, next, cloneFrom),
 
-  listQuestions: (orgId: string | null, versionId: string) => repo.listQuestions(need(orgId), versionId),
+  listQuestions: (orgId: string | null, versionId: string) => repo().listQuestions(need(orgId), versionId),
   addQuestion: (orgId: string | null, versionId: string, q: NewQuestion) => {
     if (!q.prompt.trim()) throw new Error("Escribe la pregunta");
-    return repo.addQuestion(need(orgId), versionId, { ...q, prompt: q.prompt.trim() });
+    return repo().addQuestion(need(orgId), versionId, { ...q, prompt: q.prompt.trim() });
   },
   deleteQuestion: (orgId: string | null, versionId: string, questionId: string) =>
-    repo.deleteQuestion(need(orgId), versionId, questionId),
+    repo().deleteQuestion(need(orgId), versionId, questionId),
 
-  listResponses: (orgId: string | null, itemId: string) => repo.listResponses(need(orgId), itemId),
+  listResponses: (orgId: string | null, itemId: string) => repo().listResponses(need(orgId), itemId),
   saveResponse: (orgId: string | null, itemId: string, versionId: string, r: ResponseInput) =>
-    repo.saveResponse(need(orgId), itemId, versionId, r),
+    repo().saveResponse(need(orgId), itemId, versionId, r),
 };
