@@ -6,6 +6,7 @@ Se exporta (portable, sin dependencias de esta app):
 - `services/` — casos de uso; reciben `orgId` (y `userId` cuando aplica) de forma explícita en cada llamada.
 - `render/` — generación del PDF de certificado (pdf-lib).
 - `ui/` — pantallas y componentes; leen el contexto de solicitud de `ui/host.tsx` (`MaintenanceUiProvider`).
+- `sql/` — instalador limpio `install_v1.sql`, catálogo `seed_catalog_v1.sql`, `INTEGRATION.md` y sus pruebas (el host simulado de `sql/__tests__/fixtures` es solo de pruebas).
 - `manifest/`, `host-manifest.json`, pruebas `__tests__` de estas carpetas.
 
 NO se exporta:
