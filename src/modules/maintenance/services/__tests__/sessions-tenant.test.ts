@@ -5,10 +5,11 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { useTestRepositories } from "./test-adapter";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryObserver, MutationObserver } from "@tanstack/query-core";
-import { createSessionsRepo } from "../../data/sessions.repo";
-import { createChecklistsRepo } from "../../data/checklists.repo";
+import { createSessionsRepo } from "../../adapters/standalone/repos/sessions.repo";
+import { createChecklistsRepo } from "../../adapters/standalone/repos/checklists.repo";
 import { canTransition, legacySessionOutcome, itemResultFor, legacyCertificateItemResult } from "../../domain/session-rules";
 
 const A = "00000000-0000-0000-0000-00000000000a";
@@ -108,11 +109,7 @@ const legacy = {
   findSessionCertificate: vi.fn(async () => null as null | { id: string; code: string }),
   emitSessionCertificate: vi.fn(async () => ({ cert: { id: "c1", code: "CERT-1" }, pdfFailed: false })),
 };
-vi.mock("../../adapters/standalone/repos", () => ({
-  get sessionsRepo() { return repo; }, get checklistsRepo() { return chkRepo; }, get legacyIntegrations() { return legacy; },
-  get incidentsRepo() { return { openForFailures: legacy.openIncidentsForFailures }; },
-  assetsRepo: {}, plansRepo: {},
-}));
+useTestRepositories({ sessions: repo, checklists: chkRepo, incidents: { openForFailures: legacy.openIncidentsForFailures } });
 vi.mock("../certificates", () => ({
   certificateService: {
     findSessionCertificate: (...a: unknown[]) => (legacy.findSessionCertificate as (...x: unknown[]) => unknown)(...a),

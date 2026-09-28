@@ -5,9 +5,10 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { useTestRepositories } from "./test-adapter";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryObserver } from "@tanstack/query-core";
-import { createCertificatesRepo } from "../../data/certificates.repo";
+import { createCertificatesRepo } from "../../adapters/standalone/repos/certificates.repo";
 import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, pickTemplate, readCertificateSnapshot,
   planSnapshotLogo, requiresCertificate, validUntilFrom,
@@ -123,7 +124,8 @@ function fakeClient() {
 }
 const repo = createCertificatesRepo(fakeClient() as never);
 const render = vi.fn(async () => new Uint8Array([1, 2, 3]));
-vi.mock("../../adapters/standalone/repos", () => ({ get certificatesRepo() { return repo; }, get renderCertificatePdf() { return render; } }));
+useTestRepositories({ certificates: repo });
+vi.mock("../../render/certificate-pdf", () => ({ get buildCertificatePdf() { return render; } }));
 const { certificateKeys, certificateService } = await import("../certificates");
 
 beforeEach(() => { seed(); STORE = {}; for (const k of Object.keys(FAIL)) delete FAIL[k as keyof typeof FAIL]; OVERWRITES.length = 0; delete AFTER_UPLOAD.fn; writes.length = 0; uploads.length = 0; render.mockClear(); });
