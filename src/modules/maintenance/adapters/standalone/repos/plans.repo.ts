@@ -6,8 +6,8 @@
  * assets, checklist and certificate templates) is checked against orgId BEFORE any write.
  * scope_location_ids stays an array until the phase-5 normalization.
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
-import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../domain/scope";
+import type { StandaloneClient } from "../client";
+import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../../../domain/scope";
 
 export const PLAN_LIST_SELECT =
   "*, asset_types(code, name_i18n), asset_families(code, name_i18n), checklist_templates(code, name)";

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { createIncidentsRepo } from "../incidents.repo";
-import { resolveIncidentOrigin } from "../../domain/incident-rules";
+import { resolveIncidentOrigin } from "../../../../domain/incident-rules";
 
 const env = Object.fromEntries(
   (() => { try { return readFileSync(".env", "utf8"); } catch { return ""; } })()

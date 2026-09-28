@@ -3,11 +3,11 @@
  * assignable members list and the asset tab. Every call is scoped to orgId; children (history) and
  * references (asset, assignee) are verified against the active org before reading or writing.
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
 import type { Json } from "@/integrations/supabase/types";
 import {
   assertIncidentTransition, assertSeverity, isIncidentClosed, transitionPatch, type IncidentOriginSnapshot,
-} from "../domain/incident-rules";
+} from "../../../domain/incident-rules";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Incidencia no encontrada";

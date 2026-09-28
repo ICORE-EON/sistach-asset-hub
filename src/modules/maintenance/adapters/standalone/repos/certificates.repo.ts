@@ -10,14 +10,14 @@
  *  - storePdf: immutable content-addressed versions {org}/certificates/{id}/{sha256}.pdf, verified and
  *    then activated by compare-and-set; never overwrites or deletes (see storePdf).
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
 import type { Json } from "@/integrations/supabase/types";
 import type { CertificateTemplate } from "@/modules/maintenance/domain/certificate-templates/types";
 import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
   type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,
-} from "../domain/certificate-rules";
-import { resolveCertificateItemResult, storedCertificateResult } from "../domain/certificate-results";
+} from "../../../domain/certificate-rules";
+import { resolveCertificateItemResult, storedCertificateResult } from "../../../domain/certificate-results";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Certificado no encontrado";

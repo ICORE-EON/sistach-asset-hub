@@ -10,9 +10,9 @@
  *  - session.metadata.close_snapshot: per-item results frozen at close
  */
 import type { Json } from "@/integrations/supabase/types";
-import type { StandaloneClient } from "../adapters/standalone/client";
-import { assertTransition, legacySessionOutcome } from "../domain/session-rules";
-import { closeResults, historicalItem, historicalSession } from "../domain/session-history";
+import type { StandaloneClient } from "../client";
+import { assertTransition, legacySessionOutcome } from "../../../domain/session-rules";
+import { closeResults, historicalItem, historicalSession } from "../../../domain/session-history";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const DENY = "no encontrada en la organización activa";

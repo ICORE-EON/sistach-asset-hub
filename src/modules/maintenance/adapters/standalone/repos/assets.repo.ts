@@ -2,7 +2,7 @@
  * Assets / families / types / first-aid-kit repository. Only data layer touches the client.
  * Every read and write is scoped by orgId (company_id) to keep tenant isolation.
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
 
 export type AssetFilters = {
   status?: string; typeIds?: string[] | null; siteId?: string; q?: string;
