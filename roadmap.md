@@ -28,5 +28,5 @@
 
 ## Paquete limpio ICORE (plan v2)
 - [x] Paso 1: contratos estables + registro de adaptador + separación del host standalone (esperando revisión)
-- [ ] Paso 2: esquema de instalación desde cero, catálogos y pruebas (PGlite) — pendiente de aprobación
+- [x] Paso 2: esquema limpio, catálogo y pruebas en PostgreSQL desechable (esperando revisión)
 - [ ] Paso 3: adaptador ICORE, ficha de requisitos y lista de exportación — pendiente de aprobación
