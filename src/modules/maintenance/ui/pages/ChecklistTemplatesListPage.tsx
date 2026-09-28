@@ -45,7 +45,6 @@ export function ChecklistTemplatesListPage() {
   const [open, setOpen] = useState(false);
   const [familyFilter, setFamilyFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({

@@ -43,7 +43,6 @@ export function PlanDetailPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plan } = useQuery({

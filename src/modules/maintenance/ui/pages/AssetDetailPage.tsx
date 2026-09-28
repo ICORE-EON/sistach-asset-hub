@@ -41,7 +41,6 @@ export function AssetDetailPage() {
   const { Attachments: AttachmentsPanel } = useMaintenanceUi();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
   const canDelete = role === "administrator";
 

@@ -53,7 +53,6 @@ export function PlansListPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [frequencyFilter, setFrequencyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plans = [], isLoading } = useQuery({

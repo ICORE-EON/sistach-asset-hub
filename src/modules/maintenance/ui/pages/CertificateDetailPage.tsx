@@ -28,7 +28,6 @@ export function CertificateDetailPage() {
   const qc = useQueryClient();
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const { Attachments: AttachmentsPanel } = useMaintenanceUi();
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const org = activeCompanyId ?? null;

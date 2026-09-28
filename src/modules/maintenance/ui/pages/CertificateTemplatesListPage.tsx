@@ -32,7 +32,6 @@ export function CertificateTemplatesListPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({

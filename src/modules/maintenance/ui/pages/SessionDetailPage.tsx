@@ -53,7 +53,6 @@ export function SessionDetailPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const { Attachments: AttachmentsPanel } = useMaintenanceUi();
   const orgId = activeCompanyId;
-  const role = role;
   const canRun =
     role === "administrator" || role === "system_manager" || role === "manager";
 

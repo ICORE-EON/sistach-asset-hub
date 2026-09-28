@@ -47,7 +47,6 @@ export const SEVERITY_LABELS: Record<string, { label: string; className: string 
 export function IncidentsListPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const companyId = activeCompanyId;
-  const role = role;
   const canCreate = role !== undefined && role !== "auditor";
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");

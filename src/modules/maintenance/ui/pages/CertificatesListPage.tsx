@@ -23,7 +23,6 @@ import { ExternalCertificateDialog } from "../components/external-certificate-di
 export function CertificatesListPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const companyId = activeCompanyId;
-  const role = role;
   const canCreate =
     role === "administrator" || role === "system_manager" || role === "manager" || role === "employee";
 

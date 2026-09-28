@@ -30,7 +30,6 @@ export function IncidentDetailPage() {
   const { userId } = useMaintenanceRequest();
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const { Attachments: AttachmentsPanel } = useMaintenanceUi();
-  const role = role;
   const canEdit = role !== undefined && role !== "auditor";
 
   const orgId = activeCompanyId ?? null;

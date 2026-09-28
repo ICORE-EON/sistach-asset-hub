@@ -38,7 +38,6 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
 export function SessionsListPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const companyId = activeCompanyId;
-  const role = role;
   const canRun =
     role === "administrator" || role === "system_manager" || role === "manager";
   const [search, setSearch] = useState("");
