@@ -2,6 +2,11 @@
 # Runs the package SQL tests against a THROWAWAY local PostgreSQL cluster (never the app database).
 set -euo pipefail
 unset PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE PGSERVICE PGSSLMODE DATABASE_URL || true
+if [ "$(id -u)" = "0" ]; then
+  id mntpg >/dev/null 2>&1 || useradd -M -s /bin/bash mntpg 2>/dev/null || adduser -D -H mntpg 2>/dev/null || true
+  id mntpg >/dev/null 2>&1 || { echo "PENDING: PostgreSQL cannot run as root and no unprivileged user"; exit 3; }
+  exec su mntpg -s /bin/bash -c "PATH='$PATH' '$0'"
+fi
 HERE="$(cd "$(dirname "$0")" && pwd)"; SQL="$HERE/.."
 for b in initdb pg_ctl psql; do command -v "$b" >/dev/null || { echo "PENDING: $b not available"; exit 3; }; done
 TMP="$(mktemp -d /tmp/mnt-pg-XXXXXX)"; PORT=$((55000 + RANDOM % 5000))
