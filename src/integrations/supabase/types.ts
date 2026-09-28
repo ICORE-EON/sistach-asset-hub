@@ -231,6 +231,13 @@ export type Database = {
             referencedRelation: "locations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "assets_location_org_fk"
+            columns: ["company_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
         ]
       }
       audit_logs: {
@@ -606,6 +613,7 @@ export type Database = {
         Row: {
           asset_id: string | null
           certificate_id: string
+          company_id: string | null
           created_at: string
           id: string
           maintenance_item_id: string | null
@@ -616,6 +624,7 @@ export type Database = {
         Insert: {
           asset_id?: string | null
           certificate_id: string
+          company_id?: string | null
           created_at?: string
           id?: string
           maintenance_item_id?: string | null
@@ -626,6 +635,7 @@ export type Database = {
         Update: {
           asset_id?: string | null
           certificate_id?: string
+          company_id?: string | null
           created_at?: string
           id?: string
           maintenance_item_id?: string | null
@@ -642,11 +652,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "certificate_items_asset_org_fk"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "certificate_items_certificate_id_fkey"
             columns: ["certificate_id"]
             isOneToOne: false
             referencedRelation: "certificates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_certificate_org_fk"
+            columns: ["company_id", "certificate_id"]
+            isOneToOne: false
+            referencedRelation: "certificates"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "certificate_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "certificate_items_maintenance_item_id_fkey"
@@ -661,6 +699,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "maintenance_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_items_session_org_fk"
+            columns: ["company_id", "maintenance_session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -850,6 +895,7 @@ export type Database = {
       }
       checklist_questions: {
         Row: {
+          company_id: string | null
           creates_incident: boolean
           fails_on: Json | null
           help_text: string | null
@@ -863,6 +909,7 @@ export type Database = {
           template_version_id: string
         }
         Insert: {
+          company_id?: string | null
           creates_incident?: boolean
           fails_on?: Json | null
           help_text?: string | null
@@ -876,6 +923,7 @@ export type Database = {
           template_version_id: string
         }
         Update: {
+          company_id?: string | null
           creates_incident?: boolean
           fails_on?: Json | null
           help_text?: string | null
@@ -890,11 +938,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "checklist_questions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_questions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "checklist_questions_template_version_id_fkey"
             columns: ["template_version_id"]
             isOneToOne: false
             referencedRelation: "checklist_template_versions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_questions_version_org_fk"
+            columns: ["company_id", "template_version_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_versions"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -904,6 +973,7 @@ export type Database = {
           answered_at: string
           answered_by: string | null
           checklist_template_version_id: string
+          company_id: string | null
           id: string
           is_fail: boolean
           maintenance_item_id: string
@@ -915,6 +985,7 @@ export type Database = {
           answered_at?: string
           answered_by?: string | null
           checklist_template_version_id: string
+          company_id?: string | null
           id?: string
           is_fail?: boolean
           maintenance_item_id: string
@@ -926,6 +997,7 @@ export type Database = {
           answered_at?: string
           answered_by?: string | null
           checklist_template_version_id?: string
+          company_id?: string | null
           id?: string
           is_fail?: boolean
           maintenance_item_id?: string
@@ -948,6 +1020,27 @@ export type Database = {
             referencedColumns: ["template_version_id", "id"]
           },
           {
+            foreignKeyName: "checklist_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_responses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "checklist_responses_item_org_fk"
+            columns: ["company_id", "maintenance_item_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_items"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "checklist_responses_maintenance_item_id_fkey"
             columns: ["maintenance_item_id"]
             isOneToOne: false
@@ -958,6 +1051,7 @@ export type Database = {
       }
       checklist_template_versions: {
         Row: {
+          company_id: string | null
           created_at: string
           id: string
           is_published: boolean
@@ -968,6 +1062,7 @@ export type Database = {
           version: number
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           id?: string
           is_published?: boolean
@@ -978,6 +1073,7 @@ export type Database = {
           version: number
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           id?: string
           is_published?: boolean
@@ -989,11 +1085,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "checklist_template_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_template_versions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "checklist_template_versions_template_id_fkey"
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "checklist_templates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_template_versions_template_org_fk"
+            columns: ["company_id", "template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -1488,6 +1605,7 @@ export type Database = {
       first_aid_kit_contents: {
         Row: {
           batch_code: string | null
+          company_id: string | null
           created_at: string
           expires_on: string | null
           id: string
@@ -1501,6 +1619,7 @@ export type Database = {
         }
         Insert: {
           batch_code?: string | null
+          company_id?: string | null
           created_at?: string
           expires_on?: string | null
           id?: string
@@ -1514,6 +1633,7 @@ export type Database = {
         }
         Update: {
           batch_code?: string | null
+          company_id?: string | null
           created_at?: string
           expires_on?: string | null
           id?: string
@@ -1527,11 +1647,32 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "first_aid_kit_contents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "first_aid_kit_contents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "first_aid_kit_contents_kit_asset_id_fkey"
             columns: ["kit_asset_id"]
             isOneToOne: false
             referencedRelation: "assets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "first_aid_kit_contents_kit_org_fk"
+            columns: ["company_id", "kit_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -1718,6 +1859,7 @@ export type Database = {
         Row: {
           changed_at: string
           changed_by: string | null
+          company_id: string | null
           from_status: string | null
           id: string
           incident_id: string
@@ -1727,6 +1869,7 @@ export type Database = {
         Insert: {
           changed_at?: string
           changed_by?: string | null
+          company_id?: string | null
           from_status?: string | null
           id?: string
           incident_id: string
@@ -1736,6 +1879,7 @@ export type Database = {
         Update: {
           changed_at?: string
           changed_by?: string | null
+          company_id?: string | null
           from_status?: string | null
           id?: string
           incident_id?: string
@@ -1743,6 +1887,20 @@ export type Database = {
           to_status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "incident_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incident_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
           {
             foreignKeyName: "incident_status_history_incident_id_fkey"
             columns: ["incident_id"]
@@ -1756,6 +1914,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "maintenance_item_open_incidents"
             referencedColumns: ["incident_id"]
+          },
+          {
+            foreignKeyName: "incident_status_history_incident_org_fk"
+            columns: ["company_id", "incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "incident_status_history_incident_org_fk"
+            columns: ["company_id", "incident_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_item_open_incidents"
+            referencedColumns: ["company_id", "incident_id"]
           },
         ]
       }
@@ -1844,6 +2016,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "incidents_asset_org_fk"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "incidents_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -1863,6 +2042,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "locations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_location_org_fk"
+            columns: ["company_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
           },
           {
             foreignKeyName: "incidents_source_maintenance_item_id_fkey"
@@ -1954,6 +2140,7 @@ export type Database = {
         Row: {
           asset_id: string
           checklist_template_version_id: string
+          company_id: string | null
           completed_at: string | null
           completed_by: string | null
           created_at: string
@@ -1967,6 +2154,7 @@ export type Database = {
         Insert: {
           asset_id: string
           checklist_template_version_id: string
+          company_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -1980,6 +2168,7 @@ export type Database = {
         Update: {
           asset_id?: string
           checklist_template_version_id?: string
+          company_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
@@ -1999,11 +2188,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_items_asset_org_fk"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "maintenance_items_checklist_template_version_id_fkey"
             columns: ["checklist_template_version_id"]
             isOneToOne: false
             referencedRelation: "checklist_template_versions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "maintenance_items_session_id_fkey"
@@ -2012,11 +2222,19 @@ export type Database = {
             referencedRelation: "maintenance_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "maintenance_items_session_org_fk"
+            columns: ["company_id", "session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["company_id", "id"]
+          },
         ]
       }
       maintenance_plan_assets: {
         Row: {
           asset_id: string
+          company_id: string | null
           created_at: string
           end_on: string | null
           id: string
@@ -2025,6 +2243,7 @@ export type Database = {
         }
         Insert: {
           asset_id: string
+          company_id?: string | null
           created_at?: string
           end_on?: string | null
           id?: string
@@ -2033,6 +2252,7 @@ export type Database = {
         }
         Update: {
           asset_id?: string
+          company_id?: string | null
           created_at?: string
           end_on?: string | null
           id?: string
@@ -2048,11 +2268,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_plan_assets_asset_org_fk"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_assets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "maintenance_plan_assets_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "maintenance_plans"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_assets_plan_org_fk"
+            columns: ["company_id", "plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -2060,6 +2308,7 @@ export type Database = {
         Row: {
           asset_type_id: string
           checklist_template_id: string
+          company_id: string | null
           created_at: string
           id: string
           plan_id: string
@@ -2068,6 +2317,7 @@ export type Database = {
         Insert: {
           asset_type_id: string
           checklist_template_id: string
+          company_id?: string | null
           created_at?: string
           id?: string
           plan_id: string
@@ -2076,6 +2326,7 @@ export type Database = {
         Update: {
           asset_type_id?: string
           checklist_template_id?: string
+          company_id?: string | null
           created_at?: string
           id?: string
           plan_id?: string
@@ -2097,11 +2348,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_plan_type_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_type_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "maintenance_plan_type_templates_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "maintenance_plans"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_type_templates_plan_org_fk"
+            columns: ["company_id", "plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "maintenance_plan_type_templates_template_org_fk"
+            columns: ["company_id", "checklist_template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -2189,11 +2468,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_plans_certificate_template_org_fk"
+            columns: ["company_id", "certificate_template_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_templates"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "maintenance_plans_checklist_template_id_fkey"
             columns: ["checklist_template_id"]
             isOneToOne: false
             referencedRelation: "checklist_templates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plans_checklist_template_org_fk"
+            columns: ["company_id", "checklist_template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["company_id", "id"]
           },
           {
             foreignKeyName: "maintenance_plans_company_id_fkey"
@@ -2325,11 +2618,311 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_sessions_location_org_fk"
+            columns: ["company_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "maintenance_sessions_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "maintenance_plans"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_sessions_plan_org_fk"
+            columns: ["company_id", "plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_checklist_template_sites: {
+        Row: {
+          created_at: string
+          location_id: string
+          org_id: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          location_id: string
+          org_id: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          location_id?: string
+          org_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_checklist_template_sites_location_org_fk"
+            columns: ["org_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_sites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_sites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_sites_template_org_fk"
+            columns: ["org_id", "template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_checklist_template_types: {
+        Row: {
+          asset_type_id: string
+          created_at: string
+          org_id: string
+          template_id: string
+        }
+        Insert: {
+          asset_type_id: string
+          created_at?: string
+          org_id: string
+          template_id: string
+        }
+        Update: {
+          asset_type_id?: string
+          created_at?: string
+          org_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_checklist_template_types_asset_type_id_fkey"
+            columns: ["asset_type_id"]
+            isOneToOne: false
+            referencedRelation: "asset_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_checklist_template_types_template_org_fk"
+            columns: ["org_id", "template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_migration_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          postflight: Json | null
+          preflight: Json | null
+          rows_affected: Json | null
+          started_at: string
+          status: string
+          step: string
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          postflight?: Json | null
+          preflight?: Json | null
+          rows_affected?: Json | null
+          started_at?: string
+          status: string
+          step: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          postflight?: Json | null
+          preflight?: Json | null
+          rows_affected?: Json | null
+          started_at?: string
+          status?: string
+          step?: string
+        }
+        Relationships: []
+      }
+      mnt_org_asset_types: {
+        Row: {
+          asset_type_id: string
+          created_at: string
+          enabled: boolean
+          org_id: string
+          updated_at: string
+        }
+        Insert: {
+          asset_type_id: string
+          created_at?: string
+          enabled?: boolean
+          org_id: string
+          updated_at?: string
+        }
+        Update: {
+          asset_type_id?: string
+          created_at?: string
+          enabled?: boolean
+          org_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_org_asset_types_asset_type_id_fkey"
+            columns: ["asset_type_id"]
+            isOneToOne: false
+            referencedRelation: "asset_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_org_asset_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_org_asset_types_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_outbox: {
+        Row: {
+          aggregate_id: string
+          aggregate_type: string
+          attempts: number
+          event_id: string
+          event_type: string
+          last_error: string | null
+          occurred_at: string
+          org_id: string
+          payload: Json
+          processed_at: string | null
+        }
+        Insert: {
+          aggregate_id: string
+          aggregate_type: string
+          attempts?: number
+          event_id?: string
+          event_type: string
+          last_error?: string | null
+          occurred_at?: string
+          org_id: string
+          payload?: Json
+          processed_at?: string | null
+        }
+        Update: {
+          aggregate_id?: string
+          aggregate_type?: string
+          attempts?: number
+          event_id?: string
+          event_type?: string
+          last_error?: string | null
+          occurred_at?: string
+          org_id?: string
+          payload?: Json
+          processed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_outbox_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_outbox_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_plan_sites: {
+        Row: {
+          created_at: string
+          location_id: string
+          org_id: string
+          plan_id: string
+        }
+        Insert: {
+          created_at?: string
+          location_id: string
+          org_id: string
+          plan_id: string
+        }
+        Update: {
+          created_at?: string
+          location_id?: string
+          org_id?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_plan_sites_location_org_fk"
+            columns: ["org_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_plan_sites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_plan_sites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_plan_sites_plan_org_fk"
+            columns: ["org_id", "plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["company_id", "id"]
           },
         ]
       }
@@ -2573,6 +3166,7 @@ export type Database = {
       }
       session_reopen_log: {
         Row: {
+          company_id: string | null
           id: string
           reason: string
           reopened_at: string
@@ -2580,6 +3174,7 @@ export type Database = {
           session_id: string
         }
         Insert: {
+          company_id?: string | null
           id?: string
           reason: string
           reopened_at?: string
@@ -2587,6 +3182,7 @@ export type Database = {
           session_id: string
         }
         Update: {
+          company_id?: string | null
           id?: string
           reason?: string
           reopened_at?: string
@@ -2595,16 +3191,38 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "session_reopen_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_reopen_log_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "session_reopen_log_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "maintenance_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "session_reopen_log_session_org_fk"
+            columns: ["company_id", "session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["company_id", "id"]
+          },
         ]
       }
       vehicle_mounts: {
         Row: {
+          company_id: string | null
           created_at: string
           id: string
           mounted_asset_id: string
@@ -2616,6 +3234,7 @@ export type Database = {
           vehicle_asset_id: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           id?: string
           mounted_asset_id: string
@@ -2627,6 +3246,7 @@ export type Database = {
           vehicle_asset_id: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           id?: string
           mounted_asset_id?: string
@@ -2639,6 +3259,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "vehicle_mounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_mounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "vehicle_mounts_mounted_asset_id_fkey"
             columns: ["mounted_asset_id"]
             isOneToOne: false
@@ -2646,11 +3280,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vehicle_mounts_mounted_org_fk"
+            columns: ["company_id", "mounted_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
             foreignKeyName: "vehicle_mounts_vehicle_asset_id_fkey"
             columns: ["vehicle_asset_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
             referencedColumns: ["asset_id"]
+          },
+          {
+            foreignKeyName: "vehicle_mounts_vehicle_org_fk"
+            columns: ["company_id", "vehicle_asset_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["company_id", "asset_id"]
           },
         ]
       }
@@ -2841,6 +3489,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "assets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidents_asset_org_fk"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
           },
           {
             foreignKeyName: "incidents_company_id_fkey"
