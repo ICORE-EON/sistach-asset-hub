@@ -15,7 +15,7 @@ cleanup() { pg_ctl -D "$TMP/data" -m immediate stop >/dev/null 2>&1 || true; rm 
 trap cleanup EXIT
 initdb -D "$TMP/data" -U postgres -A trust >/dev/null
 pg_ctl -D "$TMP/data" -o "-k $TMP -p $PORT -c listen_addresses=''" -l "$TMP/log" -w start >/dev/null
-P() { psql -X -q -v ON_ERROR_STOP=1 -h "$TMP" -p "$PORT" -U postgres "$@"; }
+P() { PGOPTIONS="${PGOPTIONS:--c client_min_messages=warning}" psql -X -q -v ON_ERROR_STOP=1 -h "$TMP" -p "$PORT" -U postgres "$@"; }
 FP="SELECT md5(string_agg(x, '|' ORDER BY x)) FROM (
   SELECT 'c:'||table_name||'.'||column_name||':'||data_type||':'||is_nullable||':'||coalesce(column_default,'') x FROM information_schema.columns WHERE table_schema='public' AND table_name LIKE 'mnt_%'
   UNION ALL SELECT 'k:'||conrelid::regclass||'.'||conname||':'||pg_get_constraintdef(oid) FROM pg_constraint WHERE connamespace='public'::regnamespace AND conrelid::regclass::text LIKE 'mnt_%'
@@ -50,7 +50,7 @@ echo "PASS idempotencia: reinstalar y resembrar deja el mismo esquema y catalogo
   && echo "PASS version de instalacion y catalogo registradas una sola vez"
 
 # 3. behaviour tests (RLS, triggers, RPC, rollback)
-P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p'
+PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p'
 
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"
