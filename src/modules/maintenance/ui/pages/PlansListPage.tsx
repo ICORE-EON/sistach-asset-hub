@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, ChevronRight } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,18 +34,18 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
-import { groupAssets } from "@/modules/maintenance/domain/scope";
-import { resolveTemplatesForType, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
-import { FREQUENCIES, planKeys, planService } from "@/modules/maintenance/services/plans";
+import { i18nName } from "../../domain/i18n-name";
+import { groupAssets } from "../../domain/scope";
+import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/checklist-scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { checklistKeys, checklistService } from "../../services/checklists";
+import { FREQUENCIES, planKeys, planService } from "../../services/plans";
 
 export { FREQUENCIES };
 
 
 export function PlansListPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -53,7 +53,6 @@ export function PlansListPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [frequencyFilter, setFrequencyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plans = [], isLoading } = useQuery({
@@ -320,7 +319,7 @@ function CreatePlanDialog({
   templates: Array<ScopedTemplate & { code: string; name: string }>;
   onCreated: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [familyId, setFamilyId] = useState("");

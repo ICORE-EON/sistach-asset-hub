@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, AlertTriangle, Search, LayoutGrid, List as ListIcon } from "lucide-react";
 import { format } from "date-fns";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
+import { incidentKeys, incidentService } from "../../services/incidents";
 
 
 export const INCIDENT_STATUSES = [
@@ -45,9 +45,8 @@ export const SEVERITY_LABELS: Record<string, { label: string; className: string 
 };
 
 export function IncidentsListPage() {
-  const { activeMembership } = useCompany();
-  const companyId = activeMembership?.company_id;
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const companyId = activeCompanyId;
   const canCreate = role !== undefined && role !== "auditor";
   const [search, setSearch] = useState("");
   const [severityFilter, setSeverityFilter] = useState("all");

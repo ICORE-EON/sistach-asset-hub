@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, BriefcaseMedical, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
-import { useCompany } from "@/contexts/CompanyContext";
+import { assetService, assetKeys } from "../../services/assets";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FIRST_AID_PRODUCTS, slugProductCode } from "@/lib/import/entities";
+import { FIRST_AID_PRODUCTS, slugProductCode } from "../../domain/first-aid";
 
 interface KitItem {
   id: string;
@@ -69,7 +69,7 @@ function expiryTone(expires: string | null): { label: string; cls: string } | nu
 
 export function FirstAidKitPanel({ assetId, canManage }: { assetId: string; canManage: boolean }) {
   const qc = useQueryClient();
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const kitKey = assetKeys.kit(activeCompanyId, assetId);
   const [editing, setEditing] = useState<typeof EMPTY | null>(null);
 

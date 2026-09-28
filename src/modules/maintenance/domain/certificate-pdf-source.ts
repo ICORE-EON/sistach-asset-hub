@@ -2,8 +2,8 @@
  * Builds the PDF input (variables, rows, incidents, template) with the precedence documented in
  * certificate-rules.ts. Pure: no Supabase, React, File or Blob.
  */
-import type { RowSource } from "@/lib/certificate-templates/render";
-import type { CertificateTemplate, TemplateVariables } from "@/lib/certificate-templates/types";
+import type { RowSource } from "./certificate-templates/render";
+import type { CertificateTemplate, TemplateVariables } from "./certificate-templates/types";
 import {
   assetFromItemSnapshot, mostCommonLocation, planSnapshotLogo, readCertificateSnapshot,
   type LogoPlan,

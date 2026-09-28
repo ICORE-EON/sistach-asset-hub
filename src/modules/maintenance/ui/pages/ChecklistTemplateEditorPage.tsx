@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, CheckCircle2, FileText, GitBranch } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,10 +26,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
-import { describeTemplateScope } from "@/modules/maintenance/domain/checklist-scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { i18nName } from "../../domain/i18n-name";
+import { describeTemplateScope } from "../../domain/checklist-scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { checklistKeys, checklistService } from "../../services/checklists";
 
 
 const RESPONSE_TYPES = [
@@ -41,9 +41,8 @@ const RESPONSE_TYPES = [
 
 export function ChecklistTemplateEditorPage() {
   const { id } = useParams({ from: "/_authenticated/_app/checklist-templates/$id" });
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
-  const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: template } = useQuery({
@@ -222,7 +221,7 @@ function QuestionRow({
   editable: boolean;
   onDeleted: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const remove = useMutation({
     mutationFn: () => checklistService.deleteQuestion(activeCompanyId, versionId, question.id),
     onSuccess: () => {
@@ -276,7 +275,7 @@ function AddQuestionDialog({
   nextPosition: number;
   onCreated: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [helpText, setHelpText] = useState("");
@@ -380,7 +379,7 @@ function AddQuestionDialog({
 }
 
 function ScopeCard({ templateId, canManage }: { templateId: string; canManage: boolean }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
 

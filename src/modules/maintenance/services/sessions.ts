@@ -2,9 +2,12 @@
  * Maintenance session use-cases and org-scoped query keys (orgId always at position 1).
  * Messages, order of validations and results are identical to the previous inline screens.
  */
-import { checklistsRepo, incidentsRepo, sessionsRepo as repo } from "../adapters/standalone/repos";
+import { getRepositories } from "../contracts/registry";
 import { certificateService } from "./certificates";
 import { itemResultFor } from "../domain/session-rules";
+
+/** Resolved per call from the registered host adapter (no org/user state is kept). */
+const repo = () => getRepositories().sessions;
 
 export const sessionKeys = {
   list: (orgId: string | null, status: string) => ["maintenance-sessions", orgId, status] as const,
@@ -25,26 +28,26 @@ const need = (orgId: string | null | undefined): string => {
 type Question = { id: string; prompt: string; creates_incident: boolean; template_version_id?: string | null };
 
 export const sessionService = {
-  listSessions: (orgId: string | null, status: string) => repo.listSessions(need(orgId), status),
+  listSessions: (orgId: string | null, status: string) => repo().listSessions(need(orgId), status),
   getSession: async (orgId: string | null, id: string) => {
-    const s = await repo.getSession(need(orgId), id);
+    const s = await repo().getSession(need(orgId), id);
     if (!s) throw new Error("Sesión no encontrada");
     return s;
   },
-  listItems: (orgId: string | null, id: string) => repo.listItems(need(orgId), id),
-  listPlansForSession: (orgId: string | null) => repo.listPlansForSession(need(orgId)),
-  listPlanLocations: (orgId: string | null, planId: string) => repo.listPlanLocations(need(orgId), planId),
-  listAssetHistory: (orgId: string | null, assetId: string) => repo.listAssetHistory(need(orgId), assetId),
+  listItems: (orgId: string | null, id: string) => repo().listItems(need(orgId), id),
+  listPlansForSession: (orgId: string | null) => repo().listPlansForSession(need(orgId)),
+  listPlanLocations: (orgId: string | null, planId: string) => repo().listPlanLocations(need(orgId), planId),
+  listAssetHistory: (orgId: string | null, assetId: string) => repo().listAssetHistory(need(orgId), assetId),
   getSessionCertificate: (orgId: string | null, id: string) => certificateService.findSessionCertificate(orgId, id),
 
   createSession: (orgId: string | null, v: { requestId: string; planId: string; locationId: string; scheduledFor: string; technicianName: string }) => {
     if (!v.planId) throw new Error("Selecciona un plan");
-    return repo.createSession(need(orgId), {
+    return repo().createSession(need(orgId), {
       requestId: v.requestId, planId: v.planId, locationId: v.locationId || null,
       scheduledFor: v.scheduledFor || null, technicianName: v.technicianName || null,
     });
   },
-  startSession: (orgId: string | null, id: string) => repo.startSession(need(orgId), id),
+  startSession: (orgId: string | null, id: string) => repo().startSession(need(orgId), id),
 
   /** Saves the item result; opens incidents for failed answers flagged creates_incident (block-5 residual). */
   completeItem: async (orgId: string | null, a: {
@@ -52,19 +55,19 @@ export const sessionService = {
     observations: string; questions: Question[];
   }) => {
     const org = need(orgId);
-    const it = await repo.assertItemWritable(org, a.sessionId, a.item.id);
+    const it = await repo().assertItemWritable(org, a.sessionId, a.item.id);
     let createdIncidents = 0, failsWithoutIncident = 0, failCount = 0;
     if (a.intent === "complete") {
       // Fresh answers from the database, never the cache.
-      const fresh = await checklistsRepo.listResponses(org, a.item.id);
+      const fresh = await getRepositories().checklists.listResponses(org, a.item.id);
       const fails = fresh.filter((r) => r.is_fail);
       failCount = fails.length;
       const withIncident = fails.filter((r) => a.questions.find((q) => q.id === r.question_id)?.creates_incident);
       failsWithoutIncident = fails.length - withIncident.length;
       if (withIncident.length > 0) {
-        const session = await repo.getSession(org, a.sessionId);
+        const session = await repo().getSession(org, a.sessionId);
         const snap = ((it.metadata as { snapshot?: { asset?: { code?: string; name?: string } } } | null)?.snapshot?.asset) ?? {};
-        createdIncidents = await incidentsRepo.openForFailures(org, {
+        createdIncidents = await getRepositories().incidents.openForFailures(org, {
           session: { id: a.sessionId, code: (session?.code as string | undefined) ?? null },
           item: { id: it.id, asset_id: it.asset_id },
           asset: { code: snap.code ?? null, name: snap.name ?? null },
@@ -75,7 +78,7 @@ export const sessionService = {
       }
     }
     const dbResult = itemResultFor(a.intent, failCount);
-    await repo.setItemResult(org, a.sessionId, a.item.id, dbResult, a.observations || null, failCount);
+    await repo().setItemResult(org, a.sessionId, a.item.id, dbResult, a.observations || null, failCount);
     return { dbResult, createdIncidents, failsWithoutIncident };
   },
 
@@ -88,7 +91,7 @@ export const sessionService = {
     if (!v.signature) throw new Error("Firma para continuar");
     const org = need(orgId);
     const signer = { signerName: v.signerName.trim(), signerRole: v.signerRole.trim() || null, signature: v.signature };
-    const r = await repo.closeSession(org, sessionId, signer);
+    const r = await repo().closeSession(org, sessionId, signer);
     const plan = r.session.maintenance_plans as { name: string; interval_months: number | null; asset_families: { requires_certificate: boolean } | null } | null;
     if (plan?.asset_families?.requires_certificate === false) return { cert: null, pdfFailed: false };
     if (!r.closedNow) {

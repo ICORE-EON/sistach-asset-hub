@@ -2,8 +2,11 @@
  * Maintenance plan use-cases and org-scoped query keys (orgId always at position 1).
  * Validation messages and order are identical to the previous inline dialogs.
  */
-import { plansRepo as repo } from "../adapters/standalone/repos";
-import type { ScopeQuery } from "../data/plans.repo";
+import { getRepositories } from "../contracts/registry";
+import type { ScopeQuery } from "../contracts/repositories";
+
+/** Resolved per call from the registered host adapter (no org/user state is kept). */
+const repo = () => getRepositories().plans;
 
 export type { ScopeQuery };
 
@@ -38,16 +41,16 @@ export type CreatePlanInput = {
 };
 
 export const planService = {
-  listPlans: (orgId: string | null) => repo.listPlans(need(orgId)),
+  listPlans: (orgId: string | null) => repo().listPlans(need(orgId)),
   getPlan: async (orgId: string | null, id: string) => {
-    const p = await repo.getPlan(need(orgId), id);
+    const p = await repo().getPlan(need(orgId), id);
     if (!p) throw new Error("Plan no encontrado");
     return p;
   },
-  listPlanAssets: (orgId: string | null, planId: string) => repo.listPlanAssets(need(orgId), planId),
+  listPlanAssets: (orgId: string | null, planId: string) => repo().listPlanAssets(need(orgId), planId),
   listCertificateTemplates: (orgId: string | null, orderBy: "name" | "code") =>
-    repo.listCertificateTemplates(need(orgId), orderBy),
-  listScopeAssets: (orgId: string | null, q: ScopeQuery) => repo.listScopeAssets(need(orgId), q),
+    repo().listCertificateTemplates(need(orgId), orderBy),
+  listScopeAssets: (orgId: string | null, q: ScopeQuery) => repo().listScopeAssets(need(orgId), q),
 
   createPlan: async (orgId: string | null, v: CreatePlanInput) => {
     if (!orgId) throw new Error("Sin empresa activa");
@@ -56,7 +59,7 @@ export const planService = {
     if (v.usedTypeIds.some((id) => !v.templateFor(id)))
       throw new Error("Hay tipos de activo sin plantilla de checklist publicada");
     const freq = FREQUENCIES.find((f) => f.value === v.frequency);
-    await repo.createPlan(orgId, {
+    await repo().createPlan(orgId, {
       code: v.code.toUpperCase(), name: v.name, asset_family_id: v.familyId, frequency: v.frequency,
       interval_months: freq?.months ?? null, notes: v.notes || null, scope_mode: v.scopeMode,
       scope_location_ids: v.scopeMode === "scoped" ? v.locationIds : [],
@@ -67,13 +70,13 @@ export const planService = {
     return v.selectedIds.length;
   },
   setCertificateTemplate: (orgId: string | null, planId: string, templateId: string | null) =>
-    repo.setCertificateTemplate(need(orgId), planId, templateId),
-  setActive: (orgId: string | null, planId: string, active: boolean) => repo.setActive(need(orgId), planId, active),
+    repo().setCertificateTemplate(need(orgId), planId, templateId),
+  setActive: (orgId: string | null, planId: string, active: boolean) => repo().setActive(need(orgId), planId, active),
   addAssets: async (orgId: string | null, planId: string, assetIds: string[]) => {
     if (!assetIds.length) throw new Error("Selecciona al menos un equipo");
-    await repo.addAssets(need(orgId), planId, assetIds);
+    await repo().addAssets(need(orgId), planId, assetIds);
     return assetIds.length;
   },
   removeAsset: (orgId: string | null, planId: string, assignmentId: string) =>
-    repo.removeAsset(need(orgId), planId, assignmentId),
+    repo().removeAsset(need(orgId), planId, assignmentId),
 };

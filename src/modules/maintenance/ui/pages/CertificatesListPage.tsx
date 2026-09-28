@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileBadge, Search, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { certificateKeys, certificateService } from "../../services/certificates";
+import { useMaintenanceRequest } from "../host";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,14 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "../../domain/cert-status";
 import { ExternalCertificateDialog } from "../components/external-certificate-dialog";
 
 
 export function CertificatesListPage() {
-  const { activeMembership } = useCompany();
-  const companyId = activeMembership?.company_id;
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const companyId = activeCompanyId;
   const canCreate =
     role === "administrator" || role === "system_manager" || role === "manager" || role === "employee";
 

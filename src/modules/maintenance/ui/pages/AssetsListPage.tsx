@@ -2,8 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Plus, Search, QrCode } from "lucide-react";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
-import { useCompany } from "@/contexts/CompanyContext";
+import { assetService, assetKeys } from "../../services/assets";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +34,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "../../domain/i18n-name";
 
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -45,7 +45,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 };
 
 export function AssetsListPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -54,7 +54,6 @@ export function AssetsListPage() {
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
 
-  const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: types = [] } = useQuery({
@@ -290,7 +289,7 @@ function CreateAssetDialog({
   locations: Array<{ id: string; code: string; name: string }>;
   onCreated: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [name, setName] = useState("");
   const [assetTypeId, setAssetTypeId] = useState<string>("");
   const [locationId, setLocationId] = useState<string>("");

@@ -1,8 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { registerStandaloneMaintenance } from "./modules/maintenance/adapters/standalone/register";
 
 export const getRouter = () => {
+  registerStandaloneMaintenance();
   const queryClient = new QueryClient();
 
   const router = createRouter({

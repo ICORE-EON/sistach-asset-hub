@@ -5,20 +5,12 @@
  * Arrays (asset_type_ids, location_ids) are kept as-is until the phase-5 normalization.
  */
 import type { Json } from "@/integrations/supabase/types";
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
+import type { TemplateScopeInput, NewTemplate, NewQuestion, ResponseInput } from "../../../contracts/repositories";
+export type { TemplateScopeInput, NewTemplate, NewQuestion, ResponseInput };
 
 export const TEMPLATE_LIST_FIELDS =
   "id, code, name, active, current_version, asset_type_id, asset_family_id, asset_type_ids, location_ids, include_sublocations";
-
-export type TemplateScopeInput = {
-  asset_family_id: string | null; asset_type_ids: string[]; location_ids: string[]; include_sublocations: boolean;
-};
-export type NewTemplate = TemplateScopeInput & { code: string; name: string; description: string | null };
-export type NewQuestion = {
-  position: number; prompt: string; help_text: string | null; response_type: string;
-  required: boolean; creates_incident: boolean; options: Json | null;
-};
-export type ResponseInput = { question_id: string; answer: unknown; is_fail: boolean; observations: string | null };
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 /** Legacy single-type column mirrors the array when exactly one type is chosen. */

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { createChecklistsRepo } from "../checklists.repo";
-import { resolveTemplatesForType } from "../../domain/checklist-scope";
+import { resolveTemplatesForType } from "../../../../domain/checklist-scope";
 
 const env = Object.fromEntries(
   (() => { try { return readFileSync(".env", "utf8"); } catch { return ""; } })()

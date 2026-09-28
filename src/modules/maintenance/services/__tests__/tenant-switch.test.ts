@@ -4,9 +4,10 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { useTestRepositories } from "./test-adapter";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryObserver, MutationObserver } from "@tanstack/query-core";
-import { createAssetsRepo } from "../../data/assets.repo";
+import { createAssetsRepo } from "../../adapters/standalone/repos/assets.repo";
 
 const ORG_A = "00000000-0000-0000-0000-00000000000a";
 const ORG_B = "00000000-0000-0000-0000-00000000000b";
@@ -76,7 +77,7 @@ function tenantClient() {
 }
 
 const repo = createAssetsRepo(tenantClient() as never);
-vi.mock("../../adapters/standalone/repos", () => ({ get assetsRepo() { return repo; } }));
+useTestRepositories({ assets: repo });
 const { assetKeys, assetService } = await import("../assets");
 
 beforeEach(() => { writes.length = 0; for (const k of Object.keys(delay)) delete delay[k]; });

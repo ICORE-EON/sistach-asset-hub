@@ -1,8 +1,8 @@
-import { certificateResultSummary } from "@/modules/maintenance/domain/certificate-results";
+import { certificateResultSummary } from "../domain/certificate-results";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont, type PDFImage } from "pdf-lib";
-import type { CertificateTemplate, TemplateColumn } from "./certificate-templates/types";
-import { renderTemplate, resolveCell, type RowSource } from "./certificate-templates/render";
-import type { TemplateVariables } from "./certificate-templates/types";
+import type { CertificateTemplate, TemplateColumn } from "../domain/certificate-templates/types";
+import { renderTemplate, resolveCell, type RowSource } from "../domain/certificate-templates/render";
+import type { TemplateVariables } from "../domain/certificate-templates/types";
 
 const PAGE_W = 595.28; // A4 portrait
 const PAGE_H = 841.89;

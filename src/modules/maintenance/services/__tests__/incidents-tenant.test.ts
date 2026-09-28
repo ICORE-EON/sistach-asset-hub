@@ -5,9 +5,10 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { useTestRepositories } from "./test-adapter";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryObserver } from "@tanstack/query-core";
-import { createIncidentsRepo } from "../../data/incidents.repo";
+import { createIncidentsRepo } from "../../adapters/standalone/repos/incidents.repo";
 import { canTransitionIncident, resolveIncidentOrigin, transitionPatch } from "../../domain/incident-rules";
 
 const A = "00000000-0000-0000-0000-00000000000a";
@@ -70,7 +71,7 @@ function fakeClient() {
   return { from, rpc };
 }
 const repo = createIncidentsRepo(fakeClient() as never);
-vi.mock("../../adapters/standalone/repos", () => ({ get incidentsRepo() { return repo; } }));
+useTestRepositories({ incidents: repo });
 const { incidentKeys, incidentService } = await import("../incidents");
 
 beforeEach(() => { seed(); writes.length = 0; });

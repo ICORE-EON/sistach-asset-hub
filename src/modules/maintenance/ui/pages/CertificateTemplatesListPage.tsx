@@ -2,8 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileBadge, Plus, ChevronRight, Star, AlertTriangle } from "lucide-react";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { certificateKeys, certificateService } from "../../services/certificates";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,11 +28,10 @@ import { toast } from "sonner";
 
 
 export function CertificateTemplatesListPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({
@@ -150,7 +149,7 @@ export function CertificateTemplatesListPage() {
 }
 
 function CreateTemplateDialog({ onCreated }: { onCreated: (id: string) => void }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
 

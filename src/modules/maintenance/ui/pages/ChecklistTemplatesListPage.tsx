@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Plus, ChevronRight } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,19 +33,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
-import { describeTemplateScope, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { i18nName } from "../../domain/i18n-name";
+import { describeTemplateScope, type ScopedTemplate } from "../../domain/checklist-scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { checklistKeys, checklistService } from "../../services/checklists";
 
 
 export function ChecklistTemplatesListPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [familyFilter, setFamilyFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
-  const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: templates = [], isLoading } = useQuery({
@@ -247,7 +246,7 @@ function CreateTemplateDialog({
   locations: Array<{ id: string; name: string }>;
   onCreated: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [familyId, setFamilyId] = useState("");

@@ -9,8 +9,8 @@ import { describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { createCertificatesRepo } from "../certificates.repo";
-import { composePdfData } from "../../domain/certificate-pdf-source";
-import { readCertificateSnapshot } from "../../domain/certificate-rules";
+import { composePdfData } from "../../../../domain/certificate-pdf-source";
+import { readCertificateSnapshot } from "../../../../domain/certificate-rules";
 
 const env = Object.fromEntries(
   (() => { try { return readFileSync(".env", "utf8"); } catch { return ""; } })()

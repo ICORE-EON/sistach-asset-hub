@@ -3,22 +3,17 @@
  * assignable members list and the asset tab. Every call is scoped to orgId; children (history) and
  * references (asset, assignee) are verified against the active org before reading or writing.
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
+import type { FailedResponse, FailureContext } from "../../../contracts/repositories";
+export type { FailedResponse, FailureContext };
 import type { Json } from "@/integrations/supabase/types";
 import {
   assertIncidentTransition, assertSeverity, isIncidentClosed, transitionPatch, type IncidentOriginSnapshot,
-} from "../domain/incident-rules";
+} from "../../../domain/incident-rules";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Incidencia no encontrada";
 const CROSS = "El recurso no pertenece a la organización activa";
-
-export type FailedResponse = { id: string; observations: string | null; prompt: string | undefined; question_id?: string | null; version_id?: string | null };
-export type FailureContext = {
-  session: { id: string; code: string | null };
-  item: { id: string; asset_id: string };
-  asset: { code: string | null; name: string | null };
-};
 
 /** In-process single flight per response: a double click never runs two creations concurrently. */
 const inflight = new Map<string, Promise<boolean>>();

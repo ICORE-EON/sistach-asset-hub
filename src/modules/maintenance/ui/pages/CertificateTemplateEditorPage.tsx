@@ -2,8 +2,8 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Star, Trash, Eye } from "lucide-react";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { certificateKeys, certificateService } from "../../services/certificates";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,8 +30,8 @@ import {
   TEMPLATE_VARIABLES,
   type ColumnSource,
   type TemplateColumn,
-} from "@/lib/certificate-templates/types";
-import { renderTemplate, resolveCell, type RowSource } from "@/lib/certificate-templates/render";
+} from "../../domain/certificate-templates/types";
+import { renderTemplate, resolveCell, type RowSource } from "../../domain/certificate-templates/render";
 
 
 const SAMPLE_VARS = {
@@ -90,10 +90,9 @@ export function CertificateTemplateEditorPage() {
   const { id } = useParams({ from: "/_authenticated/_app/certificate-templates/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership } = useCompany();
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const canManage = role === "administrator" || role === "system_manager";
-  const org = activeMembership?.company_id ?? null;
+  const org = activeCompanyId ?? null;
 
   const { data: tpl } = useQuery({
     queryKey: certificateKeys.template(org, id),

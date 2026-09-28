@@ -10,14 +10,17 @@
  *  - storePdf: immutable content-addressed versions {org}/certificates/{id}/{sha256}.pdf, verified and
  *    then activated by compare-and-set; never overwrites or deletes (see storePdf).
  */
-import type { StandaloneClient } from "../adapters/standalone/client";
+import type { StandaloneClient } from "../client";
+import type { TemplateInput } from "../../../contracts/repositories";
+export type { TemplateInput };
+import type { BinaryUpload } from "../../../contracts/repositories";
 import type { Json } from "@/integrations/supabase/types";
-import type { CertificateTemplate } from "@/lib/certificate-templates/types";
+import type { CertificateTemplate } from "@/modules/maintenance/domain/certificate-templates/types";
 import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
   type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,
-} from "../domain/certificate-rules";
-import { resolveCertificateItemResult, storedCertificateResult } from "../domain/certificate-results";
+} from "../../../domain/certificate-rules";
+import { resolveCertificateItemResult, storedCertificateResult } from "../../../domain/certificate-results";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const NOT_FOUND = "Certificado no encontrado";
@@ -44,8 +47,6 @@ const sha256Hex = async (bytes: Uint8Array) => {
 };
 /** Immutable bucket (insert-only policy, same permission as closing a session). */
 const FROZEN_BUCKET = "signed-certificates";
-
-export type TemplateInput = { [K in keyof Omit<CertificateTemplate, "id">]?: unknown };
 
 export function createCertificatesRepo(c: StandaloneClient) {
   const getOwn = async (orgId: string, id: string) => {
@@ -353,11 +354,11 @@ export function createCertificatesRepo(c: StandaloneClient) {
       await ownTemplate(orgId, id);
       ok(await c.from("certificate_templates").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("company_id", orgId));
     },
-    async uploadTemplateLogo(orgId: string, templateId: string, file: Blob & { name: string; type: string }) {
+    async uploadTemplateLogo(orgId: string, templateId: string, file: BinaryUpload) {
       await ownTemplate(orgId, templateId);
       const ext = (file.name.split(".").pop() || "png").toLowerCase();
       const path = `${orgId}/templates/${templateId}.${ext}`;
-      const { error } = await c.storage.from("company-logos").upload(path, file, { upsert: true, contentType: file.type });
+      const { error } = await c.storage.from("company-logos").upload(path, file.bytes, { upsert: true, contentType: file.contentType });
       if (error) throw error;
       return path;
     },
@@ -369,7 +370,7 @@ export function createCertificatesRepo(c: StandaloneClient) {
     async registerExternal(orgId: string, v: {
       title: string; issuedOn: string; validUntil: string | null; issuerName: string | null; issuerRole: string | null;
       provider: string; externalNumber: string | null; notes: string | null; assetId: string | null;
-      file: Blob & { name: string; type: string; size: number };
+      file: BinaryUpload;
     }) {
       if (v.assetId) await assertAsset(orgId, v.assetId);
       const code = ok(await c.rpc("next_code", { p_company_id: orgId, p_scope: "certificate", p_prefix: "CERT" }));
@@ -380,11 +381,11 @@ export function createCertificatesRepo(c: StandaloneClient) {
       }).select().single())!;
       if (v.assetId) ok(await c.from("certificate_items").insert({ certificate_id: cert.id, asset_id: v.assetId, result: "ok" }));
       const path = `certificates/${cert.id}/${Date.now()}_${v.file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-      const { error: upErr } = await c.storage.from("documents").upload(path, v.file, { contentType: v.file.type || "application/pdf" });
+      const { error: upErr } = await c.storage.from("documents").upload(path, v.file.bytes, { contentType: v.file.contentType || "application/pdf" });
       if (upErr) throw upErr;
       ok(await c.from("documents").insert({
         company_id: orgId, certificate_id: cert.id, title: v.file.name, category: "certificate_pdf", storage_bucket: "documents",
-        storage_path: path, mime_type: v.file.type || "application/pdf", file_size_bytes: v.file.size, is_signed: true,
+        storage_path: path, mime_type: v.file.contentType || "application/pdf", file_size_bytes: v.file.size, is_signed: true,
       }));
       return cert;
     },

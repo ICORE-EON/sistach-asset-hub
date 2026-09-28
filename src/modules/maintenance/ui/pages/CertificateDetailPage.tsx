@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil, Download, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { certificateKeys, certificateService } from "../../services/certificates";
+import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { certificateResultCounts, certificateResultLabel, normalizeCertificateResult } from "@/modules/maintenance/domain/certificate-results";
+import { certificateResultCounts, certificateResultLabel, normalizeCertificateResult } from "../../domain/certificate-results";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,19 +19,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AttachmentsPanel } from "@/components/attachments-panel";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "../../domain/cert-status";
 
 
 export function CertificateDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/certificates/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership } = useCompany();
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const { Attachments: AttachmentsPanel } = useMaintenanceUi();
   const canManage = role === "administrator" || role === "system_manager";
 
-  const org = activeMembership?.company_id ?? null;
+  const org = activeCompanyId ?? null;
 
   const { data: cert } = useQuery({
     queryKey: certificateKeys.detail(org, id),
