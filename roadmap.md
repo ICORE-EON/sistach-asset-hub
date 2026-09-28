@@ -9,7 +9,12 @@
   - [ ] Verificar cambio de organización con 2 empresas (cuenta actual solo tiene 1)
 - [x] Fase 4: mover UI a `modules/maintenance/ui` sin cambios visuales (pendiente de aprobación)
 - [ ] Fase 5: migraciones M1–M7
-  - [x] M1 aplicada (estructura aditiva, puentes, outbox, RLS) — FKs compuestas retiradas por romper consultas; reintroducir con nombres de relación explícitos en el código (pendiente de decisión)
+  - [x] M1 aplicada (estructura aditiva, puentes, outbox, RLS). Las 24 FK compuestas sobre tablas existentes se retiraron (ambigüedad de relaciones en las consultas); siguen las 5 de tablas puente. Pruebas RLS 52/52. Pendiente de aprobación.
+  - [ ] M2/M3: sin FK compuestas; coherencia por org cubierta con preflight y postflight bloqueantes (abortan si hay referencias cruzadas o company_id incoherente)
+  - [ ] M4: triggers de sincronización/validación rechazan nuevas relaciones entre organizaciones; auditoría de tablas puente (org_id) operativa ANTES de permitir escrituras
+  - [ ] M5: consultas con nombres de relación explícitos
+  - [ ] M6: reintroducir las 24 FK compuestas (NOT VALID → VALIDATE) tras M5, con prueba de pantallas
+  - [ ] M7: según plan v2 (bloqueado por incompatibilidad de plan D7)
 - [ ] Fase 6: person_ref + actor_snapshot, document_version_ref
 - [ ] Fase 7: seguridad (host_has_perm, RPC cierre/reapertura, QR con caducidad y límite)
 - [ ] Fase 8: línea base limpia para ICORE

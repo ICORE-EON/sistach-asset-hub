@@ -62,11 +62,11 @@ BEGIN
   (43,'resp. sistema A','A','authenticated','exec','ok',$$INSERT INTO public.mnt_plan_sites VALUES (':CA',':PA',':LA')$$),
   (44,'resp. sistema A','A','authenticated','rows','rows:0',$$UPDATE public.mnt_org_asset_types SET enabled=true WHERE org_id=':CA'$$),
   (45,'resp. sistema A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_org_asset_types(org_id, asset_type_id) VALUES (':CA','3322b44f-cce2-4d93-9322-d03523adc7b4')$$),
-  (46,'propietario','-','-','exec','rej:23503',$$UPDATE public.maintenance_items SET company_id=':CB' WHERE id=':IT'$$),
+  (46,'sin FK (brecha M4)','-','-','exec','ok',$$UPDATE public.maintenance_items SET company_id=':CB' WHERE id=':IT'$$),
   (47,'propietario','-','-','exec','ok',$$UPDATE public.maintenance_items SET company_id=':CA' WHERE id=':IT'$$),
   (48,'propietario','-','-','exec','ok',$$INSERT INTO public.certificate_items(certificate_id, result) SELECT certificate_id, 'na' FROM public.certificate_items LIMIT 1$$),
-  (49,'propietario','-','-','exec','rej:23503',$$UPDATE public.maintenance_plans SET checklist_template_id=':TB' WHERE id=':PA'$$),
-  (50,'propietario','-','-','exec','rej:23503',$$UPDATE public.assets SET location_id=':LB' WHERE company_id=':CA'$$),
+  (49,'sin FK (brecha M4)','-','-','exec','ok',$$UPDATE public.maintenance_plans SET checklist_template_id=':TB' WHERE id=':PA'$$),
+  (50,'sin FK (brecha M4)','-','-','exec','ok',$$UPDATE public.assets SET location_id=':LB' WHERE company_id=':CA'$$),
   (51,'propietario','-','-','exec','rej:23503',$$INSERT INTO public.mnt_checklist_template_types VALUES (':CA',':TA',':CT')$$),
   (52,'propietario','-','-','exec','ok',$$UPDATE public.assets SET name=name WHERE company_id=':CA'$$)
   ) t(n, actor, who, role, kind, expected, sql) ORDER BY n
