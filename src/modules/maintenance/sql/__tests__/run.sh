@@ -4,7 +4,7 @@ set -euo pipefail
 unset PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE PGSERVICE PGSSLMODE DATABASE_URL || true
 if [ "$(id -u)" = "0" ]; then   # PostgreSQL refuses to run as root: re-exec as an unprivileged account
   for u in ${MNT_PG_RUN_AS:-} postgres mntpg lovable; do
-    if id "$u" >/dev/null 2>&1 && [ "$(id -u "$u")" != "0" ]; then exec runuser -u "$u" -- env PATH="$PATH" "$0"; fi
+    if id "$u" >/dev/null 2>&1 && [ "$(id -u "$u")" != "0" ]; then exec setpriv --reuid="$(id -u "$u")" --regid="$(id -g "$u")" --clear-groups env HOME=/tmp PATH="$PATH" "$0"; fi
   done
   echo "PENDING: PostgreSQL cannot run as root and no unprivileged user (set MNT_PG_RUN_AS)"; exit 3
 fi
