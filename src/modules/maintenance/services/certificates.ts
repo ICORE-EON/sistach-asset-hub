@@ -4,7 +4,7 @@
  */
 import { getRepositories } from "../contracts/registry";
 import { buildCertificatePdf as renderCertificatePdf } from "../render/certificate-pdf";
-import type { BinaryUpload } from "../contracts/repositories";
+import type { BinaryUpload, CertificatesRepository } from "../contracts/repositories";
 import { DEFAULT_CERTIFICATE_TEMPLATE } from "../domain/certificate-templates/default";
 import type { TemplateColumn } from "../domain/certificate-templates/types";
 import { composePdfData } from "../domain/certificate-pdf-source";
@@ -109,7 +109,7 @@ export const certificateService = {
   },
 
   /** Emission after close (called by sessionService). Idempotent; PDF failure keeps the previous warning. */
-  emitForSession: async (orgId: string | null, a: Parameters<typeof repo().emitForSession>[1] & { requiresCertificate: boolean | null | undefined }) => {
+  emitForSession: async (orgId: string | null, a: Parameters<CertificatesRepository["emitForSession"]>[1] & { requiresCertificate: boolean | null | undefined }) => {
     const org = need(orgId);
     if (!requiresCertificate(a.requiresCertificate)) return { cert: null, pdfFailed: false };
     const r = await repo().emitForSession(org, a);
