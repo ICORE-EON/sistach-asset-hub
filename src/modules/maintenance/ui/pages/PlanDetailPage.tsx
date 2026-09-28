@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, Power, Sparkles } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -40,10 +40,10 @@ import { FREQUENCIES, planKeys, planService } from "../../services/plans";
 
 export function PlanDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/maintenance-plans/$id" });
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const role = activeMembership?.role;
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plan } = useQuery({

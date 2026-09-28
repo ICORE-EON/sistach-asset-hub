@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowLeft, Printer, Trash2, Save } from "lucide-react";
 import { assetService, assetKeys } from "../../services/assets";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,17 +31,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
-import { AttachmentsPanel } from "@/components/attachments-panel";
 import { FirstAidKitPanel } from "../components/first-aid-kit-panel";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
 
 
 export function AssetDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/assets/$id" });
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const { Attachments: AttachmentsPanel } = useMaintenanceUi();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const role = activeMembership?.role;
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
   const canDelete = role === "administrator";
 

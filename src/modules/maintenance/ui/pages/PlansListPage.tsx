@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, ChevronRight } from "lucide-react";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,7 +45,7 @@ export { FREQUENCIES };
 
 
 export function PlansListPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -53,7 +53,7 @@ export function PlansListPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [frequencyFilter, setFrequencyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const role = activeMembership?.role;
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: plans = [], isLoading } = useQuery({
@@ -320,7 +320,7 @@ function CreatePlanDialog({
   templates: Array<ScopedTemplate & { code: string; name: string }>;
   onCreated: () => void;
 }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [familyId, setFamilyId] = useState("");

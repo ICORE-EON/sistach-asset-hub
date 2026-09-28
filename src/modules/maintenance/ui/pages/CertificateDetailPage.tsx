@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil, Download, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { certificateKeys, certificateService } from "../../services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AttachmentsPanel } from "@/components/attachments-panel";
 import { getCertExpiry, CERT_STATUS_LABELS } from "../../domain/cert-status";
 
 
@@ -27,11 +26,12 @@ export function CertificateDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/certificates/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership } = useCompany();
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const { Attachments: AttachmentsPanel } = useMaintenanceUi();
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
-  const org = activeMembership?.company_id ?? null;
+  const org = activeCompanyId ?? null;
 
   const { data: cert } = useQuery({
     queryKey: certificateKeys.detail(org, id),

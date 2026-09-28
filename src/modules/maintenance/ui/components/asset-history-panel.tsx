@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { sessionKeys, sessionService } from "../../services/sessions";
 import { incidentKeys, incidentService } from "../../services/incidents";
 import { certificateKeys, certificateService } from "../../services/certificates";
@@ -27,7 +27,7 @@ function fdate(d: string | null | undefined) {
 }
 
 export function AssetHistoryPanel({ assetId }: { assetId: string }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const { data: maintenance = [] } = useQuery({
     queryKey: sessionKeys.assetHistory(activeCompanyId, assetId),
     enabled: !!activeCompanyId,

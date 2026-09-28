@@ -12,7 +12,7 @@ import {
   Eraser,
 } from "lucide-react";
 import { format } from "date-fns";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +35,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AttachmentsPanel } from "@/components/attachments-panel";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { sessionKeys, sessionService } from "../../services/sessions";
 
@@ -51,9 +50,10 @@ export function SessionDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/maintenance/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership, activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const { Attachments: AttachmentsPanel } = useMaintenanceUi();
   const orgId = activeCompanyId;
-  const role = activeMembership?.role;
+  const role = role;
   const canRun =
     role === "administrator" || role === "system_manager" || role === "manager";
 

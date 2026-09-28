@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Star, Trash, Eye } from "lucide-react";
 import { certificateKeys, certificateService } from "../../services/certificates";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,10 +90,10 @@ export function CertificateTemplateEditorPage() {
   const { id } = useParams({ from: "/_authenticated/_app/certificate-templates/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { activeMembership } = useCompany();
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
-  const org = activeMembership?.company_id ?? null;
+  const org = activeCompanyId ?? null;
 
   const { data: tpl } = useQuery({
     queryKey: certificateKeys.template(org, id),

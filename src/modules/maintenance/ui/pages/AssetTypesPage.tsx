@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag, Plus, Trash2, Lock } from "lucide-react";
 import { assetService, assetKeys } from "../../services/assets";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,10 +45,10 @@ const CATEGORIES = [
 ];
 
 export function AssetTypesPage() {
-  const { activeCompanyId, activeMembership } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const role = activeMembership?.role;
+  const role = role;
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: types = [], isLoading } = useQuery({
@@ -204,7 +204,7 @@ export function AssetTypesPage() {
 }
 
 function CreateTypeDialog({ onCreated }: { onCreated: () => void }) {
-  const { activeCompanyId } = useCompany();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("other");

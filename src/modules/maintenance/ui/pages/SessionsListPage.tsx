@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Wrench, Search, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,9 +36,9 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
 };
 
 export function SessionsListPage() {
-  const { activeMembership } = useCompany();
-  const companyId = activeMembership?.company_id;
-  const role = activeMembership?.role;
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const companyId = activeCompanyId;
+  const role = role;
   const canRun =
     role === "administrator" || role === "system_manager" || role === "manager";
   const [search, setSearch] = useState("");

@@ -4,8 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Save, History, UserPlus, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { incidentKeys, incidentService } from "../../services/incidents";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
+import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { INCIDENT_STATUSES, SEVERITY_LABELS } from "./IncidentsListPage";
-import { AttachmentsPanel } from "@/components/attachments-panel";
 import { resolveIncidentOrigin } from "../../domain/incident-rules";
 
 
@@ -29,12 +27,13 @@ export function IncidentDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/incidents/$id" });
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { user } = useAuth();
-  const { activeMembership } = useCompany();
-  const role = activeMembership?.role;
+  const { userId } = useMaintenanceRequest();
+  const { orgId: activeCompanyId, role } = useMaintenanceRequest();
+  const { Attachments: AttachmentsPanel } = useMaintenanceUi();
+  const role = role;
   const canEdit = role !== undefined && role !== "auditor";
 
-  const orgId = activeMembership?.company_id ?? null;
+  const orgId = activeCompanyId ?? null;
 
   const { data: incident, isLoading } = useQuery({
     queryKey: incidentKeys.detail(orgId, id),
@@ -91,8 +90,8 @@ export function IncidentDetailPage() {
   const changeStatus = useMutation({
     mutationFn: async ({ to, note, resolve }: { to: string; note?: string; resolve?: boolean }) => {
       if (!incident) return;
-      if (resolve) return incidentService.resolve(orgId, id, { from: incident.status, notes: note ?? "", userId: user?.id ?? null });
-      return incidentService.changeStatus(orgId, id, { from: incident.status, to, note, userId: user?.id ?? null });
+      if (resolve) return incidentService.resolve(orgId, id, { from: incident.status, notes: note ?? "", userId: userId });
+      return incidentService.changeStatus(orgId, id, { from: incident.status, to, note, userId: userId });
     },
     onSuccess: () => {
       toast.success("Estado actualizado");
