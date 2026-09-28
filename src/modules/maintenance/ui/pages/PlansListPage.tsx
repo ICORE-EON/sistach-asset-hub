@@ -34,12 +34,12 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { i18nName } from "@/modules/maintenance/domain/i18n-name";
-import { groupAssets } from "@/modules/maintenance/domain/scope";
-import { resolveTemplatesForType, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
-import { FREQUENCIES, planKeys, planService } from "@/modules/maintenance/services/plans";
+import { i18nName } from "../../domain/i18n-name";
+import { groupAssets } from "../../domain/scope";
+import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/checklist-scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { checklistKeys, checklistService } from "../../services/checklists";
+import { FREQUENCIES, planKeys, planService } from "../../services/plans";
 
 export { FREQUENCIES };
 

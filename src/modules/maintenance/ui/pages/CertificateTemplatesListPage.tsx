@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileBadge, Plus, ChevronRight, Star, AlertTriangle } from "lucide-react";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
+import { certificateKeys, certificateService } from "../../services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

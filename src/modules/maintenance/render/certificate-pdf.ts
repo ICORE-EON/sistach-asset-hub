@@ -1,4 +1,4 @@
-import { certificateResultSummary } from "@/modules/maintenance/domain/certificate-results";
+import { certificateResultSummary } from "../domain/certificate-results";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont, type PDFImage } from "pdf-lib";
 import type { CertificateTemplate, TemplateColumn } from "../domain/certificate-templates/types";
 import { renderTemplate, resolveCell, type RowSource } from "../domain/certificate-templates/render";

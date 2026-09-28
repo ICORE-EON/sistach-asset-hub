@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Save, History, UserPlus, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
-import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
+import { incidentKeys, incidentService } from "../../services/incidents";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import { INCIDENT_STATUSES, SEVERITY_LABELS } from "./IncidentsListPage";
 import { AttachmentsPanel } from "@/components/attachments-panel";
-import { resolveIncidentOrigin } from "@/modules/maintenance/domain/incident-rules";
+import { resolveIncidentOrigin } from "../../domain/incident-rules";
 
 
 export function IncidentDetailPage() {

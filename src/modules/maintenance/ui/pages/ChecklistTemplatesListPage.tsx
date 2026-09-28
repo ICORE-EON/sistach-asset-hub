@@ -33,10 +33,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { i18nName } from "@/modules/maintenance/domain/i18n-name";
-import { describeTemplateScope, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
+import { i18nName } from "../../domain/i18n-name";
+import { describeTemplateScope, type ScopedTemplate } from "../../domain/checklist-scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { checklistKeys, checklistService } from "../../services/checklists";
 
 
 export function ChecklistTemplatesListPage() {

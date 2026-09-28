@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layers, Plus, Trash2, Lock } from "lucide-react";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
+import { assetService, assetKeys } from "../../services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { i18nName } from "@/modules/maintenance/domain/i18n-name";
+import { i18nName } from "../../domain/i18n-name";
 
 
 export function AssetFamiliesPage() {

@@ -33,9 +33,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { describeScopeLocations, type ScopeAsset } from "@/modules/maintenance/domain/scope";
-import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
-import { FREQUENCIES, planKeys, planService } from "@/modules/maintenance/services/plans";
+import { describeScopeLocations, type ScopeAsset } from "../../domain/scope";
+import { assetKeys, assetService } from "../../services/assets";
+import { FREQUENCIES, planKeys, planService } from "../../services/plans";
 
 
 export function PlanDetailPage() {

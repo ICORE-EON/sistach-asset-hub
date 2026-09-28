@@ -25,7 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
+import { sessionKeys, sessionService } from "../../services/sessions";
 
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {

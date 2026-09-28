@@ -5,8 +5,8 @@
 import { getRepositories } from "../contracts/registry";
 import { buildCertificatePdf as renderCertificatePdf } from "../render/certificate-pdf";
 import type { BinaryUpload } from "../contracts/repositories";
-import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/modules/maintenance/domain/certificate-templates/default";
-import type { TemplateColumn } from "@/modules/maintenance/domain/certificate-templates/types";
+import { DEFAULT_CERTIFICATE_TEMPLATE } from "../domain/certificate-templates/default";
+import type { TemplateColumn } from "../domain/certificate-templates/types";
 import { composePdfData } from "../domain/certificate-pdf-source";
 import { LOGO_INTEGRITY_ERROR, isOrgPath, planSnapshotLogo, readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
 import type { TemplateInput } from "../contracts/repositories";
@@ -42,6 +42,11 @@ const sha256Hex = async (bytes: Uint8Array) => {
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", ab))).map((b) => b.toString(16).padStart(2, "0")).join("");
 };
+
+/** Anything file-like the UI hands over (a browser File satisfies it); converted to bytes before reaching adapters. */
+export type FileLike = { name: string; type: string; size: number; arrayBuffer(): Promise<ArrayBuffer> };
+const toUpload = async (f: FileLike): Promise<BinaryUpload> =>
+  ({ name: f.name, contentType: f.type, size: f.size, bytes: new Uint8Array(await f.arrayBuffer()) });
 
 export const certificateService = {
   listCertificates: (orgId: string | null, status: string) => repo().listCertificates(need(orgId), status),
@@ -129,17 +134,17 @@ export const certificateService = {
   },
   updateTemplate: (orgId: string | null, id: string, patch: Partial<TemplateInput>) => repo().updateTemplate(need(orgId), id, patch),
   deleteTemplate: (orgId: string | null, id: string) => repo().softDeleteTemplate(need(orgId), id),
-  uploadTemplateLogo: (orgId: string | null, id: string, file: Blob & { name: string; type: string; size: number }) => {
+  uploadTemplateLogo: async (orgId: string | null, id: string, file: FileLike) => {
     if (file.size > 2 * 1024 * 1024) throw new Error("La imagen no puede superar 2 MB");
-    return repo().uploadTemplateLogo(need(orgId), id, file);
+    return repo().uploadTemplateLogo(need(orgId), id, await toUpload(file));
   },
   signedLogoUrl: (path: string) => repo().signedLogoUrl(path, 300),
 
   // External
   listAssetsForExternal: (orgId: string | null) => repo().listAssetsForExternal(need(orgId)),
-  registerExternal: (orgId: string | null, v: {
+  registerExternal: async (orgId: string | null, v: {
     title: string; issuerName: string; issuerRole: string; provider: string; externalNumber: string;
-    issuedOn: string; validUntil: string; assetId: string; notes: string; file: (Blob & { name: string; type: string; size: number }) | null;
+    issuedOn: string; validUntil: string; assetId: string; notes: string; file: FileLike | null;
   }) => {
     if (!v.title.trim()) throw new Error("Indica un título");
     if (!v.provider.trim()) throw new Error("Indica el proveedor externo");
@@ -148,7 +153,7 @@ export const certificateService = {
       title: v.title.trim(), issuedOn: v.issuedOn, validUntil: v.validUntil || null,
       issuerName: v.issuerName.trim() || null, issuerRole: v.issuerRole.trim() || null, provider: v.provider.trim(),
       externalNumber: v.externalNumber.trim() || null, notes: v.notes.trim() || null,
-      assetId: v.assetId !== "none" ? v.assetId : null, file: v.file,
+      assetId: v.assetId !== "none" ? v.assetId : null, file: await toUpload(v.file),
     });
   },
 };

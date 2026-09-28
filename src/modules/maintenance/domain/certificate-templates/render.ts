@@ -1,4 +1,4 @@
-import { certificateResultLabel } from "@/modules/maintenance/domain/certificate-results";
+import { certificateResultLabel } from "../certificate-results";
 import type { CertificateTemplate, TemplateColumn, TemplateVariables } from "./types";
 
 export function substituteVariables(text: string, vars: Partial<TemplateVariables>): string {

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { ArrowLeft, Printer, Trash2, Save } from "lucide-react";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
+import { assetService, assetKeys } from "../../services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { i18nName } from "@/modules/maintenance/domain/i18n-name";
+import { i18nName } from "../../domain/i18n-name";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { FirstAidKitPanel } from "../components/first-aid-kit-panel";
 import { AssetHistoryPanel } from "../components/asset-history-panel";

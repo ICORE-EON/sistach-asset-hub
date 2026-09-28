@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Boxes, Plus, Search, QrCode } from "lucide-react";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
+import { assetService, assetKeys } from "../../services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { i18nName } from "@/modules/maintenance/domain/i18n-name";
+import { i18nName } from "../../domain/i18n-name";
 
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {

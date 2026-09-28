@@ -36,8 +36,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
-import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";
-import { sessionKeys, sessionService } from "@/modules/maintenance/services/sessions";
+import { checklistKeys, checklistService } from "../../services/checklists";
+import { sessionKeys, sessionService } from "../../services/sessions";
 
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {

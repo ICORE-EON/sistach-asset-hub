@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft, CheckCircle2, AlertTriangle, Ban, Pencil, Download, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
+import { certificateKeys, certificateService } from "../../services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { certificateResultCounts, certificateResultLabel, normalizeCertificateResult } from "@/modules/maintenance/domain/certificate-results";
+import { certificateResultCounts, certificateResultLabel, normalizeCertificateResult } from "../../domain/certificate-results";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/modules/maintenance/domain/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "../../domain/cert-status";
 
 
 export function CertificateDetailPage() {

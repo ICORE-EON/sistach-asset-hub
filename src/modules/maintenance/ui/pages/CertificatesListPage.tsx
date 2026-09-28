@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileBadge, Search, Plus } from "lucide-react";
 import { format } from "date-fns";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
+import { certificateKeys, certificateService } from "../../services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/modules/maintenance/domain/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "../../domain/cert-status";
 import { ExternalCertificateDialog } from "../components/external-certificate-dialog";
 
 

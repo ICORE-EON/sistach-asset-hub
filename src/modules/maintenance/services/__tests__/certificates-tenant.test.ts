@@ -17,7 +17,7 @@ import {
   certificateResultSummary, resolveCertificateItemResult, storedCertificateResult,
 } from "../../domain/certificate-results";
 import { legacyCertificateItemResult, legacySessionOutcome } from "../../domain/session-rules";
-import { resolveCell } from "@/modules/maintenance/domain/certificate-templates/render";
+import { resolveCell } from "../../domain/certificate-templates/render";
 import { composePdfData } from "../../domain/certificate-pdf-source";
 
 const A = "00000000-0000-0000-0000-00000000000a";

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { incidentKeys, incidentService } from "@/modules/maintenance/services/incidents";
+import { incidentKeys, incidentService } from "../../services/incidents";
 
 
 export const INCIDENT_STATUSES = [

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Pencil, BriefcaseMedical, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { assetService, assetKeys } from "@/modules/maintenance/services/assets";
+import { assetService, assetKeys } from "../../services/assets";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

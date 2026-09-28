@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Star, Trash, Eye } from "lucide-react";
-import { certificateKeys, certificateService } from "@/modules/maintenance/services/certificates";
+import { certificateKeys, certificateService } from "../../services/certificates";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,8 +30,8 @@ import {
   TEMPLATE_VARIABLES,
   type ColumnSource,
   type TemplateColumn,
-} from "@/modules/maintenance/domain/certificate-templates/types";
-import { renderTemplate, resolveCell, type RowSource } from "@/modules/maintenance/domain/certificate-templates/render";
+} from "../../domain/certificate-templates/types";
+import { renderTemplate, resolveCell, type RowSource } from "../../domain/certificate-templates/render";
 
 
 const SAMPLE_VARS = {
