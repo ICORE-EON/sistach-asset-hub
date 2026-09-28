@@ -34,7 +34,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "@/modules/maintenance/domain/i18n-name";
 import { groupAssets } from "@/modules/maintenance/domain/scope";
 import { resolveTemplatesForType, type ScopedTemplate } from "@/modules/maintenance/domain/checklist-scope";
 import { assetKeys, assetService } from "@/modules/maintenance/services/assets";

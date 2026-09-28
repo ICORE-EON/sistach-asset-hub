@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "@/modules/maintenance/domain/i18n-name";
 
 
 const CATEGORIES = [

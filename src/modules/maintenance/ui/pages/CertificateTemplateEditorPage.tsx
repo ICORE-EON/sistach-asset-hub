@@ -30,8 +30,8 @@ import {
   TEMPLATE_VARIABLES,
   type ColumnSource,
   type TemplateColumn,
-} from "@/lib/certificate-templates/types";
-import { renderTemplate, resolveCell, type RowSource } from "@/lib/certificate-templates/render";
+} from "@/modules/maintenance/domain/certificate-templates/types";
+import { renderTemplate, resolveCell, type RowSource } from "@/modules/maintenance/domain/certificate-templates/render";
 
 
 const SAMPLE_VARS = {

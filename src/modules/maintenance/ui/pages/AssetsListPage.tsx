@@ -34,7 +34,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "@/modules/maintenance/domain/i18n-name";
 
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {

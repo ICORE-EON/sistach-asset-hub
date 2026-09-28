@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AttachmentsPanel } from "@/components/attachments-panel";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "@/modules/maintenance/domain/cert-status";
 
 
 export function CertificateDetailPage() {

@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "@/modules/maintenance/domain/i18n-name";
 import { describeTemplateScope } from "@/modules/maintenance/domain/checklist-scope";
 import { assetKeys, assetService } from "@/modules/maintenance/services/assets";
 import { checklistKeys, checklistService } from "@/modules/maintenance/services/checklists";

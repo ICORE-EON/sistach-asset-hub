@@ -12,7 +12,7 @@
  */
 import type { StandaloneClient } from "../adapters/standalone/client";
 import type { Json } from "@/integrations/supabase/types";
-import type { CertificateTemplate } from "@/lib/certificate-templates/types";
+import type { CertificateTemplate } from "@/modules/maintenance/domain/certificate-templates/types";
 import {
   assertPdfBuildable, assertRevocable, buildEmissionSnapshot, emissionSummary, frozenLogoPath, isOrgPath, pickTemplate, validUntilFrom,
   type CertificateSnapshot, type FrozenLogo, type FrozenIncident, type TemplateSourceKind,

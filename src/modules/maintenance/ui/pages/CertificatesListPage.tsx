@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCertExpiry, CERT_STATUS_LABELS } from "@/lib/cert-status";
+import { getCertExpiry, CERT_STATUS_LABELS } from "@/modules/maintenance/domain/cert-status";
 import { ExternalCertificateDialog } from "../components/external-certificate-dialog";
 
 

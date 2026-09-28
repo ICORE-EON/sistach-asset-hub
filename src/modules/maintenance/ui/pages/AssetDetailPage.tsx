@@ -30,7 +30,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { i18nName } from "@/lib/i18n-name";
+import { i18nName } from "@/modules/maintenance/domain/i18n-name";
 import { AttachmentsPanel } from "@/components/attachments-panel";
 import { FirstAidKitPanel } from "../components/first-aid-kit-panel";
 import { AssetHistoryPanel } from "../components/asset-history-panel";

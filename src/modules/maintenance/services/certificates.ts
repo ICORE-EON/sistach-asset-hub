@@ -3,8 +3,8 @@
  * Messages, validations and results are identical to the previous inline screens.
  */
 import { certificatesRepo as repo, renderCertificatePdf } from "../adapters/standalone/repos";
-import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/lib/certificate-templates/default";
-import type { TemplateColumn } from "@/lib/certificate-templates/types";
+import { DEFAULT_CERTIFICATE_TEMPLATE } from "@/modules/maintenance/domain/certificate-templates/default";
+import type { TemplateColumn } from "@/modules/maintenance/domain/certificate-templates/types";
 import { composePdfData } from "../domain/certificate-pdf-source";
 import { LOGO_INTEGRITY_ERROR, isOrgPath, planSnapshotLogo, readCertificateSnapshot, requiresCertificate } from "../domain/certificate-rules";
 import type { TemplateInput } from "../data/certificates.repo";

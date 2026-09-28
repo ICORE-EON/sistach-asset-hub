@@ -16,8 +16,8 @@
  *  3. "legacy": no usable snapshot: current joined data, exactly as before, flagged as such.
  * Missing fields are shown empty; current master data is never presented as the original.
  */
-import type { RowSource } from "@/lib/certificate-templates/render";
-import type { CertificateTemplate } from "@/lib/certificate-templates/types";
+import type { RowSource } from "@/modules/maintenance/domain/certificate-templates/render";
+import type { CertificateTemplate } from "@/modules/maintenance/domain/certificate-templates/types";
 import { normalizeCertificateResult as legacyCertificateItemResult } from "./certificate-results";
 import { certificateResultCounts } from "./certificate-results";
 
