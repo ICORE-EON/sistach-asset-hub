@@ -25,3 +25,8 @@
 - [x] Startup error "Uncaught undefined" fixed (auth listener filtered to identity changes; active company read after hydration; breadcrumb nested <li>)
 - [x] Decisions resolved: SQL permissions (host_has_perm), identity via person_ref, mnt_ prefix in public
 - [ ] Phase 2 — waiting for user authorization
+
+## Paquete limpio ICORE (plan v2)
+- [x] Paso 1: contratos estables + registro de adaptador + separación del host standalone (esperando revisión)
+- [ ] Paso 2: esquema de instalación desde cero, catálogos y pruebas (PGlite) — pendiente de aprobación
+- [ ] Paso 3: adaptador ICORE, ficha de requisitos y lista de exportación — pendiente de aprobación
