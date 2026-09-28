@@ -213,7 +213,9 @@ SELECT public.mnt_create_session(:orgA, 'a0000000-0000-4000-8000-0000000e0002', 
 INSERT INTO mnt_responses(org_id, item_id, question_id, answer, is_fail)
   SELECT :orgA, id, 'a0000000-0000-4000-8000-00000000c7b1', '"ko"', true FROM mnt_session_items WHERE session_id = :'s2';
 UPDATE mnt_session_items SET result = 'failed' WHERE session_id = :'s2';
+RESET ROLE;
 SELECT count(*) AS out_before FROM mnt_outbox \gset
+SET ROLE authenticated;
 SELECT set_config('t.fail', 'on', false);
 SELECT t.fails('rollback: el cierre falla al emitir el certificado', format('SELECT public.mnt_close_session(%L, %L)', :orgA, :'s2'), 'P0001');
 SELECT set_config('t.fail', 'off', false);
