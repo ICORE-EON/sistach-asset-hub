@@ -64,7 +64,7 @@ BEGIN
   (45,'resp. sistema A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_org_asset_types(org_id, asset_type_id) VALUES (':CA','3322b44f-cce2-4d93-9322-d03523adc7b4')$$),
   (46,'propietario','-','-','exec','rej:23503',$$UPDATE public.maintenance_items SET company_id=':CB' WHERE id=':IT'$$),
   (47,'propietario','-','-','exec','ok',$$UPDATE public.maintenance_items SET company_id=':CA' WHERE id=':IT'$$),
-  (48,'propietario','-','-','exec','ok',$$INSERT INTO public.maintenance_items(session_id, asset_id, checklist_template_version_id, result) SELECT session_id, asset_id, checklist_template_version_id, result FROM public.maintenance_items WHERE id=':IT'$$),
+  (48,'propietario','-','-','exec','ok',$$INSERT INTO public.certificate_items(certificate_id, result) SELECT certificate_id, 'na' FROM public.certificate_items LIMIT 1$$),
   (49,'propietario','-','-','exec','rej:23503',$$UPDATE public.maintenance_plans SET checklist_template_id=':TB' WHERE id=':PA'$$),
   (50,'propietario','-','-','exec','rej:23503',$$UPDATE public.assets SET location_id=':LB' WHERE company_id=':CA'$$),
   (51,'propietario','-','-','exec','rej:23503',$$INSERT INTO public.mnt_checklist_template_types VALUES (':CA',':TA',':CT')$$),
