@@ -10,7 +10,7 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 CREATE SCHEMA IF NOT EXISTS auth;
 GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
-  SELECT nullif(current_setting('request.jwt.claims', true)::json->>'sub', '')::uuid
+  SELECT nullif(nullif(current_setting('request.jwt.claims', true), '')::json->>'sub', '')::uuid
 $$;
 CREATE SCHEMA IF NOT EXISTS host_stub;
 CREATE TABLE IF NOT EXISTS host_stub.members (org_id uuid, person uuid, name text, perms text[], PRIMARY KEY (org_id, person));
