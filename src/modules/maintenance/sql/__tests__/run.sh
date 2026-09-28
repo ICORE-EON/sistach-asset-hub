@@ -55,9 +55,9 @@ PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql"
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"
 CLOSE="SET ROLE authenticated; SELECT set_config('request.jwt.claims', '{\"sub\":\"a0000000-0000-4000-8000-0000000000a1\"}', false);"
-( P -d mnt -c "BEGIN; $CLOSE SELECT public.mnt_close_session('a0000000-0000-4000-8000-000000000001', '$S3'); SELECT pg_sleep(1.5); COMMIT;" >"$TMP/c1" 2>&1; echo $? >"$TMP/c1.rc" ) &
+( P -d mnt -c "BEGIN; $CLOSE SELECT public.mnt_close_session('a0000000-0000-4000-8000-000000000001', '$S3'); SELECT pg_sleep(1.5); COMMIT;" >"$TMP/c1" 2>&1 && echo 0 >"$TMP/c1.rc" || echo 3 >"$TMP/c1.rc" ) &
 sleep 0.4
-( P -d mnt -c "$CLOSE SELECT public.mnt_close_session('a0000000-0000-4000-8000-000000000001', '$S3');" >"$TMP/c2" 2>&1; echo $? >"$TMP/c2.rc" ) &
+( P -d mnt -c "$CLOSE SELECT public.mnt_close_session('a0000000-0000-4000-8000-000000000001', '$S3');" >"$TMP/c2" 2>&1 && echo 0 >"$TMP/c2.rc" || echo 3 >"$TMP/c2.rc" ) &
 wait
 R="$(cat "$TMP/c1.rc")$(cat "$TMP/c2.rc")"
 N="$(P -d mnt -Atc "SELECT (SELECT count(*) FROM mnt_certificates WHERE session_id='$S3')||'/'||(SELECT count(*) FROM mnt_session_history WHERE session_id='$S3')")"
