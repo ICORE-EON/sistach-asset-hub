@@ -50,7 +50,7 @@ echo "PASS idempotencia: reinstalar y resembrar deja el mismo esquema y catalogo
   && echo "PASS version de instalacion y catalogo registradas una sola vez"
 
 # 3. behaviour tests (RLS, triggers, RPC, rollback)
-PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p'
+PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p; /ERROR/p; /LINE/p'
 
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"
