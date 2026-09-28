@@ -1,9 +1,12 @@
 /**
  * ICORE host adapter — contract stub only. ICORE must supply these ports
- * (host_has_perm, host_current_person, host_site_tree, host_register_document_version).
+ * (host_has_perm, host_person_ref, host_person_snapshot, host_site_in_org, host_document_version_sha).
  * Until then every port fails closed and preflight reports the missing prerequisites.
+ * Data repositories: see ./repositories.ts (skeleton, every operation rejects as "no configurado").
  */
 import { CONTRACT_VERSION, type MaintenanceHost } from "../../contracts";
+
+export { createIcoreRepositoriesSkeleton, createIcoreAdapterSkeleton, IcoreNotConfiguredError } from "./repositories";
 
 const notAvailable = () => Promise.reject(new Error("ICORE adapter no implementado"));
 
