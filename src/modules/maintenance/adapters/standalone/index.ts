@@ -23,3 +23,5 @@ export function useStandaloneHost(): MaintenanceHost {
     [],
   );
 }
+export { registerStandaloneMaintenance, createStandaloneRepositories, STANDALONE_ADAPTER_ID } from "./register";
+export { StandaloneMaintenanceProvider } from "./ui-provider";

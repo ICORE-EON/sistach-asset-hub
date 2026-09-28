@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Topbar } from "@/components/topbar";
+import { StandaloneMaintenanceProvider } from "@/modules/maintenance/adapters/standalone/ui-provider";
 
 export const Route = createFileRoute("/_authenticated/_app")({
   component: AppShell,
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/_authenticated/_app")({
 
 function AppShell() {
   return (
+    <StandaloneMaintenanceProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
@@ -20,5 +22,6 @@ function AppShell() {
         </SidebarInset>
       </div>
     </SidebarProvider>
+    </StandaloneMaintenanceProvider>
   );
 }
