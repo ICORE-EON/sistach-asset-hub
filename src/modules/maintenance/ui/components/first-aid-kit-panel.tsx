@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FIRST_AID_PRODUCTS, slugProductCode } from "@/lib/import/entities";
+import { FIRST_AID_PRODUCTS, slugProductCode } from "../../domain/first-aid";
 
 interface KitItem {
   id: string;
