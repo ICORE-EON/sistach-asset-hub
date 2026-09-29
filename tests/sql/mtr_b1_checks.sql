@@ -1,4 +1,5 @@
 -- Metrología B1 — pruebas por perfil contra la base de la app. Todo dentro de una transacción con ROLLBACK:
+-- Ejecución: pegar en el ejecutor SQL con privilegios de propietario. Resultado registrado: 90/91 antes del ajuste de permisos (caso 11: anon obtenía 0 filas en vez de rechazo); corregido en migración posterior.
 -- no deja datos: el bloque termina SIEMPRE con RAISE EXCEPTION (reversión total) e informa del resultado.
 -- Cada paso corre en su propia subtransacción (un fallo revierte solo ese paso).
 
