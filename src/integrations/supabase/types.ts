@@ -2622,6 +2622,694 @@ export type Database = {
         }
         Relationships: []
       }
+      mnt_mtr_control_plans: {
+        Row: {
+          acceptance_criteria: string | null
+          active: boolean
+          company_id: string
+          control_kind: string
+          created_at: string
+          equipment_id: string
+          frequency_unit: string
+          frequency_value: number | null
+          id: string
+          method: string
+          next_due_on: string | null
+          procedure: string | null
+          qualifies_as_reference: boolean
+          requires_document: boolean
+          responsible_ref: string | null
+          updated_at: string
+        }
+        Insert: {
+          acceptance_criteria?: string | null
+          active?: boolean
+          company_id: string
+          control_kind: string
+          created_at?: string
+          equipment_id: string
+          frequency_unit: string
+          frequency_value?: number | null
+          id?: string
+          method: string
+          next_due_on?: string | null
+          procedure?: string | null
+          qualifies_as_reference?: boolean
+          requires_document?: boolean
+          responsible_ref?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acceptance_criteria?: string | null
+          active?: boolean
+          company_id?: string
+          control_kind?: string
+          created_at?: string
+          equipment_id?: string
+          frequency_unit?: string
+          frequency_value?: number | null
+          id?: string
+          method?: string
+          next_due_on?: string | null
+          procedure?: string | null
+          qualifies_as_reference?: boolean
+          requires_document?: boolean
+          responsible_ref?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_control_plans_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_control_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_control_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_mtr_equipment: {
+        Row: {
+          allowed_uses: string | null
+          brand: string | null
+          code: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          declared_accuracy: string | null
+          deleted_at: string | null
+          equipment_type: string
+          id: string
+          intended_use: string | null
+          location_detail: string | null
+          magnitude: string | null
+          model: string | null
+          name: string
+          photo_document_ref: string | null
+          range_max: number | null
+          range_min: number | null
+          registered_on: string
+          resolution: string | null
+          responsible_ref: string | null
+          responsible_snapshot: Json | null
+          restrictions: string | null
+          serial_number: string | null
+          site_id: string
+          status: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_uses?: string | null
+          brand?: string | null
+          code: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          declared_accuracy?: string | null
+          deleted_at?: string | null
+          equipment_type: string
+          id?: string
+          intended_use?: string | null
+          location_detail?: string | null
+          magnitude?: string | null
+          model?: string | null
+          name: string
+          photo_document_ref?: string | null
+          range_max?: number | null
+          range_min?: number | null
+          registered_on?: string
+          resolution?: string | null
+          responsible_ref?: string | null
+          responsible_snapshot?: Json | null
+          restrictions?: string | null
+          serial_number?: string | null
+          site_id: string
+          status?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_uses?: string | null
+          brand?: string | null
+          code?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          declared_accuracy?: string | null
+          deleted_at?: string | null
+          equipment_type?: string
+          id?: string
+          intended_use?: string | null
+          location_detail?: string | null
+          magnitude?: string | null
+          model?: string | null
+          name?: string
+          photo_document_ref?: string | null
+          range_max?: number | null
+          range_min?: number | null
+          registered_on?: string
+          resolution?: string | null
+          responsible_ref?: string | null
+          responsible_snapshot?: Json | null
+          restrictions?: string | null
+          serial_number?: string | null
+          site_id?: string
+          status?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_equipment_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_equipment_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_equipment_company_id_site_id_fkey"
+            columns: ["company_id", "site_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_mtr_impact_reviews: {
+        Row: {
+          actions_taken_or_planned: string | null
+          closed_at: string | null
+          closed_by: string | null
+          closed_by_snapshot: Json | null
+          company_id: string
+          conclusion: string | null
+          created_at: string
+          equipment_id: string
+          external_ref_id: string | null
+          external_ref_label: string | null
+          external_ref_type: string | null
+          external_ref_url: string | null
+          id: string
+          justification: string | null
+          period_reviewed: string | null
+          record_id: string
+          responsible_ref: string | null
+          reviewed_on: string | null
+          status: string
+        }
+        Insert: {
+          actions_taken_or_planned?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_snapshot?: Json | null
+          company_id: string
+          conclusion?: string | null
+          created_at?: string
+          equipment_id: string
+          external_ref_id?: string | null
+          external_ref_label?: string | null
+          external_ref_type?: string | null
+          external_ref_url?: string | null
+          id?: string
+          justification?: string | null
+          period_reviewed?: string | null
+          record_id: string
+          responsible_ref?: string | null
+          reviewed_on?: string | null
+          status?: string
+        }
+        Update: {
+          actions_taken_or_planned?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_by_snapshot?: Json | null
+          company_id?: string
+          conclusion?: string | null
+          created_at?: string
+          equipment_id?: string
+          external_ref_id?: string | null
+          external_ref_label?: string | null
+          external_ref_type?: string | null
+          external_ref_url?: string | null
+          id?: string
+          justification?: string | null
+          period_reviewed?: string | null
+          record_id?: string
+          responsible_ref?: string | null
+          reviewed_on?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_impact_reviews_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_impact_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_impact_reviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_impact_reviews_company_id_record_id_fkey"
+            columns: ["company_id", "record_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_records"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_mtr_record_lines: {
+        Row: {
+          company_id: string
+          created_at: string
+          deviation: number | null
+          id: string
+          label: string
+          measured_value: number | null
+          position: number
+          record_id: string
+          reference_value: number | null
+          result: string | null
+          tolerance: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          deviation?: number | null
+          id?: string
+          label: string
+          measured_value?: number | null
+          position: number
+          record_id: string
+          reference_value?: number | null
+          result?: string | null
+          tolerance?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          deviation?: number | null
+          id?: string
+          label?: string
+          measured_value?: number | null
+          position?: number
+          record_id?: string
+          reference_value?: number | null
+          result?: string | null
+          tolerance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_record_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_record_lines_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_record_lines_company_id_record_id_fkey"
+            columns: ["company_id", "record_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_records"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_mtr_records: {
+        Row: {
+          accreditation: string | null
+          adjusted_or_repaired: boolean | null
+          certificate_number: string | null
+          company_id: string
+          control_plan_id: string
+          created_at: string
+          created_by: string | null
+          declared_uncertainty: string | null
+          document_ref: string | null
+          equipment_id: string
+          id: string
+          kind: string
+          laboratory: string | null
+          next_due_calculated: string | null
+          next_due_override: string | null
+          observations: string | null
+          override_reason: string | null
+          performed_on: string
+          performer_ref: string | null
+          performer_snapshot: Json | null
+          rectification_reason: string | null
+          reference_equipment_id: string | null
+          result: string | null
+          status: string
+          supersedes_id: string | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          validated_by_snapshot: Json | null
+          version: number
+        }
+        Insert: {
+          accreditation?: string | null
+          adjusted_or_repaired?: boolean | null
+          certificate_number?: string | null
+          company_id: string
+          control_plan_id: string
+          created_at?: string
+          created_by?: string | null
+          declared_uncertainty?: string | null
+          document_ref?: string | null
+          equipment_id: string
+          id?: string
+          kind: string
+          laboratory?: string | null
+          next_due_calculated?: string | null
+          next_due_override?: string | null
+          observations?: string | null
+          override_reason?: string | null
+          performed_on: string
+          performer_ref?: string | null
+          performer_snapshot?: Json | null
+          rectification_reason?: string | null
+          reference_equipment_id?: string | null
+          result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validated_by_snapshot?: Json | null
+          version?: number
+        }
+        Update: {
+          accreditation?: string | null
+          adjusted_or_repaired?: boolean | null
+          certificate_number?: string | null
+          company_id?: string
+          control_plan_id?: string
+          created_at?: string
+          created_by?: string | null
+          declared_uncertainty?: string | null
+          document_ref?: string | null
+          equipment_id?: string
+          id?: string
+          kind?: string
+          laboratory?: string | null
+          next_due_calculated?: string | null
+          next_due_override?: string | null
+          observations?: string | null
+          override_reason?: string | null
+          performed_on?: string
+          performer_ref?: string | null
+          performer_snapshot?: Json | null
+          rectification_reason?: string | null
+          reference_equipment_id?: string | null
+          result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validated_by_snapshot?: Json | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_control_plan_id_fkey"
+            columns: ["company_id", "control_plan_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_control_plans"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_reference_equipment_id_fkey"
+            columns: ["company_id", "reference_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_records_company_id_supersedes_id_fkey"
+            columns: ["company_id", "supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_records"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_mtr_site_moves: {
+        Row: {
+          company_id: string
+          equipment_id: string
+          from_site_id: string | null
+          id: string
+          location_detail: string | null
+          moved_at: string
+          moved_by: string | null
+          moved_by_snapshot: Json | null
+          note: string | null
+          to_site_id: string
+        }
+        Insert: {
+          company_id: string
+          equipment_id: string
+          from_site_id?: string | null
+          id?: string
+          location_detail?: string | null
+          moved_at?: string
+          moved_by?: string | null
+          moved_by_snapshot?: Json | null
+          note?: string | null
+          to_site_id: string
+        }
+        Update: {
+          company_id?: string
+          equipment_id?: string
+          from_site_id?: string | null
+          id?: string
+          location_detail?: string | null
+          moved_at?: string
+          moved_by?: string | null
+          moved_by_snapshot?: Json | null
+          note?: string | null
+          to_site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_site_moves_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_site_moves_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_site_moves_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_mtr_status_history: {
+        Row: {
+          cause: string
+          changed_at: string
+          changed_by: string | null
+          changed_by_snapshot: Json | null
+          company_id: string
+          equipment_id: string
+          from_status: string | null
+          id: string
+          note: string | null
+          record_id: string | null
+          to_status: string
+        }
+        Insert: {
+          cause: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_snapshot?: Json | null
+          company_id: string
+          equipment_id: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          record_id?: string | null
+          to_status: string
+        }
+        Update: {
+          cause?: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_snapshot?: Json | null
+          company_id?: string
+          equipment_id?: string
+          from_status?: string | null
+          id?: string
+          note?: string | null
+          record_id?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_status_history_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_status_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_mtr_unfit_decisions: {
+        Row: {
+          allowed_uses: string | null
+          company_id: string
+          decided_at: string
+          decided_by: string | null
+          decided_by_snapshot: Json | null
+          decision: string
+          equipment_id: string
+          id: string
+          notes: string | null
+          record_id: string
+        }
+        Insert: {
+          allowed_uses?: string | null
+          company_id: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_snapshot?: Json | null
+          decision: string
+          equipment_id: string
+          id?: string
+          notes?: string | null
+          record_id: string
+        }
+        Update: {
+          allowed_uses?: string | null
+          company_id?: string
+          decided_at?: string
+          decided_by?: string | null
+          decided_by_snapshot?: Json | null
+          decision?: string
+          equipment_id?: string
+          id?: string
+          notes?: string | null
+          record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_unfit_decisions_company_id_equipment_id_fkey"
+            columns: ["company_id", "equipment_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_equipment"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_unfit_decisions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_unfit_decisions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_unfit_decisions_company_id_record_id_fkey"
+            columns: ["company_id", "record_id"]
+            isOneToOne: false
+            referencedRelation: "mnt_mtr_records"
+            referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
       mnt_org_asset_types: {
         Row: {
           asset_type_id: string
@@ -3419,6 +4107,74 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mtr_calc_next_due: {
+        Args: { p_from: string; p_unit: string; p_value: number }
+        Returns: string
+      }
+      mtr_close_impact: {
+        Args: {
+          p_actions: string
+          p_conclusion: string
+          p_ext_id: string
+          p_ext_label: string
+          p_ext_type: string
+          p_ext_url: string
+          p_justification: string
+          p_period: string
+          p_review: string
+          p_reviewed_on: string
+        }
+        Returns: undefined
+      }
+      mtr_decide_unfit: {
+        Args: {
+          p_allowed_uses: string
+          p_decision: string
+          p_notes: string
+          p_record: string
+        }
+        Returns: string
+      }
+      mtr_is_client: { Args: never; Returns: boolean }
+      mtr_log_status: {
+        Args: {
+          p_cause: string
+          p_company: string
+          p_eq: string
+          p_from: string
+          p_note: string
+          p_record: string
+          p_to: string
+        }
+        Returns: undefined
+      }
+      mtr_move_site: {
+        Args: {
+          p_equipment: string
+          p_location_detail: string
+          p_note: string
+          p_site: string
+        }
+        Returns: undefined
+      }
+      mtr_rectify_record: {
+        Args: { p_reason: string; p_record: string }
+        Returns: string
+      }
+      mtr_reference_eligible: {
+        Args: { p_company: string; p_equipment: string; p_on: string }
+        Returns: boolean
+      }
+      mtr_set_status: {
+        Args: { p_equipment: string; p_reason: string; p_status: string }
+        Returns: undefined
+      }
+      mtr_site_in_org: {
+        Args: { p_company: string; p_site: string }
+        Returns: boolean
+      }
+      mtr_snapshot: { Args: never; Returns: Json }
+      mtr_validate_record: { Args: { p_record: string }; Returns: Json }
       next_code: {
         Args: { p_company_id: string; p_prefix: string; p_scope: string }
         Returns: string
