@@ -1,0 +1,1 @@
+-- see tests/sql/mtr_b1_schema.sql
