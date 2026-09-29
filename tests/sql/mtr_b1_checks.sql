@@ -157,7 +157,7 @@ BEGIN
     IF v = r.expected THEN passed := passed + 1; ELSE fails := fails || format(' [%s %s: esperado %s, obtenido %s]', r.n, r.actor, r.expected, v); END IF;
   END LOOP;
   -- Aborta siempre: nada de lo anterior queda en la base.
-  RAISE EXCEPTION 'MTR_B1 RESULTADO %/%%', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END;
+  RAISE EXCEPTION 'MTR_B1 RESULTADO %/% %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END;
 END
 $run$;
 
