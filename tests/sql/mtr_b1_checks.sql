@@ -1,16 +1,12 @@
 -- Metrología B1 — pruebas por perfil contra la base de la app. Todo dentro de una transacción con ROLLBACK:
--- no deja datos. Cada paso corre en su propia subtransacción (un fallo revierte solo ese paso).
-BEGIN;
--- Sites de prueba (solo existen dentro de esta transacción)
-INSERT INTO public.locations(id, company_id, code, name, kind) VALUES
- ('00000000-0000-4000-8000-00000000a001','e5b35c19-afd3-4675-9654-070e8a8ffc7d','MTRSA','Site A','site'),
- ('00000000-0000-4000-8000-00000000a002','e5b35c19-afd3-4675-9654-070e8a8ffc7d','MTRSA2','Site A2','site'),
- ('00000000-0000-4000-8000-00000000b001','f80df1ea-1d54-43f1-9330-e35d277c91a6','MTRSB','Site B','site');
+-- no deja datos: el bloque termina SIEMPRE con RAISE EXCEPTION (reversión total) e informa del resultado.
+-- Cada paso corre en su propia subtransacción (un fallo revierte solo ese paso).
 
-CREATE TEMP TABLE mtr_res(n int, actor text, test text, expected text, got text);
+
 
 DO $run$
 DECLARE
+  total int := 0; passed int := 0; fails text := '';
   r record; v text; c bigint; q text; k text; val text;
   UA constant text := '3b7de027-5b93-4336-a2a3-ececd12f7443';
   UB constant text := 'fbf169ac-47e9-4061-a3b2-c9e030e1f214';
@@ -25,6 +21,10 @@ DECLARE
     ':R1','00000000-0000-4000-8000-0000000d0001', ':R2','00000000-0000-4000-8000-0000000d0002',
     ':R3','00000000-0000-4000-8000-0000000d0003', ':UA', '3b7de027-5b93-4336-a2a3-ececd12f7443');
 BEGIN
+  INSERT INTO public.locations(id, company_id, code, name, kind) VALUES
+   ('00000000-0000-4000-8000-00000000a001','e5b35c19-afd3-4675-9654-070e8a8ffc7d','MTRSA','Site A','site'),
+   ('00000000-0000-4000-8000-00000000a002','e5b35c19-afd3-4675-9654-070e8a8ffc7d','MTRSA2','Site A2','site'),
+   ('00000000-0000-4000-8000-00000000b001','f80df1ea-1d54-43f1-9330-e35d277c91a6','MTRSB','Site B','site');
   FOR r IN SELECT * FROM (VALUES
   -- Inventario y aislamiento
   (1,'admin A','A','authenticated','exec','ok',$$INSERT INTO public.mnt_mtr_equipment(id,company_id,code,name,equipment_type,site_id) VALUES (':EQ1',':CA','MTR-1','Patrón','Bloque patrón',':SA')$$),
@@ -153,12 +153,11 @@ BEGIN
       v := 'rej:' || SQLSTATE;
     END;
     RESET ROLE;
-    INSERT INTO mtr_res VALUES (r.n, r.actor, left(r.sql, 80), r.expected, v);
+    total := total + 1;
+    IF v = r.expected THEN passed := passed + 1; ELSE fails := fails || format(' [%s %s: esperado %s, obtenido %s]', r.n, r.actor, r.expected, v); END IF;
   END LOOP;
+  -- Aborta siempre: nada de lo anterior queda en la base.
+  RAISE EXCEPTION 'MTR_B1 RESULTADO %/%%', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END;
 END
 $run$;
 
-SELECT n, actor, expected, got, CASE WHEN expected = got THEN 'PASA' ELSE 'FALLA' END AS res, test
-FROM mtr_res ORDER BY n;
-SELECT count(*) FILTER (WHERE expected = got) || '/' || count(*) AS resumen FROM mtr_res;
-ROLLBACK;
