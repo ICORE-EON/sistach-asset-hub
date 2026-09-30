@@ -8,7 +8,7 @@ import type {
 } from "../../../contracts/metrology";
 import type { MtrStoredStatus } from "../../../domain/metrology";
 
-const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
+const ok = <T = any>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; }; // eslint-disable-line @typescript-eslint/no-explicit-any
 const CROSS = "El recurso no pertenece a la organización activa";
 type R = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
