@@ -20,7 +20,10 @@ DECLARE
     ':EQB','00000000-0000-4000-8000-0000000e00b1',
     ':P1','00000000-0000-4000-8000-0000000c0001', ':P2','00000000-0000-4000-8000-0000000c0002',
     ':R1','00000000-0000-4000-8000-0000000d0001', ':R2','00000000-0000-4000-8000-0000000d0002',
-    ':R3','00000000-0000-4000-8000-0000000d0003', ':UA', '3b7de027-5b93-4336-a2a3-ececd12f7443');
+    ':R3','00000000-0000-4000-8000-0000000d0003', ':UA', '3b7de027-5b93-4336-a2a3-ececd12f7443',
+    ':EQ3','00000000-0000-4000-8000-0000000e0003', ':EQ4','00000000-0000-4000-8000-0000000e0004',
+    ':P3','00000000-0000-4000-8000-0000000c0003', ':P4','00000000-0000-4000-8000-0000000c0004',
+    ':R4','00000000-0000-4000-8000-0000000d0004', ':R5','00000000-0000-4000-8000-0000000d0005');
 BEGIN
   INSERT INTO public.locations(id, company_id, code, name, kind) VALUES
    ('00000000-0000-4000-8000-00000000a001','e5b35c19-afd3-4675-9654-070e8a8ffc7d','MTRSA','Site A','site'),
@@ -119,20 +122,37 @@ BEGIN
   -- Transiciones manuales y retirada
   (79,'admin A','A','authenticated','exec','ok',$$SELECT public.mtr_set_status(':EQ2','out_of_service','revisión')$$),
   (80,'admin A','A','authenticated','exec','ok',$$SELECT public.mtr_set_status(':EQ2','retired','baja')$$),
-  (81,'admin A','A','authenticated','exec','rej:55000',$$SELECT public.mtr_set_status(':EQ2','operational','reactivar')$$),
-  -- Perfil empleado: puede registrar borradores, no validar ni gestionar inventario
-  (82,'@employee','-','-','exec','ok',$$UPDATE public.company_members SET role='employee' WHERE user_id=':UA' AND company_id=':CA'$$),
-  (83,'empleado A','A','authenticated','exec','ok',$$INSERT INTO public.mnt_mtr_records(id,company_id,equipment_id,control_plan_id,kind,performed_on,result,laboratory,certificate_number) VALUES (':R3',':CA',':EQ1',':P1','calibration',current_date,'fit','Lab','C-2')$$),
-  (84,'empleado A','A','authenticated','exec','rej:42501',$$SELECT public.mtr_validate_record(':R3')$$),
-  (85,'empleado A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_mtr_equipment(company_id,code,name,equipment_type,site_id) VALUES (':CA','X9','x','x',':SA')$$),
-  (86,'empleado A','A','authenticated','exec','rej:42501',$$SELECT public.mtr_move_site(':EQ1',':SA',NULL,NULL)$$),
-  (87,'@auditor','-','-','exec','ok',$$UPDATE public.company_members SET role='auditor' WHERE user_id=':UA' AND company_id=':CA'$$),
-  (88,'auditor A','A','authenticated','count','rows:2',$$SELECT 1 FROM public.mnt_mtr_equipment$$),
-  (89,'auditor A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_mtr_records(company_id,equipment_id,control_plan_id,kind,performed_on) VALUES (':CA',':EQ1',':P1','calibration',current_date)$$),
+   (81,'admin A','A','authenticated','exec','rej:55000',$$SELECT public.mtr_set_status(':EQ2','operational','reactivar')$$),
+   -- Reactivación explícita: permitida si el último control validado fue Apto (con motivo y permiso)
+   (82,'admin A','A','authenticated','exec','ok',$$DO $d$ BEGIN
+     INSERT INTO public.mnt_mtr_equipment(id,company_id,code,name,equipment_type,site_id) VALUES (':EQ3',':CA','MTR-92','Eq92','Calibre',':SA');
+     INSERT INTO public.mnt_mtr_control_plans(id,company_id,equipment_id,control_kind,method,frequency_unit,frequency_value) VALUES (':P3',':CA',':EQ3','calibration','external','years',1);
+     INSERT INTO public.mnt_mtr_records(id,company_id,equipment_id,control_plan_id,kind,performed_on,result,laboratory,certificate_number) VALUES (':R4',':CA',':EQ3',':P3','calibration',current_date,'fit','Lab','C-92');
+     PERFORM public.mtr_validate_record(':R4');
+     PERFORM public.mtr_set_status(':EQ3','out_of_service','revisión');
+     PERFORM public.mtr_set_status(':EQ3','operational','fin de revisión');
+   END $d$;$$),
+   -- Reactivación rechazada: el último control validado fue No apto
+   (83,'admin A','A','authenticated','exec','rej:55000',$$DO $d$ BEGIN
+     INSERT INTO public.mnt_mtr_equipment(id,company_id,code,name,equipment_type,site_id) VALUES (':EQ4',':CA','MTR-93','Eq93','Calibre',':SA');
+     INSERT INTO public.mnt_mtr_control_plans(id,company_id,equipment_id,control_kind,method,frequency_unit,frequency_value) VALUES (':P4',':CA',':EQ4','calibration','external','years',1);
+     INSERT INTO public.mnt_mtr_records(id,company_id,equipment_id,control_plan_id,kind,performed_on,result,laboratory,certificate_number) VALUES (':R5',':CA',':EQ4',':P4','calibration',current_date,'unfit','Lab','C-93');
+     PERFORM public.mtr_validate_record(':R5');
+     PERFORM public.mtr_set_status(':EQ4','operational','reactivar');
+   END $d$;$$),
+   -- Perfil empleado: puede registrar borradores, no validar ni gestionar inventario
+  (84,'@employee','-','-','exec','ok',$$UPDATE public.company_members SET role='employee' WHERE user_id=':UA' AND company_id=':CA'$$),
+  (85,'empleado A','A','authenticated','exec','ok',$$INSERT INTO public.mnt_mtr_records(id,company_id,equipment_id,control_plan_id,kind,performed_on,result,laboratory,certificate_number) VALUES (':R3',':CA',':EQ1',':P1','calibration',current_date,'fit','Lab','C-2')$$),
+  (86,'empleado A','A','authenticated','exec','rej:42501',$$SELECT public.mtr_validate_record(':R3')$$),
+  (87,'empleado A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_mtr_equipment(company_id,code,name,equipment_type,site_id) VALUES (':CA','X9','x','x',':SA')$$),
+  (88,'empleado A','A','authenticated','exec','rej:42501',$$SELECT public.mtr_move_site(':EQ1',':SA',NULL,NULL)$$),
+  (89,'@auditor','-','-','exec','ok',$$UPDATE public.company_members SET role='auditor' WHERE user_id=':UA' AND company_id=':CA'$$),
+  (90,'auditor A','A','authenticated','count','rows:3',$$SELECT 1 FROM public.mnt_mtr_equipment$$),
+  (91,'auditor A','A','authenticated','exec','rej:42501',$$INSERT INTO public.mnt_mtr_records(company_id,equipment_id,control_plan_id,kind,performed_on) VALUES (':CA',':EQ1',':P1','calibration',current_date)$$),
   -- Impacto pendiente bloquea el patrón
-  (90,'propietario','-','-','exec','ok',$$INSERT INTO public.mnt_mtr_impact_reviews(company_id,equipment_id,record_id) VALUES (':CA',':EQ1',':R1')$$),
-  (91,'propietario','-','-','count','rows:0',$$SELECT 1 WHERE public.mtr_reference_eligible(':CA',':EQ1',current_date)$$)
-  ) t(n, actor, who, role, kind, expected, sql) ORDER BY n
+  (92,'propietario','-','-','exec','ok',$$INSERT INTO public.mnt_mtr_impact_reviews(company_id,equipment_id,record_id) VALUES (':CA',':EQ1',':R1')$$),
+   (93,'propietario','-','-','count','rows:0',$$SELECT 1 WHERE public.mtr_reference_eligible(':CA',':EQ1',current_date)$$),
+   ) t(n, actor, who, role, kind, expected, sql) ORDER BY n
   LOOP
     q := r.sql;
     -- tokens más largos primero para evitar reemplazos parciales (:SA2 antes de :SA)
