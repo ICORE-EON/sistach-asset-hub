@@ -12,6 +12,7 @@ import {
   Tag,
   Layers,
   MapPin,
+  Gauge,
   ClipboardList,
   CalendarClock,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const mainItems = [
   { title: "Activos", url: "/assets", icon: Boxes },
   { title: "Mantenimientos", url: "/maintenance", icon: Wrench },
   { title: "Incidencias", url: "/incidents", icon: AlertTriangle },
+  { title: "Equipos de medida", url: "/metrology/equipment", icon: Gauge },
 ] as const;
 
 const docsItems = [

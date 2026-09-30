@@ -4,7 +4,7 @@
  */
 import type { StandaloneClient } from "../client";
 import type {
-  MetrologyContract, MtrControlPlan, MtrEquipment, MtrEquipmentInput, MtrHistoryEntry, MtrImpactReview, MtrRecord, MtrRecordLine,
+  MetrologyContract, MtrControlPlan, MtrEquipment, MtrEquipmentInput, MtrHistoryEntry, MtrImpactReview, MtrRecord, MtrRecordLine, MtrSite,
 } from "../../../contracts/metrology";
 import type { MtrStoredStatus } from "../../../domain/metrology";
 
@@ -61,8 +61,19 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
   };
 
   return {
+    async listSites(orgId) {
+      return ok(await db.from("locations").select("id,name,code").eq("company_id", orgId).eq("kind", "site").is("deleted_at", null).order("name")) as MtrSite[];
+    },
     async listEquipment(orgId) {
-      return (ok(await db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).is("deleted_at", null).order("code")) as R[]).map(toEq);
+      const [eq, pl, im] = await Promise.all([
+        db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).is("deleted_at", null).order("code"),
+        db.from("mnt_mtr_control_plans").select("equipment_id,next_due_on").eq("company_id", orgId).eq("active", true).not("next_due_on", "is", null),
+        db.from("mnt_mtr_impact_reviews").select("equipment_id").eq("company_id", orgId).eq("status", "pending"),
+      ]);
+      const due = new Map<string, string>();
+      for (const p of ok(pl) as R[]) { const c = due.get(p.equipment_id); if (!c || p.next_due_on < c) due.set(p.equipment_id, p.next_due_on); }
+      const pend = new Set((ok(im) as R[]).map((r) => r.equipment_id));
+      return (ok(eq) as R[]).map((r) => ({ ...toEq(r), nextDueOn: due.get(r.id) ?? null, pendingImpact: pend.has(r.id) }));
     },
     async getEquipment(orgId, id) {
       const r = ok(await db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).eq("id", id).maybeSingle());
