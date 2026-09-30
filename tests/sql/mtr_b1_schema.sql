@@ -475,11 +475,8 @@ BEGIN
     PERFORM public.mtr_log_status(e.company_id, e.id, e.status, 'unfit', 'record_unfit', r.id, NULL);
     INSERT INTO public.mnt_mtr_impact_reviews(company_id, equipment_id, record_id) VALUES (e.company_id, e.id, r.id)
       ON CONFLICT (record_id) DO NOTHING;
-  ELSIF e.status = 'out_of_service' THEN
-    v_new_status := 'operational';
-    UPDATE public.mnt_mtr_equipment SET status = 'operational' WHERE id = e.id;
-    PERFORM public.mtr_log_status(e.company_id, e.id, e.status, 'operational', 'record_fit', r.id, NULL);
   END IF;
+  -- Un control Apto no cambia el estado: la reactivación es una decisión explícita (mtr_set_status).
   RETURN jsonb_build_object('result', v_result, 'next_due', v_next, 'equipment_status', v_new_status);
 END $$;
 
@@ -585,8 +582,14 @@ BEGIN
   END IF;
   IF nullif(btrim(p_reason), '') IS NULL THEN RAISE EXCEPTION 'Motivo obligatorio' USING ERRCODE = '23514'; END IF;
   IF NOT ((e.status, p_status) IN (('operational','out_of_service'), ('restricted','out_of_service'),
-          ('operational','retired'), ('restricted','retired'), ('out_of_service','retired'))) THEN
+          ('operational','retired'), ('restricted','retired'), ('out_of_service','retired'),
+          ('out_of_service','operational'), ('restricted','operational'), ('unfit','operational'))) THEN
     RAISE EXCEPTION 'Transición no permitida: % -> %', e.status, p_status USING ERRCODE = '55000';
+  END IF;
+  IF p_status = 'operational' AND (SELECT result FROM public.mnt_mtr_records
+       WHERE equipment_id = e.id AND status = 'validated'
+       ORDER BY validated_at DESC NULLS LAST, performed_on DESC LIMIT 1) IS DISTINCT FROM 'fit' THEN
+    RAISE EXCEPTION 'La reactivación exige un control Apto validado posterior' USING ERRCODE = '55000';
   END IF;
   UPDATE public.mnt_mtr_equipment SET status = p_status, allowed_uses = NULL WHERE id = e.id;
   PERFORM public.mtr_log_status(e.company_id, e.id, e.status, p_status, 'manual', NULL, p_reason);

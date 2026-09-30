@@ -55,6 +55,12 @@ export function statusAfterUnfitDecision(decision: MtrUnfitDecision): MtrStoredS
   }
 }
 
+/** Un control Apto nunca cambia el estado por sí solo. Igual que mtr_set_status: volver a
+ *  operational es una decisión explícita y exige que el último control validado sea Apto. */
+export function canReactivate(stored: MtrStoredStatus, lastValidatedResult: "fit" | "unfit" | null): boolean {
+  return (stored === "out_of_service" || stored === "restricted" || stored === "unfit") && lastValidatedResult === "fit";
+}
+
 export function validateUnfitDecision(decision: MtrUnfitDecision, allowedUses?: string | null): string[] {
   return decision === "restrict" && !allowedUses?.trim() ? ["Indica los usos permitidos"] : [];
 }
