@@ -59,8 +59,12 @@ export type MtrHistoryEntry =
   | { kind: "site_move"; at: string; fromSiteId: string | null; toSiteId: string; note: string | null }
   | { kind: "decision"; at: string; decision: string; notes: string | null; recordId: string };
 
+export type MtrEquipmentSummary = MtrEquipment & { nextDueOn: string | null; pendingImpact: boolean };
+export type MtrSite = { id: string; name: string; code: string };
+
 export interface MetrologyContract {
-  listEquipment(orgId: string): Promise<MtrEquipment[]>;
+  listSites(orgId: string): Promise<MtrSite[]>;
+  listEquipment(orgId: string): Promise<MtrEquipmentSummary[]>;
   getEquipment(orgId: string, id: string): Promise<MtrEquipment>;
   createEquipment(orgId: string, v: MtrEquipmentInput): Promise<string>;
   updateEquipment(orgId: string, id: string, v: Partial<MtrEquipmentInput>): Promise<void>;

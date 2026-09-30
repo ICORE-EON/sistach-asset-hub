@@ -48,6 +48,8 @@ import { Route as AuthenticatedAppChecklistTemplatesIdRouteImport } from './rout
 import { Route as AuthenticatedAppCertificatesIdRouteImport } from './routes/_authenticated/_app.certificates.$id'
 import { Route as AuthenticatedAppCertificateTemplatesIdRouteImport } from './routes/_authenticated/_app.certificate-templates.$id'
 import { Route as AuthenticatedAppAssetsIdRouteImport } from './routes/_authenticated/_app.assets.$id'
+import { Route as AuthenticatedAppMetrologyEquipmentIndexRouteImport } from './routes/_authenticated/_app.metrology.equipment.index'
+import { Route as AuthenticatedAppMetrologyEquipmentIdRouteImport } from './routes/_authenticated/_app.metrology.equipment.$id'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -271,6 +273,18 @@ const AuthenticatedAppAssetsIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAppAssetsRoute,
   } as any)
+const AuthenticatedAppMetrologyEquipmentIndexRoute =
+  AuthenticatedAppMetrologyEquipmentIndexRouteImport.update({
+    id: '/metrology/equipment/',
+    path: '/metrology/equipment/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppMetrologyEquipmentIdRoute =
+  AuthenticatedAppMetrologyEquipmentIdRouteImport.update({
+    id: '/metrology/equipment/$id',
+    path: '/metrology/equipment/$id',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -310,6 +324,8 @@ export interface FileRoutesByFullPath {
   '/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
+  '/metrology/equipment/': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -342,6 +358,8 @@ export interface FileRoutesByTo {
   '/incidents': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
+  '/metrology/equipment': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -384,6 +402,8 @@ export interface FileRoutesById {
   '/_authenticated/_app/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/_authenticated/_app/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/_authenticated/_app/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/_authenticated/_app/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
+  '/_authenticated/_app/metrology/equipment/': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -425,6 +445,8 @@ export interface FileRouteTypes {
     | '/incidents/'
     | '/maintenance-plans/'
     | '/maintenance/'
+    | '/metrology/equipment/$id'
+    | '/metrology/equipment/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -457,6 +479,8 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/maintenance-plans'
     | '/maintenance'
+    | '/metrology/equipment/$id'
+    | '/metrology/equipment'
   id:
     | '__root__'
     | '/'
@@ -498,6 +522,8 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/incidents/'
     | '/_authenticated/_app/maintenance-plans/'
     | '/_authenticated/_app/maintenance/'
+    | '/_authenticated/_app/metrology/equipment/$id'
+    | '/_authenticated/_app/metrology/equipment/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -785,6 +811,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAssetsIdRouteImport
       parentRoute: typeof AuthenticatedAppAssetsRoute
     }
+    '/_authenticated/_app/metrology/equipment/': {
+      id: '/_authenticated/_app/metrology/equipment/'
+      path: '/metrology/equipment'
+      fullPath: '/metrology/equipment/'
+      preLoaderRoute: typeof AuthenticatedAppMetrologyEquipmentIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/metrology/equipment/$id': {
+      id: '/_authenticated/_app/metrology/equipment/$id'
+      path: '/metrology/equipment/$id'
+      fullPath: '/metrology/equipment/$id'
+      preLoaderRoute: typeof AuthenticatedAppMetrologyEquipmentIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
   }
 }
 
@@ -924,6 +964,8 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppMaintenancePlansRoute: typeof AuthenticatedAppMaintenancePlansRouteWithChildren
   AuthenticatedAppNotificationsRoute: typeof AuthenticatedAppNotificationsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppMetrologyEquipmentIdRoute: typeof AuthenticatedAppMetrologyEquipmentIdRoute
+  AuthenticatedAppMetrologyEquipmentIndexRoute: typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
 
 const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
@@ -947,6 +989,10 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
     AuthenticatedAppMaintenancePlansRouteWithChildren,
   AuthenticatedAppNotificationsRoute: AuthenticatedAppNotificationsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppMetrologyEquipmentIdRoute:
+    AuthenticatedAppMetrologyEquipmentIdRoute,
+  AuthenticatedAppMetrologyEquipmentIndexRoute:
+    AuthenticatedAppMetrologyEquipmentIndexRoute,
 }
 
 const AuthenticatedAppRouteWithChildren =
