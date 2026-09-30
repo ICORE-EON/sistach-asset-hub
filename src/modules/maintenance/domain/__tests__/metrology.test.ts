@@ -64,3 +64,14 @@ describe("metrología: líneas", () => {
     expect(aggregateLines([{ result: "fit" }])).toBe("fit");
   });
 });
+
+describe("canReactivate", () => {
+  it("exige decisión explícita y último control Apto", () => {
+    expect(canReactivate("unfit", "unfit")).toBe(false);
+    expect(canReactivate("unfit", "fit")).toBe(true);
+    expect(canReactivate("out_of_service", null)).toBe(false);
+    expect(canReactivate("restricted", "fit")).toBe(true);
+    expect(canReactivate("retired", "fit")).toBe(false);
+    expect(canReactivate("operational", "fit")).toBe(false);
+  });
+});
