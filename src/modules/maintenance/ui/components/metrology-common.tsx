@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { displayStatus, daysUntil, type MtrStoredStatus } from "../../domain/metrology";
 
 export const today = () => new Date().toISOString().slice(0, 10);
@@ -34,3 +35,16 @@ export function ImpactBanner() {
     </div>
   );
 }
+
+export const NONE = "__none__";
+export function PersonSelect({ people, value, onChange }: { people: { id: string; name: string }[]; value: string | null; onChange: (v: string | null) => void }) {
+  return (
+    <Select value={value ?? NONE} onValueChange={(v) => onChange(v === NONE ? null : v)}>
+      <SelectTrigger><SelectValue /></SelectTrigger>
+      <SelectContent><SelectItem value={NONE}>Sin asignar</SelectItem>{people.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+    </Select>
+  );
+}
+export const DECISION_LABEL: Record<string, string> = {
+  restrict: "Restringir uso", repair: "Reparar / ajustar", retire: "Retirar", repeat: "Repetir control",
+};

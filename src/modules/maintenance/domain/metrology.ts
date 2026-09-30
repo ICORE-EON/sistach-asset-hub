@@ -4,7 +4,7 @@
 export type MtrStoredStatus = "operational" | "restricted" | "unfit" | "out_of_service" | "retired";
 export type MtrDisplayStatus = MtrStoredStatus | "due_soon" | "overdue";
 export type MtrFrequencyUnit = "days" | "months" | "years" | "before_use";
-export type MtrUnfitDecision = "restrict" | "repair" | "adjust" | "retire" | "out_of_service";
+export type MtrUnfitDecision = "restrict" | "repair" | "retire" | "repeat"; // = CHECK de mnt_mtr_unfit_decisions
 export type MtrImpactConclusion = "no_impact" | "impact";
 
 export const DUE_SOON_DAYS = 30;
@@ -51,7 +51,7 @@ export function statusAfterUnfitDecision(decision: MtrUnfitDecision): MtrStoredS
   switch (decision) {
     case "restrict": return "restricted";
     case "retire": return "retired";
-    case "repair": case "adjust": case "out_of_service": return "out_of_service";
+    case "repair": case "repeat": return "out_of_service";
   }
 }
 

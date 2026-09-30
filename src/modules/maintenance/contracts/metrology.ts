@@ -61,9 +61,12 @@ export type MtrHistoryEntry =
 
 export type MtrEquipmentSummary = MtrEquipment & { nextDueOn: string | null; pendingImpact: boolean };
 export type MtrSite = { id: string; name: string; code: string };
+/** Persona de la organización (person_ref). En ICORE corresponde a la persona canónica de la org. */
+export type MtrPerson = { id: string; name: string };
 
 export interface MetrologyContract {
   listSites(orgId: string): Promise<MtrSite[]>;
+  listPeople(orgId: string): Promise<MtrPerson[]>;
   listEquipment(orgId: string): Promise<MtrEquipmentSummary[]>;
   getEquipment(orgId: string, id: string): Promise<MtrEquipment>;
   createEquipment(orgId: string, v: MtrEquipmentInput): Promise<string>;

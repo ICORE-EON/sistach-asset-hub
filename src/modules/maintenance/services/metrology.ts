@@ -22,6 +22,7 @@ const fail = (errs: string[]) => { if (errs.length) throw new Error(errs.join(".
 export const metrologyKeys = {
   all: (orgId: string | null) => ["mtr", orgId] as const,
   sites: (orgId: string | null) => ["mtr", orgId, "sites"] as const,
+  people: (orgId: string | null) => ["mtr", orgId, "people"] as const,
   equipment: (orgId: string | null) => ["mtr", orgId, "equipment"] as const,
   detail: (orgId: string | null, id: string) => ["mtr", orgId, "equipment", id] as const,
   plans: (orgId: string | null, id: string) => ["mtr", orgId, "plans", id] as const,
@@ -33,6 +34,7 @@ export const metrologyKeys = {
 
 export const metrologyService = {
   listSites: (orgId: string | null) => repo().listSites(need(orgId)),
+  listPeople: (orgId: string | null) => repo().listPeople(need(orgId)),
   listEquipment: (orgId: string | null) => repo().listEquipment(need(orgId)),
   getEquipment: (orgId: string | null, id: string) => repo().getEquipment(need(orgId), id),
   createEquipment: (orgId: string | null, v: MtrEquipmentInput) => {
