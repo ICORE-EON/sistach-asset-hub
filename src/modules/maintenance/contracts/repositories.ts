@@ -190,4 +190,6 @@ export interface MaintenanceRepositories {
   sessions: SessionsRepository;
   incidents: IncidentsRepository;
   certificates: CertificatesRepository;
+  /** Metrology submodule (optional until the ICORE package includes it). Contract: ./metrology.ts */
+  metrology?: import("./metrology").MetrologyContract;
 }
