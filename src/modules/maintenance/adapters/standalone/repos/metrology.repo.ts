@@ -113,7 +113,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       return ok(await db.from("mnt_mtr_control_plans").insert({ ...row, company_id: orgId, equipment_id: equipmentId }).select("id").single()).id;
     },
     async listRecords(orgId, equipmentId) {
-      return (ok(await db.from("mnt_mtr_records").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("performed_on", { ascending: false })) as R[]).map(toRec);
+      return (ok(await db.from("mnt_mtr_records").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("performed_on", { ascending: false }).order("created_at", { ascending: false })) as R[]).map(toRec);
     },
     async getRecordLines(orgId, recordId) {
       return (ok(await db.from("mnt_mtr_record_lines").select("*").eq("company_id", orgId).eq("record_id", recordId).order("position")) as R[]).map(toLine);

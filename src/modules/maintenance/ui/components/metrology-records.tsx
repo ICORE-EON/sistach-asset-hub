@@ -104,7 +104,7 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
     onSuccess: () => { toast.success("Equipo reactivado"); setReact(null); refresh(); }, onError: err,
   });
 
-  const lastValidated = records.find((r) => r.status === "validated");
+  const lastValidated = records.filter((r) => r.status === "validated").sort((a, b) => (b.validatedAt ?? "").localeCompare(a.validatedAt ?? ""))[0];
   const pendingDecision = equipment.status === "unfit" && lastValidated?.result === "unfit" ? lastValidated : null;
   const activePlans = plans.filter((p) => p.active);
   const refCandidates = allEq.filter((e) => e.id !== id && e.status === "operational" && !e.pendingImpact);
