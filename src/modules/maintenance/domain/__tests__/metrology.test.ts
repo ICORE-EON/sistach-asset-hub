@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  aggregateLines, calcNextDue, displayStatus, isReferenceEligible, lineResult,
+  aggregateLines, calcNextDue, canReactivate, displayStatus, isReferenceEligible, lineResult,
   statusAfterUnfitDecision, validateImpactClose, validateUnfitDecision,
 } from "../metrology";
 
