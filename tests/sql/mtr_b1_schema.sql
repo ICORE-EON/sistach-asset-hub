@@ -475,11 +475,8 @@ BEGIN
     PERFORM public.mtr_log_status(e.company_id, e.id, e.status, 'unfit', 'record_unfit', r.id, NULL);
     INSERT INTO public.mnt_mtr_impact_reviews(company_id, equipment_id, record_id) VALUES (e.company_id, e.id, r.id)
       ON CONFLICT (record_id) DO NOTHING;
-  ELSIF e.status = 'out_of_service' THEN
-    v_new_status := 'operational';
-    UPDATE public.mnt_mtr_equipment SET status = 'operational' WHERE id = e.id;
-    PERFORM public.mtr_log_status(e.company_id, e.id, e.status, 'operational', 'record_fit', r.id, NULL);
   END IF;
+  -- Un control Apto no cambia el estado: la reactivación es una decisión explícita (mtr_set_status).
   RETURN jsonb_build_object('result', v_result, 'next_due', v_next, 'equipment_status', v_new_status);
 END $$;
 
