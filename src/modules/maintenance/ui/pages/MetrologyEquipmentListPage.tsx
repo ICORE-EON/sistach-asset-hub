@@ -13,9 +13,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import { displayStatus } from "../../domain/metrology";
-import { STATUS_LABEL, StatusBadge, TYPE_SUGGESTIONS, daysLeft, today } from "../components/metrology-common";
+import { PersonSelect, STATUS_LABEL, StatusBadge, TYPE_SUGGESTIONS, daysLeft, today } from "../components/metrology-common";
 
-const EMPTY = { name: "", equipmentType: "", siteId: "", locationDetail: "", magnitude: "", brand: "", model: "", serialNumber: "" };
+const EMPTY = { name: "", equipmentType: "", siteId: "", locationDetail: "", magnitude: "", brand: "", model: "", serialNumber: "", responsibleRef: null as string | null };
 
 export function MetrologyEquipmentListPage() {
   const { orgId, role } = useMaintenanceRequest();
@@ -29,6 +29,8 @@ export function MetrologyEquipmentListPage() {
 
   const { data: sites = [] } = useQuery({ queryKey: metrologyKeys.sites(orgId), enabled: !!orgId, queryFn: () => metrologyService.listSites(orgId) });
   const { data: items = [], isLoading } = useQuery({ queryKey: metrologyKeys.equipment(orgId), enabled: !!orgId, queryFn: () => metrologyService.listEquipment(orgId) });
+  const { data: people = [] } = useQuery({ queryKey: metrologyKeys.people(orgId), enabled: !!orgId, queryFn: () => metrologyService.listPeople(orgId) });
+  const personName = useMemo(() => new Map(people.map((p) => [p.id, p.name])), [people]);
   const siteName = useMemo(() => new Map(sites.map((s) => [s.id, s.name])), [sites]);
 
   const rows = items.filter((e) =>
@@ -40,7 +42,7 @@ export function MetrologyEquipmentListPage() {
     mutationFn: () => metrologyService.createEquipment(orgId, {
       name: f.name, equipmentType: f.equipmentType, siteId: f.siteId, locationDetail: f.locationDetail || null,
       magnitude: f.magnitude || null, brand: f.brand || null, model: f.model || null, serialNumber: f.serialNumber || null,
-      intendedUse: null, responsibleRef: null, rangeMin: null, rangeMax: null, unit: null, resolution: null,
+      intendedUse: null, responsibleRef: f.responsibleRef, rangeMin: null, rangeMax: null, unit: null, resolution: null,
       declaredAccuracy: null, restrictions: null, allowedUses: null,
     }),
     onSuccess: () => { toast.success("Equipo creado"); setOpen(false); setF(EMPTY); qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) }); },
@@ -71,6 +73,7 @@ export function MetrologyEquipmentListPage() {
                 <div><Label>Marca</Label><Input value={f.brand} onChange={set("brand")} /></div>
                 <div><Label>Modelo</Label><Input value={f.model} onChange={set("model")} /></div>
                 <div><Label>Nº de serie</Label><Input value={f.serialNumber} onChange={set("serialNumber")} /></div>
+                <div><Label>Responsable</Label><PersonSelect people={people} value={f.responsibleRef} onChange={(v) => setF({ ...f, responsibleRef: v })} /></div>
               </div>
               <DialogFooter><Button onClick={() => create.mutate()} disabled={create.isPending}>Crear</Button></DialogFooter>
             </DialogContent>
@@ -94,7 +97,7 @@ export function MetrologyEquipmentListPage() {
       <Card><CardContent className="p-0">
         <Table>
           <TableHeader><TableRow>
-            <TableHead>Código</TableHead><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead>Site</TableHead>
+            <TableHead>Código</TableHead><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead>Site</TableHead><TableHead>Responsable</TableHead>
             <TableHead>Próximo control</TableHead><TableHead>Días</TableHead><TableHead>Estado</TableHead>
           </TableRow></TableHeader>
           <TableBody>
@@ -104,12 +107,13 @@ export function MetrologyEquipmentListPage() {
                 <TableCell>{e.name}{e.pendingImpact && <AlertTriangle className="ml-1 inline h-4 w-4 text-destructive" aria-label="Impacto pendiente" />}</TableCell>
                 <TableCell>{e.equipmentType}</TableCell>
                 <TableCell>{siteName.get(e.siteId) ?? "—"}{e.locationDetail ? ` · ${e.locationDetail}` : ""}</TableCell>
+                <TableCell>{(e.responsibleRef && personName.get(e.responsibleRef)) ?? "—"}</TableCell>
                 <TableCell>{e.nextDueOn ?? "—"}</TableCell>
                 <TableCell>{daysLeft(e.nextDueOn) ?? "—"}</TableCell>
                 <TableCell><StatusBadge stored={e.status} nextDue={e.nextDueOn} /></TableCell>
               </TableRow>
             ))}
-            {!rows.length && <TableRow><TableCell colSpan={7} className="py-8 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Sin equipos"}</TableCell></TableRow>}
+            {!rows.length && <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Sin equipos"}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent></Card>

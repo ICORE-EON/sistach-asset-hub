@@ -64,6 +64,12 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
     async listSites(orgId) {
       return ok(await db.from("locations").select("id,name,code").eq("company_id", orgId).eq("kind", "site").is("deleted_at", null).order("name")) as MtrSite[];
     },
+    async listPeople(orgId) {
+      const ids = (ok(await db.from("company_members").select("user_id").eq("company_id", orgId).eq("active", true)) as R[]).map((r) => r.user_id);
+      if (!ids.length) return [];
+      const ps = ok(await db.from("profiles").select("id,full_name,email").in("id", ids)) as R[];
+      return ps.map((p) => ({ id: p.id, name: p.full_name?.trim() || p.email })).sort((a, b) => a.name.localeCompare(b.name));
+    },
     async listEquipment(orgId) {
       const [eq, pl, im] = await Promise.all([
         db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).is("deleted_at", null).order("code"),
@@ -107,7 +113,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       return ok(await db.from("mnt_mtr_control_plans").insert({ ...row, company_id: orgId, equipment_id: equipmentId }).select("id").single()).id;
     },
     async listRecords(orgId, equipmentId) {
-      return (ok(await db.from("mnt_mtr_records").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("performed_on", { ascending: false })) as R[]).map(toRec);
+      return (ok(await db.from("mnt_mtr_records").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("performed_on", { ascending: false }).order("created_at", { ascending: false })) as R[]).map(toRec);
     },
     async getRecordLines(orgId, recordId) {
       return (ok(await db.from("mnt_mtr_record_lines").select("*").eq("company_id", orgId).eq("record_id", recordId).order("position")) as R[]).map(toLine);

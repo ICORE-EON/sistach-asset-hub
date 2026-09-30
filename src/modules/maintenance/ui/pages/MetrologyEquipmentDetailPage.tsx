@@ -14,8 +14,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { metrologyKeys, metrologyService } from "../../services/metrology";
-import type { MtrControlPlan, MtrControlPlanInput } from "../../contracts/metrology";
-import { ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
+import type { MtrControlPlan, MtrControlPlanInput, MtrEquipmentInput } from "../../contracts/metrology";
+import { MetrologyRecordsTab } from "../components/metrology-records";
+import { PersonSelect, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
 
 const NEW_PLAN: MtrControlPlanInput = {
   kind: "calibration", method: "external", procedure: null, frequencyUnit: "years", frequencyValue: 1, acceptanceCriteria: null,
@@ -26,6 +27,8 @@ export function MetrologyEquipmentDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/metrology/equipment/$id" });
   const { orgId, role } = useMaintenanceRequest();
   const canManage = role === "administrator" || role === "system_manager";
+  const canClose = canManage || role === "manager";
+  const canRun = !!role && role !== "auditor";
   const qc = useQueryClient();
   const refresh = () => qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) });
 
@@ -35,6 +38,13 @@ export function MetrologyEquipmentDetailPage() {
   const { data: impacts = [] } = useQuery({ queryKey: metrologyKeys.impacts(orgId, id), enabled: !!orgId, queryFn: () => metrologyService.listImpactReviews(orgId, id) });
   const { data: history = [] } = useQuery({ queryKey: metrologyKeys.history(orgId, id), enabled: !!orgId, queryFn: () => metrologyService.listHistory(orgId, id) });
 
+  const { data: people = [] } = useQuery({ queryKey: metrologyKeys.people(orgId), enabled: !!orgId, queryFn: () => metrologyService.listPeople(orgId) });
+  const [edit, setEdit] = useState<Partial<MtrEquipmentInput> | null>(null);
+  const saveEdit = useMutation({
+    mutationFn: () => metrologyService.updateEquipment(orgId, id, edit!),
+    onSuccess: () => { toast.success("Equipo actualizado"); setEdit(null); refresh(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [plan, setPlan] = useState<{ id: string | null; v: MtrControlPlanInput } | null>(null);
   const savePlan = useMutation({
     mutationFn: () => metrologyService.savePlan(orgId, id, plan!.id, plan!.v),
@@ -54,6 +64,7 @@ export function MetrologyEquipmentDetailPage() {
   const siteName = (sid: string | null) => sites.find((s) => s.id === sid)?.name ?? "—";
   const nextDue = plans.filter((p) => p.active && p.nextDueOn).map((p) => p.nextDueOn!).sort()[0] ?? null;
   const pending = impacts.some((i) => i.status === "pending");
+  const personName = (pid: string | null) => people.find((p) => p.id === pid)?.name ?? null;
   const pv = plan?.v;
   const setPv = (patch: Partial<MtrControlPlanInput>) => setPlan((p) => p && { ...p, v: { ...p.v, ...patch } });
   const field = (label: string, value: unknown) => (
@@ -73,6 +84,7 @@ export function MetrologyEquipmentDetailPage() {
         <TabsList>
           <TabsTrigger value="summary">Resumen</TabsTrigger>
           <TabsTrigger value="plans">Plan de control</TabsTrigger>
+          <TabsTrigger value="records">Calibraciones / verificaciones</TabsTrigger>
           <TabsTrigger value="docs">Documentos</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
         </TabsList>
@@ -85,8 +97,8 @@ export function MetrologyEquipmentDetailPage() {
             {field("Rango", e.rangeMin != null || e.rangeMax != null ? `${e.rangeMin ?? ""} – ${e.rangeMax ?? ""} ${e.unit ?? ""}` : null)}
             {field("Resolución", e.resolution)}{field("Exactitud declarada", e.declaredAccuracy)}
             {e.status === "restricted" && field("Usos permitidos", e.allowedUses)}
-            {field("Restricciones", e.restrictions)}{field("Próximo control", nextDue)}
-            {canManage && <div className="sm:col-span-3"><Button variant="outline" onClick={() => setMove({ siteId: e.siteId, detail: e.locationDetail ?? "" })}>Trasladar de site</Button></div>}
+            {field("Restricciones", e.restrictions)}{field("Próximo control", nextDue)}{field("Responsable", personName(e.responsibleRef))}
+            {canManage && <div className="flex gap-2 sm:col-span-3"><Button variant="outline" onClick={() => setEdit({ name: e.name, equipmentType: e.equipmentType, magnitude: e.magnitude, locationDetail: e.locationDetail, brand: e.brand, model: e.model, serialNumber: e.serialNumber, responsibleRef: e.responsibleRef })}>Editar</Button><Button variant="outline" onClick={() => setMove({ siteId: e.siteId, detail: e.locationDetail ?? "" })}>Trasladar de site</Button></div>}
           </CardContent></Card>
         </TabsContent>
 
@@ -107,9 +119,13 @@ export function MetrologyEquipmentDetailPage() {
           {!plans.length && <p className="text-sm text-muted-foreground">Sin controles planificados.</p>}
         </TabsContent>
 
+        <TabsContent value="records">
+          <MetrologyRecordsTab orgId={orgId} equipment={e} plans={plans} people={people} impacts={impacts} canRun={canRun} canClose={canClose} canManage={canManage} />
+        </TabsContent>
+
         <TabsContent value="docs">
           <Card><CardContent className="pt-6 text-sm text-muted-foreground">
-            Los documentos de equipos de medida aún no están conectados al sistema documental (pendiente de decisión).
+            Los documentos de equipos de medida se vincularán al integrar con el control documental común de ICORE.
           </CardContent></Card>
         </TabsContent>
 
@@ -147,6 +163,19 @@ export function MetrologyEquipmentDetailPage() {
             <label className="flex items-center gap-2 text-sm"><Switch checked={pv.active} onCheckedChange={(c) => setPv({ active: c })} />Activo</label>
           </div>}
           <DialogFooter><Button onClick={() => savePlan.mutate()} disabled={savePlan.isPending}>Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar equipo</DialogTitle></DialogHeader>
+          {edit && <div className="grid gap-3 sm:grid-cols-2">
+            {([["name", "Nombre"], ["equipmentType", "Tipo"], ["magnitude", "Magnitud"], ["locationDetail", "Ubicación dentro del site"], ["brand", "Marca"], ["model", "Modelo"], ["serialNumber", "Nº de serie"]] as const).map(([k, l]) => (
+              <div key={k}><Label>{l}</Label><Input value={(edit[k] as string | null) ?? ""} onChange={(ev) => setEdit({ ...edit, [k]: ev.target.value || null })} /></div>
+            ))}
+            <div><Label>Responsable</Label><PersonSelect people={people} value={edit.responsibleRef ?? null} onChange={(v) => setEdit({ ...edit, responsibleRef: v })} /></div>
+          </div>}
+          <DialogFooter><Button onClick={() => saveEdit.mutate()} disabled={saveEdit.isPending}>Guardar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
