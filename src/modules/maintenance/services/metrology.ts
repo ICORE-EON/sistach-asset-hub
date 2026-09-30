@@ -60,7 +60,7 @@ export const metrologyService = {
   },
   listImpactReviews: (orgId: string | null, equipmentId: string | null) => repo().listImpactReviews(need(orgId), equipmentId),
   closeImpact: (orgId: string | null, reviewId: string, v: MtrImpactCloseInput) => {
-    fail(validateImpactClose({ conclusion: v.conclusion, justification: v.justification, actions: v.actions, externalRefId: v.externalRef?.id ?? null } as never));
+    fail(validateImpactClose({ conclusion: v.conclusion, justification: v.justification, actionsTakenOrPlanned: v.actions, externalRef: v.externalRef?.id ?? null, reviewedOn: v.reviewedOn }));
     return repo().closeImpact(need(orgId), reviewId, v);
   },
   moveSite: (orgId: string | null, equipmentId: string, siteId: string, locationDetail: string | null, note: string | null) => {
