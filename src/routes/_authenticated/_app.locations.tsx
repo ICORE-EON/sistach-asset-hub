@@ -150,7 +150,9 @@ function LocationsPage() {
                 <TableRow key={l.id}>
                   <TableCell className="font-mono text-xs">{l.code}</TableCell>
                   <TableCell className="font-medium">{l.name}</TableCell>
-                  <TableCell className="text-sm capitalize">{l.kind}</TableCell>
+                  <TableCell className="text-sm">
+                    {KINDS.find((k) => k.value === l.kind)?.label ?? l.kind}
+                  </TableCell>
                   <TableCell className="text-sm">{l.parent?.name ?? "—"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{l.address ?? "—"}</TableCell>
                   <TableCell>
