@@ -39,6 +39,7 @@ export const Route = createFileRoute("/_authenticated/_app/locations")({
 });
 
 const KINDS = [
+  { value: "site", label: "Sede / Centro" },
   { value: "building", label: "Edificio" },
   { value: "floor", label: "Planta" },
   { value: "area", label: "Área" },
