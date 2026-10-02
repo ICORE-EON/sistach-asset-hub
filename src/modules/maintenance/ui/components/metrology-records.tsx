@@ -156,7 +156,7 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
             <span className="w-24">{r.performedOn}</span>
             <span>{KIND_LABEL[r.kind]} v{r.version}</span>
             <Badge variant={r.status === "validated" ? "default" : "outline"}>{REC_STATUS[r.status]}</Badge>
-            {r.result && <Badge variant={r.result === "fit" ? "secondary" : "destructive"}>{RES[r.result]}</Badge>}
+            {r.result && <Badge variant={r.result === "fit" ? "secondary" : r.result === "restricted" ? "outline" : "destructive"}>{RES[r.result]}</Badge>}{r.restrictions && <span className="text-muted-foreground">Restricciones: {r.restrictions}</span>}
             <span className="text-muted-foreground">Realizado por: {personName(r.performerRef)}</span>
             {r.nextDueOverride ? <span className="text-muted-foreground">Próximo: {r.nextDueOverride} (ajustado)</span> : r.nextDueCalculated && <span className="text-muted-foreground">Próximo: {r.nextDueCalculated}</span>}
             <span className="ml-auto flex gap-2">
