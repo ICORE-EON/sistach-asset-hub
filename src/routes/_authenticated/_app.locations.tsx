@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Plus, Trash2 } from "lucide-react";
+import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/contexts/CompanyContext";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ function LocationsPage() {
   const { activeCompanyId, activeMembership } = useCompany();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
   const role = activeMembership?.role;
   const canManage = role === "administrator" || role === "system_manager";
 
@@ -129,7 +130,7 @@ function LocationsPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Padre</TableHead>
               <TableHead>Dirección</TableHead>
-              <TableHead className="w-[60px]"></TableHead>
+              <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -157,6 +158,10 @@ function LocationsPage() {
                   <TableCell className="text-sm text-muted-foreground">{l.address ?? "—"}</TableCell>
                   <TableCell>
                     {canManage && (
+                      <div className="flex">
+                      <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditing(l)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -166,6 +171,7 @@ function LocationsPage() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
@@ -174,6 +180,20 @@ function LocationsPage() {
           </TableBody>
         </Table>
       </div>
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        {editing && (
+          <CreateLocationDialog
+            key={editing.id}
+            initial={editing}
+            locations={locations.filter((x) => x.id !== editing.id)}
+            onCreated={() => {
+              setEditing(null);
+              qc.invalidateQueries({ queryKey: ["locations-admin"] });
+              qc.invalidateQueries({ queryKey: ["locations"] });
+            }}
+          />
+        )}
+      </Dialog>
     </div>
   );
 }
@@ -181,35 +201,39 @@ function LocationsPage() {
 function CreateLocationDialog({
   locations,
   onCreated,
+  initial,
 }: {
+  initial?: { id: string; code: string; name: string; kind: string; parent_location_id: string | null; address: string | null; notes: string | null };
   locations: Array<{ id: string; name: string; code: string }>;
   onCreated: () => void;
 }) {
   const { activeCompanyId } = useCompany();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState("area");
-  const [parent, setParent] = useState<string>("");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
+  const [code, setCode] = useState(initial?.code ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [kind, setKind] = useState(initial?.kind ?? "area");
+  const [parent, setParent] = useState<string>(initial?.parent_location_id ?? "");
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
 
   const create = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error("Sin empresa activa");
       if (!code || !name) throw new Error("Código y nombre son obligatorios");
-      const { error } = await supabase.from("locations").insert({
-        company_id: activeCompanyId,
+      const payload = {
         code: code.toUpperCase(),
         name,
         kind,
         parent_location_id: parent || null,
         address: address || null,
         notes: notes || null,
-      });
+      };
+      const { error } = initial
+        ? await supabase.from("locations").update(payload).eq("id", initial.id).eq("company_id", activeCompanyId)
+        : await supabase.from("locations").insert({ ...payload, company_id: activeCompanyId });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Ubicación creada");
+      toast.success(initial ? "Ubicación actualizada" : "Ubicación creada");
       onCreated();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -218,7 +242,7 @@ function CreateLocationDialog({
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Nueva ubicación</DialogTitle>
+        <DialogTitle>{initial ? "Editar ubicación" : "Nueva ubicación"}</DialogTitle>
       </DialogHeader>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -272,7 +296,7 @@ function CreateLocationDialog({
       </div>
       <DialogFooter>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
-          {create.isPending ? "Creando…" : "Crear"}
+          {create.isPending ? "Guardando…" : initial ? "Guardar" : "Crear"}
         </Button>
       </DialogFooter>
     </DialogContent>
