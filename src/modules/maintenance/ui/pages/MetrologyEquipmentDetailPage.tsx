@@ -1,7 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { metrologyKeys, metrologyService } from "../../services/metrology";
-import type { MtrControlPlan, MtrControlPlanInput, MtrEquipmentInput } from "../../contracts/metrology";
+import type { MtrControlPlan, MtrControlPlanInput, MtrCriterion, MtrEquipmentInput } from "../../contracts/metrology";
 import { MetrologyRecordsTab } from "../components/metrology-records";
 import { PersonSelect, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
 
 const NEW_PLAN: MtrControlPlanInput = {
   kind: "calibration", method: "external", procedure: null, frequencyUnit: "years", frequencyValue: 1, acceptanceCriteria: null,
-  responsibleRef: null, nextDueOn: null, requiresDocument: false, qualifiesAsReference: false, active: true,
+  responsibleRef: null, nextDueOn: null, requiresDocument: false, qualifiesAsReference: false, active: true, criteria: [],
 };
+const MODE_TXT: Record<string, string> = { absolute: "Error en valor absoluto", percentage: "Error en %", manual: "Otros (manual)" };
+const MAGNITUDES = ["Tensión", "Intensidad", "Resistencia", "Temperatura", "Presión", "Longitud", "Masa", "Tiempo", "Frecuencia", "Humedad"];
+const newCrit = (): MtrCriterion => ({ key: crypto.randomUUID(), magnitude: "", unit: "", mode: "absolute", tolerance: null, description: null });
+const critText = (c: MtrCriterion) => `${c.magnitude} (${c.unit}): ${c.mode === "manual" ? `manual${c.description ? ` — ${c.description}` : ""}` : `±${c.tolerance ?? "?"}${c.mode === "percentage" ? " %" : ` ${c.unit}`}`}`;
 
 export function MetrologyEquipmentDetailPage() {
   const { id } = useParams({ from: "/_authenticated/_app/metrology/equipment/$id" });
@@ -113,7 +117,7 @@ export function MetrologyEquipmentDetailPage() {
             </CardHeader><CardContent className="grid gap-2 text-sm sm:grid-cols-3">
               {field("Frecuencia", p.frequencyUnit === "before_use" ? UNIT_LABEL.before_use : `${p.frequencyValue} ${UNIT_LABEL[p.frequencyUnit]}`)}
               {field("Próximo", p.nextDueOn)}{field("Documento obligatorio", p.requiresDocument ? "Sí" : "No")}
-              {field("Procedimiento", p.procedure)}{field("Criterio de aceptación", p.acceptanceCriteria)}
+              {field("Procedimiento", p.procedure)}{field("Criterio de aceptación", p.criteria.length ? p.criteria.map(critText).join(" · ") : p.acceptanceCriteria)}
             </CardContent></Card>
           ))}
           {!plans.length && <p className="text-sm text-muted-foreground">Sin controles planificados.</p>}
@@ -157,7 +161,30 @@ export function MetrologyEquipmentDetailPage() {
             {pv.frequencyUnit !== "before_use" && <div><Label>Cada</Label><Input type="number" min={1} value={pv.frequencyValue ?? ""} onChange={(ev) => setPv({ frequencyValue: ev.target.value ? Number(ev.target.value) : null })} /></div>}
             <div><Label>Próximo control</Label><Input type="date" value={pv.nextDueOn ?? ""} onChange={(ev) => setPv({ nextDueOn: ev.target.value || null })} /></div>
             <div className="sm:col-span-2"><Label>Procedimiento</Label><Input value={pv.procedure ?? ""} onChange={(ev) => setPv({ procedure: ev.target.value || null })} /></div>
-            <div className="sm:col-span-2"><Label>Criterio de aceptación</Label><Input value={pv.acceptanceCriteria ?? ""} onChange={(ev) => setPv({ acceptanceCriteria: ev.target.value || null })} /></div>
+            <div className="sm:col-span-2 space-y-2">
+              <div className="flex items-center justify-between"><Label>Criterios de aceptación</Label>
+                <Button size="sm" variant="outline" onClick={() => setPv({ criteria: [...pv.criteria, newCrit()] })}><Plus className="mr-1 h-3 w-3" />Valor a verificar</Button></div>
+              <datalist id="mtr-magnitudes">{MAGNITUDES.map((m) => <option key={m} value={m} />)}</datalist>
+              {pv.criteria.map((c, i) => {
+                const upd = (patch: Partial<MtrCriterion>) => setPv({ criteria: pv.criteria.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
+                return (
+                  <div key={c.key} className="space-y-2 rounded-md border p-2">
+                    <div className="grid grid-cols-[1fr_6rem_10rem_auto] gap-1">
+                      <Input list="mtr-magnitudes" placeholder="Valor verificado (p. ej. Tensión)" value={c.magnitude} onChange={(ev) => upd({ magnitude: ev.target.value })} />
+                      <Input placeholder="Unidad" value={c.unit} onChange={(ev) => upd({ unit: ev.target.value })} />
+                      <Select value={c.mode} onValueChange={(v) => upd({ mode: v as MtrCriterion["mode"] })}><SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{Object.entries(MODE_TXT).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent></Select>
+                      <Button size="icon" variant="ghost" aria-label="Quitar criterio" onClick={() => setPv({ criteria: pv.criteria.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                    {c.mode === "manual" ? <>
+                      <p className="text-xs text-muted-foreground">La tolerancia y la conclusión apto/no apto se indicarán manualmente en el registro de verificación.</p>
+                      <Input placeholder="Criterio que se utilizará (opcional)" value={c.description ?? ""} onChange={(ev) => upd({ description: ev.target.value || null })} />
+                    </> : <div className="flex items-center gap-2"><Label className="shrink-0 text-xs">{c.mode === "percentage" ? "Desviación máxima (± %) respecto al patrón" : `Error máximo admisible (± ${c.unit || "unidades"})`}</Label>
+                      <Input type="number" min={0} className="w-28" value={c.tolerance ?? ""} onChange={(ev) => upd({ tolerance: ev.target.value === "" ? null : Number(ev.target.value) })} /></div>}
+                  </div>);
+              })}
+              {!pv.criteria.length && <p className="text-xs text-muted-foreground">Añade uno o varios valores a verificar.</p>}
+            </div>
             <label className="flex items-center gap-2 text-sm"><Switch checked={pv.requiresDocument} onCheckedChange={(c) => setPv({ requiresDocument: c })} />Documento obligatorio</label>
             <label className="flex items-center gap-2 text-sm"><Switch checked={pv.qualifiesAsReference} onCheckedChange={(c) => setPv({ qualifiesAsReference: c })} />Habilita como patrón</label>
             <label className="flex items-center gap-2 text-sm"><Switch checked={pv.active} onCheckedChange={(c) => setPv({ active: c })} />Activo</label>
