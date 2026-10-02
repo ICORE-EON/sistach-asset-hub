@@ -108,3 +108,17 @@ export function lineResult(reference: number | null, measured: number | null, to
   if (reference === null || measured === null || tolerance === null) return null;
   return Math.abs(measured - reference) <= tolerance ? "fit" : "unfit";
 }
+
+export type CriterionMode = "absolute" | "percentage" | "manual";
+/** Igual que mtr_validate_record: absoluto |m-r|; % |m-r|/|r|·100 (patrón ≠ 0); manual → null. */
+export function lineError(mode: CriterionMode, reference: number | null, measured: number | null): number | null {
+  if (mode === "manual" || reference === null || measured === null) return null;
+  const d = Math.abs(measured - reference);
+  if (mode === "absolute") return d;
+  return reference === 0 ? null : (d / Math.abs(reference)) * 100;
+}
+export function lineEval(mode: CriterionMode, reference: number | null, measured: number | null, tolerance: number | null): "fit" | "unfit" | null {
+  const e = lineError(mode, reference, measured);
+  if (e === null || tolerance === null) return null;
+  return e <= tolerance + 1e-12 ? "fit" : "unfit";
+}

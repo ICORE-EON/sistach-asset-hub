@@ -12,17 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import type { MtrControlPlan, MtrEquipment, MtrImpactReview, MtrPerson, MtrRecord, MtrRecordDraft, MtrRecordLine } from "../../contracts/metrology";
-import { aggregateLines, lineResult, type MtrImpactConclusion, type MtrUnfitDecision } from "../../domain/metrology";
+import { aggregateLines, lineError, lineEval, type MtrImpactConclusion, type MtrUnfitDecision } from "../../domain/metrology";
 import { DECISION_LABEL, IMPACT_NOTICE, KIND_LABEL, NONE, PersonSelect, today } from "./metrology-common";
 
-const RES: Record<string, string> = { fit: "Apto", unfit: "No apto" };
+const RES: Record<string, string> = { fit: "Apto", unfit: "No apto", restricted: "Apto con restricciones" };
+const MODE_LABEL: Record<string, string> = { absolute: "abs.", percentage: "%", manual: "manual" };
 const REC_STATUS: Record<string, string> = { draft: "Borrador", validated: "Validado", superseded: "Sustituido" };
 type Draft = { id: string | null; v: MtrRecordDraft };
 
 const blank = (p: MtrControlPlan): MtrRecordDraft => ({
   controlPlanId: p.id, kind: p.kind, performedOn: today(), performerRef: null, result: null, nextDueOverride: null,
   overrideReason: null, observations: null, documentRef: null, laboratory: null, certificateNumber: null, accreditation: null,
-  declaredUncertainty: null, adjustedOrRepaired: null, referenceEquipmentId: null, lines: [],
+  declaredUncertainty: null, adjustedOrRepaired: null, referenceEquipmentId: null, restrictions: null, lines: [],
 });
 
 type Props = {
@@ -51,11 +52,22 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
     if (!d) return d;
     const lines = d.v.lines.map((l, j) => {
       if (j !== i) return l;
-      const n = { ...l, ...patch };
-      return { ...n, result: lineResult(n.referenceValue, n.measuredValue, n.tolerance) ?? n.result };
+      let n = { ...l, ...patch };
+      if (patch.criterionKey !== undefined) {
+        const c = dPlanCriteria().find((x) => x.key === patch.criterionKey);
+        n = { ...n, mode: c?.mode ?? "manual", tolerance: c && c.mode !== "manual" ? c.tolerance : n.tolerance };
+      }
+      if (n.mode === "manual") return n;
+      return { ...n, errorValue: lineError(n.mode, n.referenceValue, n.measuredValue), result: lineEval(n.mode, n.referenceValue, n.measuredValue, n.tolerance) };
     });
     return { ...d, v: { ...d.v, lines } };
   });
+  const dPlanCriteria = () => (draft ? planOf(draft.v.controlPlanId)?.criteria ?? [] : []);
+  const newLine = (pos: number): MtrRecordLine => {
+    const c = dPlanCriteria()[0];
+    return { position: pos, label: "", referenceValue: null, measuredValue: null, tolerance: c && c.mode !== "manual" ? c.tolerance : null,
+      result: null, criterionKey: c?.key ?? null, mode: c?.mode ?? "manual", errorValue: null };
+  };
   const num = (s: string) => (s === "" ? null : Number(s));
 
   const openDraft = async (r: MtrRecord) => {
@@ -68,6 +80,7 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
 
   const save = useMutation({
     mutationFn: async (validate: boolean) => {
+      if (draft!.v.result === "restricted" && !draft!.v.restrictions?.trim()) throw new Error("Indica las restricciones de uso");
       const rid = await metrologyService.saveDraft(orgId, id, draft!.id, draft!.v);
       if (!validate) return { rid, result: null };
       const r = await metrologyService.validateRecord(orgId, rid);
@@ -143,7 +156,7 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
             <span className="w-24">{r.performedOn}</span>
             <span>{KIND_LABEL[r.kind]} v{r.version}</span>
             <Badge variant={r.status === "validated" ? "default" : "outline"}>{REC_STATUS[r.status]}</Badge>
-            {r.result && <Badge variant={r.result === "fit" ? "secondary" : "destructive"}>{RES[r.result]}</Badge>}
+            {r.result && <Badge variant={r.result === "fit" ? "secondary" : r.result === "restricted" ? "outline" : "destructive"}>{RES[r.result]}</Badge>}{r.restrictions && <span className="text-muted-foreground">Restricciones: {r.restrictions}</span>}
             <span className="text-muted-foreground">Realizado por: {personName(r.performerRef)}</span>
             {r.nextDueOverride ? <span className="text-muted-foreground">Próximo: {r.nextDueOverride} (ajustado)</span> : r.nextDueCalculated && <span className="text-muted-foreground">Próximo: {r.nextDueCalculated}</span>}
             <span className="ml-auto flex gap-2">
@@ -174,21 +187,37 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
 
             <div className="sm:col-span-2 space-y-2">
               <div className="flex items-center justify-between"><Label>Mediciones</Label>
-                <Button size="sm" variant="outline" onClick={() => set({ lines: [...dv.lines, { position: dv.lines.length + 1, label: "", referenceValue: null, measuredValue: null, tolerance: null, result: null }] })}><Plus className="mr-1 h-3 w-3" />Punto</Button></div>
-              {dv.lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-[1fr_5rem_5rem_5rem_7rem_auto] items-center gap-1">
+                <Button size="sm" variant="outline" onClick={() => set({ lines: [...dv.lines, newLine(dv.lines.length + 1)] })}><Plus className="mr-1 h-3 w-3" />Punto</Button></div>
+              {!!dv.lines.length && <div className="grid grid-cols-[8rem_1fr_4.5rem_4.5rem_4.5rem_4.5rem_6.5rem_auto] gap-1 text-xs text-muted-foreground">
+                <span>Valor verificado</span><span>Punto</span><span>Ref.</span><span>Medido</span><span>Error</span><span>Tol.</span><span>Resultado</span><span /></div>}
+              {dv.lines.map((l, i) => {
+                const c = (dPlan?.criteria ?? []).find((x) => x.key === l.criterionKey);
+                const manual = l.mode === "manual";
+                const pct = l.mode === "percentage" ? " %" : c?.unit ? ` ${c.unit}` : "";
+                return (
+                <div key={i} className="grid grid-cols-[8rem_1fr_4.5rem_4.5rem_4.5rem_4.5rem_6.5rem_auto] items-center gap-1">
+                  <Select value={l.criterionKey ?? NONE} onValueChange={(v) => setLine(i, { criterionKey: v === NONE ? null : v })}><SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent><SelectItem value={NONE}>Sin criterio (manual)</SelectItem>{(dPlan?.criteria ?? []).map((x) => <SelectItem key={x.key} value={x.key}>{x.magnitude} ({x.unit})</SelectItem>)}</SelectContent></Select>
                   <Input placeholder="Punto" value={l.label} onChange={(e) => setLine(i, { label: e.target.value })} />
                   <Input placeholder="Ref." type="number" value={l.referenceValue ?? ""} onChange={(e) => setLine(i, { referenceValue: num(e.target.value) })} />
                   <Input placeholder="Medido" type="number" value={l.measuredValue ?? ""} onChange={(e) => setLine(i, { measuredValue: num(e.target.value) })} />
-                  <Input placeholder="±Tol." type="number" value={l.tolerance ?? ""} onChange={(e) => setLine(i, { tolerance: num(e.target.value) })} />
-                  <Select value={l.result ?? NONE} onValueChange={(v) => setLine(i, { result: v === NONE ? null : (v as "fit") })}><SelectTrigger><SelectValue /></SelectTrigger>
+                  {manual ? <Input placeholder="Error" type="number" value={l.errorValue ?? ""} onChange={(e) => setLine(i, { errorValue: num(e.target.value) })} />
+                    : <span className="text-sm" title={`Error ${MODE_LABEL[l.mode]}`}>{l.errorValue == null ? "—" : `${+l.errorValue.toFixed(4)}${pct}`}</span>}
+                  {manual ? <Input placeholder="Tol." type="number" value={l.tolerance ?? ""} onChange={(e) => setLine(i, { tolerance: num(e.target.value) })} />
+                    : <span className="text-sm">±{l.tolerance ?? "—"}{pct}</span>}
+                  {manual ? <Select value={l.result ?? NONE} onValueChange={(v) => setLine(i, { result: v === NONE ? null : (v as "fit") })}><SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent><SelectItem value={NONE}>—</SelectItem><SelectItem value="fit">Apto</SelectItem><SelectItem value="unfit">No apto</SelectItem></SelectContent></Select>
+                    : <Badge variant={l.result === "unfit" ? "destructive" : "secondary"}>{l.result ? RES[l.result] : "—"}</Badge>}
                   <Button size="icon" variant="ghost" aria-label="Quitar punto" onClick={() => set({ lines: dv.lines.filter((_, j) => j !== i).map((x, j) => ({ ...x, position: j + 1 })) })}><Trash2 className="h-4 w-4" /></Button>
-                </div>
-              ))}
-              {agg ? <p className="text-sm">Resultado por mediciones: <b>{agg === "incomplete" ? "incompleto" : RES[agg]}</b></p> :
-                <div className="w-48"><Label>Resultado</Label><Select value={dv.result ?? NONE} onValueChange={(v) => set({ result: v === NONE ? null : (v as "fit") })}><SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value={NONE}>—</SelectItem><SelectItem value="fit">Apto</SelectItem><SelectItem value="unfit">No apto</SelectItem></SelectContent></Select></div>}
+                </div>);
+              })}
+              {agg && <p className="text-sm">Resultado por mediciones: <b>{agg === "incomplete" ? "incompleto" : RES[agg]}</b></p>}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div><Label>Declaración de aptitud</Label><Select value={dv.result ?? NONE} onValueChange={(v) => set({ result: v === NONE ? null : (v as "fit") })}><SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value={NONE}>{agg && agg !== "incomplete" ? `Según mediciones (${RES[agg]})` : "—"}</SelectItem><SelectItem value="fit">Apto</SelectItem><SelectItem value="unfit">No apto</SelectItem><SelectItem value="restricted">Apto con restricciones</SelectItem></SelectContent></Select>
+                  <p className="mt-1 text-xs text-muted-foreground">Si alguna medición es No apta, solo puede declararse No apto o Apto con restricciones.</p></div>
+                {dv.result === "restricted" && <div><Label>Restricciones de uso *</Label><Textarea value={dv.restrictions ?? ""} onChange={(e) => set({ restrictions: e.target.value || null })} /></div>}
+              </div>
             </div>
 
             <div><Label>Ajuste de próxima fecha</Label><Input type="date" value={dv.nextDueOverride ?? ""} onChange={(e) => set({ nextDueOverride: e.target.value || null })} /></div>

@@ -2668,6 +2668,7 @@ export type Database = {
           company_id: string
           control_kind: string
           created_at: string
+          criteria: Json
           equipment_id: string
           frequency_unit: string
           frequency_value: number | null
@@ -2686,6 +2687,7 @@ export type Database = {
           company_id: string
           control_kind: string
           created_at?: string
+          criteria?: Json
           equipment_id: string
           frequency_unit: string
           frequency_value?: number | null
@@ -2704,6 +2706,7 @@ export type Database = {
           company_id?: string
           control_kind?: string
           created_at?: string
+          criteria?: Json
           equipment_id?: string
           frequency_unit?: string
           frequency_value?: number | null
@@ -2954,10 +2957,13 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string
+          criterion_key: string | null
           deviation: number | null
+          error_value: number | null
           id: string
           label: string
           measured_value: number | null
+          mode: string
           position: number
           record_id: string
           reference_value: number | null
@@ -2967,10 +2973,13 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          criterion_key?: string | null
           deviation?: number | null
+          error_value?: number | null
           id?: string
           label: string
           measured_value?: number | null
+          mode?: string
           position: number
           record_id: string
           reference_value?: number | null
@@ -2980,10 +2989,13 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          criterion_key?: string | null
           deviation?: number | null
+          error_value?: number | null
           id?: string
           label?: string
           measured_value?: number | null
+          mode?: string
           position?: number
           record_id?: string
           reference_value?: number | null
@@ -3038,6 +3050,7 @@ export type Database = {
           performer_snapshot: Json | null
           rectification_reason: string | null
           reference_equipment_id: string | null
+          restrictions: string | null
           result: string | null
           status: string
           supersedes_id: string | null
@@ -3070,6 +3083,7 @@ export type Database = {
           performer_snapshot?: Json | null
           rectification_reason?: string | null
           reference_equipment_id?: string | null
+          restrictions?: string | null
           result?: string | null
           status?: string
           supersedes_id?: string | null
@@ -3102,6 +3116,7 @@ export type Database = {
           performer_snapshot?: Json | null
           rectification_reason?: string | null
           reference_equipment_id?: string | null
+          restrictions?: string | null
           result?: string | null
           status?: string
           supersedes_id?: string | null

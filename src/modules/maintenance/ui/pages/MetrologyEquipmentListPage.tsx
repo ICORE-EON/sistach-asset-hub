@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,6 +16,7 @@ import { metrologyKeys, metrologyService } from "../../services/metrology";
 import { displayStatus } from "../../domain/metrology";
 import { PersonSelect, STATUS_LABEL, StatusBadge, TYPE_SUGGESTIONS, daysLeft, today } from "../components/metrology-common";
 
+const LAST: Record<string, string> = { fit: "Apto", unfit: "No apto", restricted: "Apto con restricciones" };
 const EMPTY = { name: "", equipmentType: "", siteId: "", locationDetail: "", magnitude: "", brand: "", model: "", serialNumber: "", responsibleRef: null as string | null };
 
 export function MetrologyEquipmentListPage() {
@@ -98,7 +100,7 @@ export function MetrologyEquipmentListPage() {
         <Table>
           <TableHeader><TableRow>
             <TableHead>Código</TableHead><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead>Site</TableHead><TableHead>Responsable</TableHead>
-            <TableHead>Próximo control</TableHead><TableHead>Días</TableHead><TableHead>Estado</TableHead>
+            <TableHead>Última verificación</TableHead><TableHead>Próximo control</TableHead><TableHead>Días</TableHead><TableHead>Estado</TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {rows.map((e) => (
@@ -108,12 +110,13 @@ export function MetrologyEquipmentListPage() {
                 <TableCell>{e.equipmentType}</TableCell>
                 <TableCell>{siteName.get(e.siteId) ?? "—"}{e.locationDetail ? ` · ${e.locationDetail}` : ""}</TableCell>
                 <TableCell>{(e.responsibleRef && personName.get(e.responsibleRef)) ?? "—"}</TableCell>
+                <TableCell>{e.lastResult ? <Badge variant={e.lastResult === "fit" ? "secondary" : e.lastResult === "restricted" ? "outline" : "destructive"}>{LAST[e.lastResult]}</Badge> : "—"}</TableCell>
                 <TableCell>{e.nextDueOn ?? "—"}</TableCell>
                 <TableCell>{daysLeft(e.nextDueOn) ?? "—"}</TableCell>
                 <TableCell><StatusBadge stored={e.status} nextDue={e.nextDueOn} /></TableCell>
               </TableRow>
             ))}
-            {!rows.length && <TableRow><TableCell colSpan={8} className="py-8 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Sin equipos"}</TableCell></TableRow>}
+            {!rows.length && <TableRow><TableCell colSpan={10} className="py-8 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Sin equipos"}</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent></Card>
