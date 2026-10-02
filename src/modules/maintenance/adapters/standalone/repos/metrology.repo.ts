@@ -33,7 +33,7 @@ const toPlan = (r: R): MtrControlPlan => ({
   id: r.id, equipmentId: r.equipment_id, kind: r.control_kind, method: r.method, procedure: r.procedure,
   frequencyUnit: r.frequency_unit, frequencyValue: r.frequency_value, acceptanceCriteria: r.acceptance_criteria,
   responsibleRef: r.responsible_ref, nextDueOn: r.next_due_on, requiresDocument: r.requires_document,
-  qualifiesAsReference: r.qualifies_as_reference, active: r.active,
+  qualifiesAsReference: r.qualifies_as_reference, active: r.active, criteria: Array.isArray(r.criteria) ? r.criteria : [],
 });
 const toRec = (r: R): MtrRecord => ({
   id: r.id, equipmentId: r.equipment_id, controlPlanId: r.control_plan_id, kind: r.kind, performedOn: r.performed_on,
@@ -41,11 +41,11 @@ const toRec = (r: R): MtrRecord => ({
   overrideReason: r.override_reason, observations: r.observations, documentRef: r.document_ref, status: r.status,
   version: r.version, supersedesId: r.supersedes_id, validatedAt: r.validated_at, laboratory: r.laboratory,
   certificateNumber: r.certificate_number, accreditation: r.accreditation, declaredUncertainty: r.declared_uncertainty,
-  adjustedOrRepaired: r.adjusted_or_repaired, referenceEquipmentId: r.reference_equipment_id,
+  adjustedOrRepaired: r.adjusted_or_repaired, referenceEquipmentId: r.reference_equipment_id, restrictions: r.restrictions ?? null,
 });
 const toLine = (r: R): MtrRecordLine => ({
   position: r.position, label: r.label, referenceValue: r.reference_value, measuredValue: r.measured_value,
-  tolerance: r.tolerance, result: r.result,
+  tolerance: r.tolerance, result: r.result, criterionKey: r.criterion_key ?? null, mode: r.mode ?? "absolute", errorValue: r.error_value ?? null,
 });
 const toImpact = (r: R): MtrImpactReview => ({
   id: r.id, equipmentId: r.equipment_id, recordId: r.record_id, status: r.status, conclusion: r.conclusion,
@@ -71,15 +71,18 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       return ps.map((p) => ({ id: p.id, name: p.full_name?.trim() || p.email })).sort((a, b) => a.name.localeCompare(b.name));
     },
     async listEquipment(orgId) {
-      const [eq, pl, im] = await Promise.all([
+      const [eq, pl, im, rc] = await Promise.all([
         db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).is("deleted_at", null).order("code"),
         db.from("mnt_mtr_control_plans").select("equipment_id,next_due_on").eq("company_id", orgId).eq("active", true).not("next_due_on", "is", null),
         db.from("mnt_mtr_impact_reviews").select("equipment_id").eq("company_id", orgId).eq("status", "pending"),
+        db.from("mnt_mtr_records").select("equipment_id,result,performed_on,version").eq("company_id", orgId).eq("status", "validated").order("performed_on", { ascending: false }).order("version", { ascending: false }),
       ]);
+      const last = new Map<string, string>();
+      for (const r of ok(rc) as R[]) if (!last.has(r.equipment_id)) last.set(r.equipment_id, r.result);
       const due = new Map<string, string>();
       for (const p of ok(pl) as R[]) { const c = due.get(p.equipment_id); if (!c || p.next_due_on < c) due.set(p.equipment_id, p.next_due_on); }
       const pend = new Set((ok(im) as R[]).map((r) => r.equipment_id));
-      return (ok(eq) as R[]).map((r) => ({ ...toEq(r), nextDueOn: due.get(r.id) ?? null, pendingImpact: pend.has(r.id) }));
+      return (ok(eq) as R[]).map((r) => ({ ...toEq(r), nextDueOn: due.get(r.id) ?? null, pendingImpact: pend.has(r.id), lastResult: (last.get(r.id) ?? null) as never }));
     },
     async getEquipment(orgId, id) {
       const r = ok(await db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).eq("id", id).maybeSingle());
@@ -103,7 +106,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       const row = {
         control_kind: v.kind, method: v.method, procedure: v.procedure, frequency_unit: v.frequencyUnit,
         frequency_value: v.frequencyValue, acceptance_criteria: v.acceptanceCriteria, responsible_ref: v.responsibleRef,
-        next_due_on: v.nextDueOn, requires_document: v.requiresDocument, qualifies_as_reference: v.qualifiesAsReference, active: v.active,
+        next_due_on: v.nextDueOn, requires_document: v.requiresDocument, qualifies_as_reference: v.qualifiesAsReference, active: v.active, criteria: v.criteria ?? [],
       };
       if (planId) {
         ok(await db.from("mnt_mtr_control_plans").update(row).eq("company_id", orgId).eq("id", planId).eq("equipment_id", equipmentId));
@@ -124,6 +127,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
         result: v.result, next_due_override: v.nextDueOverride, override_reason: v.overrideReason, observations: v.observations,
         document_ref: v.documentRef, laboratory: v.laboratory, certificate_number: v.certificateNumber, accreditation: v.accreditation,
         declared_uncertainty: v.declaredUncertainty, adjusted_or_repaired: v.adjustedOrRepaired, reference_equipment_id: v.referenceEquipmentId,
+        restrictions: v.result === "restricted" ? v.restrictions : null,
       };
       let id = recordId;
       if (id) {
@@ -137,6 +141,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
         ok(await db.from("mnt_mtr_record_lines").insert(v.lines.map((l) => ({
           company_id: orgId, record_id: id, position: l.position, label: l.label, reference_value: l.referenceValue,
           measured_value: l.measuredValue, tolerance: l.tolerance, result: l.result,
+          criterion_key: l.criterionKey, mode: l.mode, error_value: l.mode === "manual" ? l.errorValue : null,
         }))));
       }
       return id!;

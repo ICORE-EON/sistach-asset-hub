@@ -8,7 +8,11 @@ import type { MtrFrequencyUnit, MtrImpactConclusion, MtrStoredStatus, MtrUnfitDe
 
 export type MtrControlKind = "calibration" | "verification" | "check";
 export type MtrMethod = "external" | "internal";
-export type MtrResult = "fit" | "unfit";
+export type MtrResult = "fit" | "unfit" | "restricted";
+export type MtrLineResult = "fit" | "unfit";
+export type MtrCriterionMode = "absolute" | "percentage" | "manual";
+/** Criterio de aceptación de un valor verificado (magnitud + unidad). tolerance: absoluta o en %; manual: description. */
+export type MtrCriterion = { key: string; magnitude: string; unit: string; mode: MtrCriterionMode; tolerance: number | null; description: string | null };
 
 export type MtrEquipment = {
   id: string; orgId: string; code: string; name: string; equipmentType: string;
@@ -24,13 +28,14 @@ export type MtrControlPlan = {
   id: string; equipmentId: string; kind: MtrControlKind; method: MtrMethod; procedure: string | null;
   frequencyUnit: MtrFrequencyUnit; frequencyValue: number | null; acceptanceCriteria: string | null;
   responsibleRef: string | null; nextDueOn: string | null; requiresDocument: boolean;
-  qualifiesAsReference: boolean; active: boolean;
+  qualifiesAsReference: boolean; active: boolean; criteria: MtrCriterion[];
 };
 export type MtrControlPlanInput = Omit<MtrControlPlan, "id" | "equipmentId">;
 
 export type MtrRecordLine = {
   position: number; label: string; referenceValue: number | null; measuredValue: number | null;
-  tolerance: number | null; result: MtrResult | null;
+  tolerance: number | null; result: MtrLineResult | null;
+  criterionKey: string | null; mode: MtrCriterionMode; errorValue: number | null;
 };
 export type MtrRecord = {
   id: string; equipmentId: string; controlPlanId: string; kind: MtrControlKind; performedOn: string;
@@ -40,6 +45,7 @@ export type MtrRecord = {
   supersedesId: string | null; validatedAt: string | null;
   laboratory: string | null; certificateNumber: string | null; accreditation: string | null;
   declaredUncertainty: string | null; adjustedOrRepaired: boolean | null; referenceEquipmentId: string | null;
+  restrictions: string | null;
 };
 export type MtrRecordDraft = Omit<MtrRecord, "id" | "equipmentId" | "status" | "version" | "supersedesId" | "validatedAt" | "nextDueCalculated"> & { lines: MtrRecordLine[] };
 
@@ -59,7 +65,7 @@ export type MtrHistoryEntry =
   | { kind: "site_move"; at: string; fromSiteId: string | null; toSiteId: string; note: string | null }
   | { kind: "decision"; at: string; decision: string; notes: string | null; recordId: string };
 
-export type MtrEquipmentSummary = MtrEquipment & { nextDueOn: string | null; pendingImpact: boolean };
+export type MtrEquipmentSummary = MtrEquipment & { nextDueOn: string | null; pendingImpact: boolean; lastResult: MtrResult | null };
 export type MtrSite = { id: string; name: string; code: string };
 /** Persona de la organización (person_ref). En ICORE corresponde a la persona canónica de la org. */
 export type MtrPerson = { id: string; name: string };
