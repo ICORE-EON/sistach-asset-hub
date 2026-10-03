@@ -34,6 +34,11 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `listTypes` | `orgId: string` | `DTO (ver contrato)` | read | mnt.view | RLS + mnt_org_asset_types (solo activados) | — |
 | `listTypesAdmin` | `orgId: string` | `DTO (ver contrato)` | read | mnt.admin | RLS mnt_asset_types + activación | — |
 | `createType` | `orgId: string, v: { code: string; name: string; category: string; family_id: string \| null; }` | `void` | write | mnt.admin | RLS mnt_asset_types | — |
+| `updateFamily` | `orgId: string, id: string, v: { code: string; name: string; color: string; requires_certificate: boolean; }` | `void` | write | mnt.admin | RLS mnt_asset_families | — |
+| `updateType` | `orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string \| null; }` | `void` | write | mnt.admin | RLS mnt_asset_types | — |
+| `listCategories` | `orgId: string` | `{ id; code; name }[]` | read | mnt.view | RLS mnt_asset_categories | — |
+| `saveCategory` | `orgId: string, v: { code: string; name: string; }` | `void` | write | mnt.admin | RLS mnt_asset_categories | — |
+| `deleteCategory` | `orgId: string, code: string` | `void` | write | mnt.admin | RLS mnt_asset_categories | — |
 | `setTypeFamily` | `orgId: string, typeId: string, familyId: string \| null` | `void` | write | mnt.admin | RLS mnt_asset_types | — |
 | `deleteType` | `orgId: string, id: string` | `void` | write | mnt.admin | RLS; FK compuesta | — |
 | `listActiveSites` | `orgId: string` | `{ id: string; code: string; name: string; }[]` | host | mnt.view | SitePort.tree del host | sites |

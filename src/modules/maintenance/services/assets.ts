@@ -15,6 +15,7 @@ export const assetKeys = {
   typesForFamilies: (orgId: string | null) => ["asset-types-family", orgId] as const,
   typesAdmin: (orgId: string | null) => ["asset-types-admin", orgId] as const,
   types: (orgId: string | null) => ["asset-types", orgId] as const,
+  categories: (orgId: string | null) => ["asset-categories", orgId] as const,
   sites: (orgId: string | null) => ["locations", orgId] as const,
   scopeSites: (orgId: string | null) => ["locations-scope", orgId] as const,
   list: (orgId: string | null, ...f: unknown[]) => ["assets", orgId, ...f] as const,
@@ -49,6 +50,22 @@ export const assetService = {
   setTypeFamily: (orgId: string | null, typeId: string, familyId: string | null) =>
     repo().setTypeFamily(need(orgId), typeId, familyId),
   deleteType: (orgId: string | null, id: string) => repo().deleteType(need(orgId), id),
+
+  updateFamily: (orgId: string | null, id: string, v: { code: string; name: string; color: string; requiresCertificate: boolean }) => {
+    if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
+    return repo().updateFamily(need(orgId), id, { code: v.code.toLowerCase().replace(/\s+/g, "_"), name: v.name, color: v.color, requires_certificate: v.requiresCertificate });
+  },
+  updateType: (orgId: string | null, id: string, v: { code: string; name: string; category: string; familyId: string }) => {
+    if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
+    return repo().updateType(need(orgId), id, { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null });
+  },
+  listCategories: (orgId: string | null) => repo().listCategories(need(orgId)),
+  saveCategory: (orgId: string | null, v: { code: string; name: string }) => {
+    const code = v.code.trim().toLowerCase().replace(/\s+/g, "_");
+    if (!code || !v.name.trim()) throw new Error("Código y nombre son obligatorios");
+    return repo().saveCategory(need(orgId), { code, name: v.name.trim() });
+  },
+  deleteCategory: (orgId: string | null, code: string) => repo().deleteCategory(need(orgId), code),
 
   listActiveSites: (orgId: string | null) => repo().listActiveSites(need(orgId)),
   listSites: (orgId: string | null) => repo().listSites(need(orgId)),
