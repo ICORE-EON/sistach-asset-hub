@@ -75,6 +75,11 @@ export interface AssetsRepository {
   createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null; }): Promise<void>;
   setTypeFamily(orgId: string, typeId: string, familyId: string | null): Promise<void>;
   deleteType(orgId: string, id: string): Promise<void>;
+  updateFamily(orgId: string, id: string, v: { code: string; name: string; color: string; requires_certificate: boolean; }): Promise<void>;
+  updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null; }): Promise<void>;
+  listCategories(orgId: string): Promise<{ id: string; code: string; name: string; }[]>;
+  saveCategory(orgId: string, v: { code: string; name: string; }): Promise<void>;
+  deleteCategory(orgId: string, code: string): Promise<void>;
   listActiveSites(orgId: string): Promise<{ id: string; code: string; name: string; }[]>;
   listScopeSites(orgId: string): Promise<{ id: string; name: string; code: string; parent_location_id: string | null; }[]>;
   listSites(orgId: string): Promise<{ id: string; name: string; code: string; }[]>;

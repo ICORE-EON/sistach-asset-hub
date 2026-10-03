@@ -58,6 +58,25 @@ export function createAssetsRepo(c: StandaloneClient) {
       ok(await c.from("asset_types").delete().eq("id", id).eq("company_id", orgId));
     },
 
+    async updateFamily(orgId: string, id: string, v: { code: string; name: string; color: string; requires_certificate: boolean }) {
+      ok(await c.from("asset_families").update({ code: v.code, name_i18n: { es: v.name }, color: v.color, requires_certificate: v.requires_certificate })
+        .eq("id", id).eq("company_id", orgId));
+    },
+    async updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null }) {
+      ok(await c.from("asset_types").update({ code: v.code, name_i18n: { es: v.name }, category: v.category, family_id: v.family_id })
+        .eq("id", id).eq("company_id", orgId));
+    },
+    // ---- categories (org catalog) ----
+    async listCategories(orgId: string) {
+      return ok(await c.from("mnt_asset_categories").select("id, code, name").eq("company_id", orgId).order("name")) ?? [];
+    },
+    async saveCategory(orgId: string, v: { code: string; name: string }) {
+      ok(await c.from("mnt_asset_categories").upsert({ company_id: orgId, code: v.code, name: v.name }, { onConflict: "company_id,code" }));
+    },
+    async deleteCategory(orgId: string, code: string) {
+      ok(await c.from("mnt_asset_categories").delete().eq("company_id", orgId).eq("code", code));
+    },
+
     // ---- sites used by asset screens ----
     async listActiveSites(orgId: string) {
       return ok(await c.from("locations").select("id, code, name").eq("company_id", orgId)
