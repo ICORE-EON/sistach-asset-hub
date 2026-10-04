@@ -71,8 +71,11 @@ export function AssetTypesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
   const removeCat = useMutation({
-    mutationFn: (code: string) => assetService.deleteCategory(activeCompanyId, code),
-    onSuccess: () => { toast.success("Categoría eliminada"); qc.invalidateQueries({ queryKey: assetKeys.categories(activeCompanyId) }); },
+    mutationFn: async (code: string) => {
+      await reassignTypes(activeCompanyId, types as TypeRow[], code, "other");
+      await assetService.deleteCategory(activeCompanyId, code);
+    },
+    onSuccess: () => { toast.success("Categoría eliminada"); qc.invalidateQueries({ queryKey: assetKeys.categories(activeCompanyId) }); invalidateTypes(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -196,9 +199,14 @@ export function AssetTypesPage() {
                             <Button variant="ghost" size="icon" aria-label="Editar categoría" onClick={() => setCatEdit(c)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            {c.saved && used === 0 && (
+                            {c.code !== "other" && (
                               <Button variant="ghost" size="icon" aria-label="Eliminar categoría"
-                                onClick={() => { if (confirm(`¿Eliminar la categoría ${c.name}?`)) removeCat.mutate(c.code); }}>
+                                onClick={() => {
+                                  const msg = used > 0
+                                    ? `¿Eliminar la categoría ${c.name}? Sus ${used} tipo(s) pasarán a la categoría Otros.`
+                                    : `¿Eliminar la categoría ${c.name}?`;
+                                  if (confirm(msg)) removeCat.mutate(c.code);
+                                }}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             )}
@@ -211,7 +219,7 @@ export function AssetTypesPage() {
               </TableBody>
             </Table>
           </div>
-          <p className="text-xs text-muted-foreground">El código de una categoría no cambia una vez creada (lo usan los tipos); el nombre se puede editar siempre. Solo se pueden eliminar categorías sin tipos asociados.</p>
+          <p className="text-xs text-muted-foreground">Al cambiar el código de una categoría se actualizan sus tipos. Al eliminarla, sus tipos pasan a la categoría Otros.</p>
         </TabsContent>
       </Tabs>
 
@@ -230,7 +238,8 @@ export function AssetTypesPage() {
           <CategoryDialog
             key={catEdit === "new" ? "new" : catEdit.code}
             initial={catEdit === "new" ? null : catEdit}
-            onDone={() => { setCatEdit(null); qc.invalidateQueries({ queryKey: assetKeys.categories(activeCompanyId) }); }}
+            types={types as TypeRow[]}
+            onDone={() => { setCatEdit(null); qc.invalidateQueries({ queryKey: assetKeys.categories(activeCompanyId) }); invalidateTypes(); }}
           />
         )}
       </Dialog>
@@ -289,12 +298,29 @@ function TypeDialog({ initial, categories, onDone }: { initial: TypeRow | null; 
   );
 }
 
-function CategoryDialog({ initial, onDone }: { initial: Cat | null; onDone: () => void }) {
+/** Moves every org-owned type from one category code to another. */
+async function reassignTypes(orgId: string | null, types: TypeRow[], from: string, to: string) {
+  for (const t of types.filter((x) => x.category === from && !x.is_system)) {
+    await assetService.updateType(orgId, t.id, {
+      code: t.code, name: i18nName(t.name_i18n, t.code), category: to, familyId: t.family_id ?? "",
+    });
+  }
+}
+
+function CategoryDialog({ initial, types, onDone }: { initial: Cat | null; types: TypeRow[]; onDone: () => void }) {
   const { orgId: activeCompanyId } = useMaintenanceRequest();
   const [code, setCode] = useState(initial?.code ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const save = useMutation({
-    mutationFn: () => assetService.saveCategory(activeCompanyId, { code, name }),
+    mutationFn: async () => {
+      const newCode = code.trim();
+      if (!newCode || !name.trim()) throw new Error("Código y nombre son obligatorios");
+      await assetService.saveCategory(activeCompanyId, { code: newCode, name: name.trim() });
+      if (initial && initial.code !== newCode) {
+        await reassignTypes(activeCompanyId, types, initial.code, newCode);
+        if (initial.saved) await assetService.deleteCategory(activeCompanyId, initial.code);
+      }
+    },
     onSuccess: () => { toast.success(initial ? "Categoría actualizada" : "Categoría creada"); onDone(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -302,7 +328,7 @@ function CategoryDialog({ initial, onDone }: { initial: Cat | null; onDone: () =
     <DialogContent>
       <DialogHeader><DialogTitle>{initial ? "Editar categoría" : "Nueva categoría"}</DialogTitle></DialogHeader>
       <div className="space-y-4">
-        <div className="space-y-2"><Label>Código *</Label><Input value={code} disabled={!!initial} onChange={(e) => setCode(e.target.value)} placeholder="senalizacion" /></div>
+        <div className="space-y-2"><Label>Código *</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="senalizacion" /></div>
         <div className="space-y-2"><Label>Nombre *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Señalización" /></div>
       </div>
       <DialogFooter>
