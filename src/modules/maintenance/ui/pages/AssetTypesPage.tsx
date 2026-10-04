@@ -161,7 +161,7 @@ export function AssetTypesPage() {
               </TableBody>
             </Table>
           </div>
-          <p className="text-xs text-muted-foreground">Los tipos de Sistema no se editan; su nombre de categoría sí se puede cambiar en la pestaña Categorías.</p>
+          <p className="text-xs text-muted-foreground">El nombre de cada categoría se puede cambiar en la pestaña Categorías.</p>
         </TabsContent>
 
         <TabsContent value="categories" className="space-y-3">
