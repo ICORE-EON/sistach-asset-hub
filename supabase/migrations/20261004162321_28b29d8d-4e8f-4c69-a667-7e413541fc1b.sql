@@ -1,0 +1,1 @@
+ALTER TABLE public.asset_types DROP CONSTRAINT IF EXISTS asset_types_category_check;
