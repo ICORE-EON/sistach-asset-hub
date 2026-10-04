@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layers, Plus, Trash2, Lock } from "lucide-react";
+import { Layers, Plus, Trash2, Lock, Pencil } from "lucide-react";
 import { assetService, assetKeys } from "../../services/assets";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function AssetFamiliesPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editFam, setEditFam] = useState<FamilyInit | null>(null);
   const canManage = role === "administrator" || role === "system_manager";
 
   const { data: families = [], isLoading } = useQuery({
@@ -139,6 +140,11 @@ export function AssetFamiliesPage() {
                     )}
                   </div>
                   {canManage && !f.is_system && (
+                    <div className="flex">
+                    <Button variant="ghost" size="icon" aria-label="Editar familia"
+                      onClick={() => setEditFam({ id: f.id, code: f.code, name: i18nName(f.name_i18n, f.code), color: f.color ?? "#6366f1", requiresCert: f.requires_certificate })}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -149,6 +155,7 @@ export function AssetFamiliesPage() {
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
+                    </div>
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -228,23 +235,30 @@ export function AssetFamiliesPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog open={!!editFam} onOpenChange={(o) => !o && setEditFam(null)}>
+        {editFam && <CreateFamilyDialog key={editFam.id} initial={editFam} onCreated={() => { setEditFam(null); invalidate(); }} />}
+      </Dialog>
     </div>
   );
 }
 
-function CreateFamilyDialog({ onCreated }: { onCreated: () => void }) {
+type FamilyInit = { id: string; code: string; name: string; color: string; requiresCert: boolean };
+
+function CreateFamilyDialog({ onCreated, initial }: { onCreated: () => void; initial?: FamilyInit }) {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
-  const [code, setCode] = useState("");
-  const [name, setName] = useState("");
-  const [color, setColor] = useState("#6366f1");
-  const [requiresCert, setRequiresCert] = useState(true);
+  const [code, setCode] = useState(initial?.code ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
+  const [color, setColor] = useState(initial?.color ?? "#6366f1");
+  const [requiresCert, setRequiresCert] = useState(initial?.requiresCert ?? true);
 
   const create = useMutation({
     mutationFn: async () => {
-      await assetService.createFamily(activeCompanyId, { code, name, color, requiresCertificate: requiresCert });
+      const v = { code, name, color, requiresCertificate: requiresCert };
+      if (initial) await assetService.updateFamily(activeCompanyId, initial.id, v);
+      else await assetService.createFamily(activeCompanyId, v);
     },
     onSuccess: () => {
-      toast.success("Familia creada");
+      toast.success(initial ? "Familia actualizada" : "Familia creada");
       onCreated();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -253,7 +267,7 @@ function CreateFamilyDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Nueva familia de activos</DialogTitle>
+        <DialogTitle>{initial ? "Editar familia de activos" : "Nueva familia de activos"}</DialogTitle>
       </DialogHeader>
       <div className="space-y-4">
         <div className="space-y-2">
@@ -275,7 +289,7 @@ function CreateFamilyDialog({ onCreated }: { onCreated: () => void }) {
       </div>
       <DialogFooter>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
-          {create.isPending ? "Creando…" : "Crear"}
+          {create.isPending ? "Guardando…" : initial ? "Guardar" : "Crear"}
         </Button>
       </DialogFooter>
     </DialogContent>
