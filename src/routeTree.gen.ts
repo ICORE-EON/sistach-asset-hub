@@ -9,51 +9,55 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as QrTokenRouteImport } from './routes/qr.$token'
-import { Route as AcceptInvitationTokenRouteImport } from './routes/accept-invitation.$token'
-import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authenticated/select-company'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
-import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
-import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app.settings'
-import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/_app.notifications'
-import { Route as AuthenticatedAppMaintenancePlansRouteImport } from './routes/_authenticated/_app.maintenance-plans'
-import { Route as AuthenticatedAppMaintenanceRouteImport } from './routes/_authenticated/_app.maintenance'
-import { Route as AuthenticatedAppLocationsRouteImport } from './routes/_authenticated/_app.locations'
-import { Route as AuthenticatedAppIncidentsRouteImport } from './routes/_authenticated/_app.incidents'
-import { Route as AuthenticatedAppImportsRouteImport } from './routes/_authenticated/_app.imports'
-import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/_app.documents'
-import { Route as AuthenticatedAppDashboardRouteImport } from './routes/_authenticated/_app.dashboard'
-import { Route as AuthenticatedAppChecklistTemplatesRouteImport } from './routes/_authenticated/_app.checklist-templates'
-import { Route as AuthenticatedAppCertificatesRouteImport } from './routes/_authenticated/_app.certificates'
-import { Route as AuthenticatedAppCertificateTemplatesRouteImport } from './routes/_authenticated/_app.certificate-templates'
-import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
-import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
+import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authenticated/select-company'
+import { Route as AcceptInvitationTokenRouteImport } from './routes/accept-invitation.$token'
+import { Route as QrTokenRouteImport } from './routes/qr.$token'
 import { Route as AuthenticatedAppAssetFamiliesRouteImport } from './routes/_authenticated/_app.asset-families'
-import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
-import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './routes/_authenticated/_app.maintenance-plans.index'
-import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
-import { Route as AuthenticatedAppChecklistTemplatesIndexRouteImport } from './routes/_authenticated/_app.checklist-templates.index'
-import { Route as AuthenticatedAppCertificatesIndexRouteImport } from './routes/_authenticated/_app.certificates.index'
-import { Route as AuthenticatedAppCertificateTemplatesIndexRouteImport } from './routes/_authenticated/_app.certificate-templates.index'
+import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
+import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
+import { Route as AuthenticatedAppCertificateTemplatesRouteImport } from './routes/_authenticated/_app.certificate-templates'
+import { Route as AuthenticatedAppCertificatesRouteImport } from './routes/_authenticated/_app.certificates'
+import { Route as AuthenticatedAppChecklistTemplatesRouteImport } from './routes/_authenticated/_app.checklist-templates'
+import { Route as AuthenticatedAppDashboardRouteImport } from './routes/_authenticated/_app.dashboard'
+import { Route as AuthenticatedAppDocumentsRouteImport } from './routes/_authenticated/_app.documents'
+import { Route as AuthenticatedAppImportsRouteImport } from './routes/_authenticated/_app.imports'
+import { Route as AuthenticatedAppIncidentsRouteImport } from './routes/_authenticated/_app.incidents'
+import { Route as AuthenticatedAppLocationsRouteImport } from './routes/_authenticated/_app.locations'
+import { Route as AuthenticatedAppMaintenanceRouteImport } from './routes/_authenticated/_app.maintenance'
+import { Route as AuthenticatedAppMaintenancePlansRouteImport } from './routes/_authenticated/_app.maintenance-plans'
+import { Route as AuthenticatedAppNotificationsRouteImport } from './routes/_authenticated/_app.notifications'
+import { Route as AuthenticatedAppSettingsRouteImport } from './routes/_authenticated/_app.settings'
+import { Route as AuthenticatedOnboardingCompanyRouteImport } from './routes/_authenticated/onboarding.company'
 import { Route as AuthenticatedAppAssetsIndexRouteImport } from './routes/_authenticated/_app.assets.index'
-import { Route as ApiPublicQrTokenRouteImport } from './routes/api/public/qr.$token'
-import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
-import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
-import { Route as AuthenticatedAppIncidentsIdRouteImport } from './routes/_authenticated/_app.incidents.$id'
-import { Route as AuthenticatedAppChecklistTemplatesIdRouteImport } from './routes/_authenticated/_app.checklist-templates.$id'
-import { Route as AuthenticatedAppCertificatesIdRouteImport } from './routes/_authenticated/_app.certificates.$id'
-import { Route as AuthenticatedAppCertificateTemplatesIdRouteImport } from './routes/_authenticated/_app.certificate-templates.$id'
 import { Route as AuthenticatedAppAssetsIdRouteImport } from './routes/_authenticated/_app.assets.$id'
+import { Route as AuthenticatedAppCertificateTemplatesIndexRouteImport } from './routes/_authenticated/_app.certificate-templates.index'
+import { Route as AuthenticatedAppCertificateTemplatesIdRouteImport } from './routes/_authenticated/_app.certificate-templates.$id'
+import { Route as AuthenticatedAppCertificatesIndexRouteImport } from './routes/_authenticated/_app.certificates.index'
+import { Route as AuthenticatedAppCertificatesIdRouteImport } from './routes/_authenticated/_app.certificates.$id'
+import { Route as AuthenticatedAppChecklistTemplatesIndexRouteImport } from './routes/_authenticated/_app.checklist-templates.index'
+import { Route as AuthenticatedAppChecklistTemplatesIdRouteImport } from './routes/_authenticated/_app.checklist-templates.$id'
+import { Route as AuthenticatedAppIncidentsIndexRouteImport } from './routes/_authenticated/_app.incidents.index'
+import { Route as AuthenticatedAppIncidentsIdRouteImport } from './routes/_authenticated/_app.incidents.$id'
+import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './routes/_authenticated/_app.maintenance-plans.index'
+import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
+import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
+import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
+import { Route as ApiPublicQrTokenRouteImport } from './routes/api/public/qr.$token'
 import { Route as AuthenticatedAppMetrologyEquipmentIndexRouteImport } from './routes/_authenticated/_app.metrology.equipment.index'
 import { Route as AuthenticatedAppMetrologyEquipmentIdRouteImport } from './routes/_authenticated/_app.metrology.equipment.$id'
 
-const SignupRoute = SignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -61,24 +65,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QrTokenRoute = QrTokenRouteImport.update({
-  id: '/qr/$token',
-  path: '/qr/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AcceptInvitationTokenRoute = AcceptInvitationTokenRouteImport.update({
-  id: '/accept-invitation/$token',
-  path: '/accept-invitation/$token',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSelectCompanyRoute =
   AuthenticatedSelectCompanyRouteImport.update({
@@ -86,73 +80,37 @@ const AuthenticatedSelectCompanyRoute =
     path: '/select-company',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAppRoute = AuthenticatedAppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => AuthenticatedRoute,
+const AcceptInvitationTokenRoute = AcceptInvitationTokenRouteImport.update({
+  id: '/accept-invitation/$token',
+  path: '/accept-invitation/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedOnboardingCompanyRoute =
-  AuthenticatedOnboardingCompanyRouteImport.update({
-    id: '/onboarding/company',
-    path: '/onboarding/company',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedAppSettingsRoute =
-  AuthenticatedAppSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
+const QrTokenRoute = QrTokenRouteImport.update({
+  id: '/qr/$token',
+  path: '/qr/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAppAssetFamiliesRoute =
+  AuthenticatedAppAssetFamiliesRouteImport.update({
+    id: '/asset-families',
+    path: '/asset-families',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppNotificationsRoute =
-  AuthenticatedAppNotificationsRouteImport.update({
-    id: '/notifications',
-    path: '/notifications',
+const AuthenticatedAppAssetTypesRoute =
+  AuthenticatedAppAssetTypesRouteImport.update({
+    id: '/asset-types',
+    path: '/asset-types',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppMaintenancePlansRoute =
-  AuthenticatedAppMaintenancePlansRouteImport.update({
-    id: '/maintenance-plans',
-    path: '/maintenance-plans',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppMaintenanceRoute =
-  AuthenticatedAppMaintenanceRouteImport.update({
-    id: '/maintenance',
-    path: '/maintenance',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppLocationsRoute =
-  AuthenticatedAppLocationsRouteImport.update({
-    id: '/locations',
-    path: '/locations',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppIncidentsRoute =
-  AuthenticatedAppIncidentsRouteImport.update({
-    id: '/incidents',
-    path: '/incidents',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppImportsRoute = AuthenticatedAppImportsRouteImport.update({
-  id: '/imports',
-  path: '/imports',
+const AuthenticatedAppAssetsRoute = AuthenticatedAppAssetsRouteImport.update({
+  id: '/assets',
+  path: '/assets',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppDocumentsRoute =
-  AuthenticatedAppDocumentsRouteImport.update({
-    id: '/documents',
-    path: '/documents',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppDashboardRoute =
-  AuthenticatedAppDashboardRouteImport.update({
-    id: '/dashboard',
-    path: '/dashboard',
-    getParentRoute: () => AuthenticatedAppRoute,
-  } as any)
-const AuthenticatedAppChecklistTemplatesRoute =
-  AuthenticatedAppChecklistTemplatesRouteImport.update({
-    id: '/checklist-templates',
-    path: '/checklist-templates',
+const AuthenticatedAppCertificateTemplatesRoute =
+  AuthenticatedAppCertificateTemplatesRouteImport.update({
+    id: '/certificate-templates',
+    path: '/certificate-templates',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
 const AuthenticatedAppCertificatesRoute =
@@ -161,64 +119,70 @@ const AuthenticatedAppCertificatesRoute =
     path: '/certificates',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCertificateTemplatesRoute =
-  AuthenticatedAppCertificateTemplatesRouteImport.update({
-    id: '/certificate-templates',
-    path: '/certificate-templates',
+const AuthenticatedAppChecklistTemplatesRoute =
+  AuthenticatedAppChecklistTemplatesRouteImport.update({
+    id: '/checklist-templates',
+    path: '/checklist-templates',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppAssetsRoute = AuthenticatedAppAssetsRouteImport.update({
-  id: '/assets',
-  path: '/assets',
+const AuthenticatedAppDashboardRoute =
+  AuthenticatedAppDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppDocumentsRoute =
+  AuthenticatedAppDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppImportsRoute = AuthenticatedAppImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
   getParentRoute: () => AuthenticatedAppRoute,
 } as any)
-const AuthenticatedAppAssetTypesRoute =
-  AuthenticatedAppAssetTypesRouteImport.update({
-    id: '/asset-types',
-    path: '/asset-types',
+const AuthenticatedAppIncidentsRoute =
+  AuthenticatedAppIncidentsRouteImport.update({
+    id: '/incidents',
+    path: '/incidents',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppAssetFamiliesRoute =
-  AuthenticatedAppAssetFamiliesRouteImport.update({
-    id: '/asset-families',
-    path: '/asset-families',
+const AuthenticatedAppLocationsRoute =
+  AuthenticatedAppLocationsRouteImport.update({
+    id: '/locations',
+    path: '/locations',
     getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppMaintenanceIndexRoute =
-  AuthenticatedAppMaintenanceIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppMaintenanceRoute,
+const AuthenticatedAppMaintenanceRoute =
+  AuthenticatedAppMaintenanceRouteImport.update({
+    id: '/maintenance',
+    path: '/maintenance',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppMaintenancePlansIndexRoute =
-  AuthenticatedAppMaintenancePlansIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
+const AuthenticatedAppMaintenancePlansRoute =
+  AuthenticatedAppMaintenancePlansRouteImport.update({
+    id: '/maintenance-plans',
+    path: '/maintenance-plans',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppIncidentsIndexRoute =
-  AuthenticatedAppIncidentsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppIncidentsRoute,
+const AuthenticatedAppNotificationsRoute =
+  AuthenticatedAppNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppChecklistTemplatesIndexRoute =
-  AuthenticatedAppChecklistTemplatesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppChecklistTemplatesRoute,
+const AuthenticatedAppSettingsRoute =
+  AuthenticatedAppSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedAppRoute,
   } as any)
-const AuthenticatedAppCertificatesIndexRoute =
-  AuthenticatedAppCertificatesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppCertificatesRoute,
-  } as any)
-const AuthenticatedAppCertificateTemplatesIndexRoute =
-  AuthenticatedAppCertificateTemplatesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedAppCertificateTemplatesRoute,
+const AuthenticatedOnboardingCompanyRoute =
+  AuthenticatedOnboardingCompanyRouteImport.update({
+    id: '/onboarding/company',
+    path: '/onboarding/company',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAppAssetsIndexRoute =
   AuthenticatedAppAssetsIndexRouteImport.update({
@@ -226,40 +190,17 @@ const AuthenticatedAppAssetsIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedAppAssetsRoute,
   } as any)
-const ApiPublicQrTokenRoute = ApiPublicQrTokenRouteImport.update({
-  id: '/api/public/qr/$token',
-  path: '/api/public/qr/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedAppMaintenanceIdRoute =
-  AuthenticatedAppMaintenanceIdRouteImport.update({
+const AuthenticatedAppAssetsIdRoute =
+  AuthenticatedAppAssetsIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => AuthenticatedAppMaintenanceRoute,
+    getParentRoute: () => AuthenticatedAppAssetsRoute,
   } as any)
-const AuthenticatedAppMaintenancePlansIdRoute =
-  AuthenticatedAppMaintenancePlansIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
-  } as any)
-const AuthenticatedAppIncidentsIdRoute =
-  AuthenticatedAppIncidentsIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAppIncidentsRoute,
-  } as any)
-const AuthenticatedAppChecklistTemplatesIdRoute =
-  AuthenticatedAppChecklistTemplatesIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAppChecklistTemplatesRoute,
-  } as any)
-const AuthenticatedAppCertificatesIdRoute =
-  AuthenticatedAppCertificatesIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAppCertificatesRoute,
+const AuthenticatedAppCertificateTemplatesIndexRoute =
+  AuthenticatedAppCertificateTemplatesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCertificateTemplatesRoute,
   } as any)
 const AuthenticatedAppCertificateTemplatesIdRoute =
   AuthenticatedAppCertificateTemplatesIdRouteImport.update({
@@ -267,12 +208,71 @@ const AuthenticatedAppCertificateTemplatesIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAppCertificateTemplatesRoute,
   } as any)
-const AuthenticatedAppAssetsIdRoute =
-  AuthenticatedAppAssetsIdRouteImport.update({
+const AuthenticatedAppCertificatesIndexRoute =
+  AuthenticatedAppCertificatesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppCertificatesRoute,
+  } as any)
+const AuthenticatedAppCertificatesIdRoute =
+  AuthenticatedAppCertificatesIdRouteImport.update({
     id: '/$id',
     path: '/$id',
-    getParentRoute: () => AuthenticatedAppAssetsRoute,
+    getParentRoute: () => AuthenticatedAppCertificatesRoute,
   } as any)
+const AuthenticatedAppChecklistTemplatesIndexRoute =
+  AuthenticatedAppChecklistTemplatesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppChecklistTemplatesRoute,
+  } as any)
+const AuthenticatedAppChecklistTemplatesIdRoute =
+  AuthenticatedAppChecklistTemplatesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppChecklistTemplatesRoute,
+  } as any)
+const AuthenticatedAppIncidentsIndexRoute =
+  AuthenticatedAppIncidentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppIncidentsRoute,
+  } as any)
+const AuthenticatedAppIncidentsIdRoute =
+  AuthenticatedAppIncidentsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppIncidentsRoute,
+  } as any)
+const AuthenticatedAppMaintenancePlansIndexRoute =
+  AuthenticatedAppMaintenancePlansIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
+  } as any)
+const AuthenticatedAppMaintenancePlansIdRoute =
+  AuthenticatedAppMaintenancePlansIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppMaintenancePlansRoute,
+  } as any)
+const AuthenticatedAppMaintenanceIndexRoute =
+  AuthenticatedAppMaintenanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAppMaintenanceRoute,
+  } as any)
+const AuthenticatedAppMaintenanceIdRoute =
+  AuthenticatedAppMaintenanceIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAppMaintenanceRoute,
+  } as any)
+const ApiPublicQrTokenRoute = ApiPublicQrTokenRouteImport.update({
+  id: '/api/public/qr/$token',
+  path: '/api/public/qr/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAppMetrologyEquipmentIndexRoute =
   AuthenticatedAppMetrologyEquipmentIndexRouteImport.update({
     id: '/metrology/equipment/',
@@ -538,18 +538,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -559,11 +552,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_app': {
+      id: '/_authenticated/_app'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedAppRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/select-company': {
+      id: '/_authenticated/select-company'
+      path: '/select-company'
+      fullPath: '/select-company'
+      preLoaderRoute: typeof AuthenticatedSelectCompanyRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/accept-invitation/$token': {
+      id: '/accept-invitation/$token'
+      path: '/accept-invitation/$token'
+      fullPath: '/accept-invitation/$token'
+      preLoaderRoute: typeof AcceptInvitationTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/qr/$token': {
@@ -573,123 +594,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QrTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/accept-invitation/$token': {
-      id: '/accept-invitation/$token'
-      path: '/accept-invitation/$token'
-      fullPath: '/accept-invitation/$token'
-      preLoaderRoute: typeof AcceptInvitationTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/select-company': {
-      id: '/_authenticated/select-company'
-      path: '/select-company'
-      fullPath: '/select-company'
-      preLoaderRoute: typeof AuthenticatedSelectCompanyRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/_app': {
-      id: '/_authenticated/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedAppRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/onboarding/company': {
-      id: '/_authenticated/onboarding/company'
-      path: '/onboarding/company'
-      fullPath: '/onboarding/company'
-      preLoaderRoute: typeof AuthenticatedOnboardingCompanyRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/_app/settings': {
-      id: '/_authenticated/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/notifications': {
-      id: '/_authenticated/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/maintenance-plans': {
-      id: '/_authenticated/_app/maintenance-plans'
-      path: '/maintenance-plans'
-      fullPath: '/maintenance-plans'
-      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/maintenance': {
-      id: '/_authenticated/_app/maintenance'
-      path: '/maintenance'
-      fullPath: '/maintenance'
-      preLoaderRoute: typeof AuthenticatedAppMaintenanceRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/locations': {
-      id: '/_authenticated/_app/locations'
-      path: '/locations'
-      fullPath: '/locations'
-      preLoaderRoute: typeof AuthenticatedAppLocationsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/incidents': {
-      id: '/_authenticated/_app/incidents'
-      path: '/incidents'
-      fullPath: '/incidents'
-      preLoaderRoute: typeof AuthenticatedAppIncidentsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/imports': {
-      id: '/_authenticated/_app/imports'
-      path: '/imports'
-      fullPath: '/imports'
-      preLoaderRoute: typeof AuthenticatedAppImportsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/documents': {
-      id: '/_authenticated/_app/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof AuthenticatedAppDocumentsRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/dashboard': {
-      id: '/_authenticated/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedAppDashboardRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/checklist-templates': {
-      id: '/_authenticated/_app/checklist-templates'
-      path: '/checklist-templates'
-      fullPath: '/checklist-templates'
-      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/certificates': {
-      id: '/_authenticated/_app/certificates'
-      path: '/certificates'
-      fullPath: '/certificates'
-      preLoaderRoute: typeof AuthenticatedAppCertificatesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/certificate-templates': {
-      id: '/_authenticated/_app/certificate-templates'
-      path: '/certificate-templates'
-      fullPath: '/certificate-templates'
-      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesRouteImport
-      parentRoute: typeof AuthenticatedAppRoute
-    }
-    '/_authenticated/_app/assets': {
-      id: '/_authenticated/_app/assets'
-      path: '/assets'
-      fullPath: '/assets'
-      preLoaderRoute: typeof AuthenticatedAppAssetsRouteImport
+    '/_authenticated/_app/asset-families': {
+      id: '/_authenticated/_app/asset-families'
+      path: '/asset-families'
+      fullPath: '/asset-families'
+      preLoaderRoute: typeof AuthenticatedAppAssetFamiliesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
     '/_authenticated/_app/asset-types': {
@@ -699,54 +608,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAssetTypesRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/asset-families': {
-      id: '/_authenticated/_app/asset-families'
-      path: '/asset-families'
-      fullPath: '/asset-families'
-      preLoaderRoute: typeof AuthenticatedAppAssetFamiliesRouteImport
+    '/_authenticated/_app/assets': {
+      id: '/_authenticated/_app/assets'
+      path: '/assets'
+      fullPath: '/assets'
+      preLoaderRoute: typeof AuthenticatedAppAssetsRouteImport
       parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/maintenance/': {
-      id: '/_authenticated/_app/maintenance/'
-      path: '/'
-      fullPath: '/maintenance/'
-      preLoaderRoute: typeof AuthenticatedAppMaintenanceIndexRouteImport
-      parentRoute: typeof AuthenticatedAppMaintenanceRoute
+    '/_authenticated/_app/certificate-templates': {
+      id: '/_authenticated/_app/certificate-templates'
+      path: '/certificate-templates'
+      fullPath: '/certificate-templates'
+      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/maintenance-plans/': {
-      id: '/_authenticated/_app/maintenance-plans/'
-      path: '/'
-      fullPath: '/maintenance-plans/'
-      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIndexRouteImport
-      parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
+    '/_authenticated/_app/certificates': {
+      id: '/_authenticated/_app/certificates'
+      path: '/certificates'
+      fullPath: '/certificates'
+      preLoaderRoute: typeof AuthenticatedAppCertificatesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/incidents/': {
-      id: '/_authenticated/_app/incidents/'
-      path: '/'
-      fullPath: '/incidents/'
-      preLoaderRoute: typeof AuthenticatedAppIncidentsIndexRouteImport
-      parentRoute: typeof AuthenticatedAppIncidentsRoute
+    '/_authenticated/_app/checklist-templates': {
+      id: '/_authenticated/_app/checklist-templates'
+      path: '/checklist-templates'
+      fullPath: '/checklist-templates'
+      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/checklist-templates/': {
-      id: '/_authenticated/_app/checklist-templates/'
-      path: '/'
-      fullPath: '/checklist-templates/'
-      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesIndexRouteImport
-      parentRoute: typeof AuthenticatedAppChecklistTemplatesRoute
+    '/_authenticated/_app/dashboard': {
+      id: '/_authenticated/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedAppDashboardRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/certificates/': {
-      id: '/_authenticated/_app/certificates/'
-      path: '/'
-      fullPath: '/certificates/'
-      preLoaderRoute: typeof AuthenticatedAppCertificatesIndexRouteImport
-      parentRoute: typeof AuthenticatedAppCertificatesRoute
+    '/_authenticated/_app/documents': {
+      id: '/_authenticated/_app/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AuthenticatedAppDocumentsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
     }
-    '/_authenticated/_app/certificate-templates/': {
-      id: '/_authenticated/_app/certificate-templates/'
-      path: '/'
-      fullPath: '/certificate-templates/'
-      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesIndexRouteImport
-      parentRoute: typeof AuthenticatedAppCertificateTemplatesRoute
+    '/_authenticated/_app/imports': {
+      id: '/_authenticated/_app/imports'
+      path: '/imports'
+      fullPath: '/imports'
+      preLoaderRoute: typeof AuthenticatedAppImportsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/incidents': {
+      id: '/_authenticated/_app/incidents'
+      path: '/incidents'
+      fullPath: '/incidents'
+      preLoaderRoute: typeof AuthenticatedAppIncidentsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/locations': {
+      id: '/_authenticated/_app/locations'
+      path: '/locations'
+      fullPath: '/locations'
+      preLoaderRoute: typeof AuthenticatedAppLocationsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/maintenance': {
+      id: '/_authenticated/_app/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof AuthenticatedAppMaintenanceRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/maintenance-plans': {
+      id: '/_authenticated/_app/maintenance-plans'
+      path: '/maintenance-plans'
+      fullPath: '/maintenance-plans'
+      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/notifications': {
+      id: '/_authenticated/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedAppNotificationsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/settings': {
+      id: '/_authenticated/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedAppSettingsRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/onboarding/company': {
+      id: '/_authenticated/onboarding/company'
+      path: '/onboarding/company'
+      fullPath: '/onboarding/company'
+      preLoaderRoute: typeof AuthenticatedOnboardingCompanyRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/_app/assets/': {
       id: '/_authenticated/_app/assets/'
@@ -755,47 +713,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppAssetsIndexRouteImport
       parentRoute: typeof AuthenticatedAppAssetsRoute
     }
-    '/api/public/qr/$token': {
-      id: '/api/public/qr/$token'
-      path: '/api/public/qr/$token'
-      fullPath: '/api/public/qr/$token'
-      preLoaderRoute: typeof ApiPublicQrTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/_app/maintenance/$id': {
-      id: '/_authenticated/_app/maintenance/$id'
+    '/_authenticated/_app/assets/$id': {
+      id: '/_authenticated/_app/assets/$id'
       path: '/$id'
-      fullPath: '/maintenance/$id'
-      preLoaderRoute: typeof AuthenticatedAppMaintenanceIdRouteImport
-      parentRoute: typeof AuthenticatedAppMaintenanceRoute
+      fullPath: '/assets/$id'
+      preLoaderRoute: typeof AuthenticatedAppAssetsIdRouteImport
+      parentRoute: typeof AuthenticatedAppAssetsRoute
     }
-    '/_authenticated/_app/maintenance-plans/$id': {
-      id: '/_authenticated/_app/maintenance-plans/$id'
-      path: '/$id'
-      fullPath: '/maintenance-plans/$id'
-      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIdRouteImport
-      parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
-    }
-    '/_authenticated/_app/incidents/$id': {
-      id: '/_authenticated/_app/incidents/$id'
-      path: '/$id'
-      fullPath: '/incidents/$id'
-      preLoaderRoute: typeof AuthenticatedAppIncidentsIdRouteImport
-      parentRoute: typeof AuthenticatedAppIncidentsRoute
-    }
-    '/_authenticated/_app/checklist-templates/$id': {
-      id: '/_authenticated/_app/checklist-templates/$id'
-      path: '/$id'
-      fullPath: '/checklist-templates/$id'
-      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesIdRouteImport
-      parentRoute: typeof AuthenticatedAppChecklistTemplatesRoute
-    }
-    '/_authenticated/_app/certificates/$id': {
-      id: '/_authenticated/_app/certificates/$id'
-      path: '/$id'
-      fullPath: '/certificates/$id'
-      preLoaderRoute: typeof AuthenticatedAppCertificatesIdRouteImport
-      parentRoute: typeof AuthenticatedAppCertificatesRoute
+    '/_authenticated/_app/certificate-templates/': {
+      id: '/_authenticated/_app/certificate-templates/'
+      path: '/'
+      fullPath: '/certificate-templates/'
+      preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCertificateTemplatesRoute
     }
     '/_authenticated/_app/certificate-templates/$id': {
       id: '/_authenticated/_app/certificate-templates/$id'
@@ -804,12 +734,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppCertificateTemplatesIdRouteImport
       parentRoute: typeof AuthenticatedAppCertificateTemplatesRoute
     }
-    '/_authenticated/_app/assets/$id': {
-      id: '/_authenticated/_app/assets/$id'
+    '/_authenticated/_app/certificates/': {
+      id: '/_authenticated/_app/certificates/'
+      path: '/'
+      fullPath: '/certificates/'
+      preLoaderRoute: typeof AuthenticatedAppCertificatesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppCertificatesRoute
+    }
+    '/_authenticated/_app/certificates/$id': {
+      id: '/_authenticated/_app/certificates/$id'
       path: '/$id'
-      fullPath: '/assets/$id'
-      preLoaderRoute: typeof AuthenticatedAppAssetsIdRouteImport
-      parentRoute: typeof AuthenticatedAppAssetsRoute
+      fullPath: '/certificates/$id'
+      preLoaderRoute: typeof AuthenticatedAppCertificatesIdRouteImport
+      parentRoute: typeof AuthenticatedAppCertificatesRoute
+    }
+    '/_authenticated/_app/checklist-templates/': {
+      id: '/_authenticated/_app/checklist-templates/'
+      path: '/'
+      fullPath: '/checklist-templates/'
+      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedAppChecklistTemplatesRoute
+    }
+    '/_authenticated/_app/checklist-templates/$id': {
+      id: '/_authenticated/_app/checklist-templates/$id'
+      path: '/$id'
+      fullPath: '/checklist-templates/$id'
+      preLoaderRoute: typeof AuthenticatedAppChecklistTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedAppChecklistTemplatesRoute
+    }
+    '/_authenticated/_app/incidents/': {
+      id: '/_authenticated/_app/incidents/'
+      path: '/'
+      fullPath: '/incidents/'
+      preLoaderRoute: typeof AuthenticatedAppIncidentsIndexRouteImport
+      parentRoute: typeof AuthenticatedAppIncidentsRoute
+    }
+    '/_authenticated/_app/incidents/$id': {
+      id: '/_authenticated/_app/incidents/$id'
+      path: '/$id'
+      fullPath: '/incidents/$id'
+      preLoaderRoute: typeof AuthenticatedAppIncidentsIdRouteImport
+      parentRoute: typeof AuthenticatedAppIncidentsRoute
+    }
+    '/_authenticated/_app/maintenance-plans/': {
+      id: '/_authenticated/_app/maintenance-plans/'
+      path: '/'
+      fullPath: '/maintenance-plans/'
+      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIndexRouteImport
+      parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
+    }
+    '/_authenticated/_app/maintenance-plans/$id': {
+      id: '/_authenticated/_app/maintenance-plans/$id'
+      path: '/$id'
+      fullPath: '/maintenance-plans/$id'
+      preLoaderRoute: typeof AuthenticatedAppMaintenancePlansIdRouteImport
+      parentRoute: typeof AuthenticatedAppMaintenancePlansRoute
+    }
+    '/_authenticated/_app/maintenance/': {
+      id: '/_authenticated/_app/maintenance/'
+      path: '/'
+      fullPath: '/maintenance/'
+      preLoaderRoute: typeof AuthenticatedAppMaintenanceIndexRouteImport
+      parentRoute: typeof AuthenticatedAppMaintenanceRoute
+    }
+    '/_authenticated/_app/maintenance/$id': {
+      id: '/_authenticated/_app/maintenance/$id'
+      path: '/$id'
+      fullPath: '/maintenance/$id'
+      preLoaderRoute: typeof AuthenticatedAppMaintenanceIdRouteImport
+      parentRoute: typeof AuthenticatedAppMaintenanceRoute
+    }
+    '/api/public/qr/$token': {
+      id: '/api/public/qr/$token'
+      path: '/api/public/qr/$token'
+      fullPath: '/api/public/qr/$token'
+      preLoaderRoute: typeof ApiPublicQrTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_app/metrology/equipment/': {
       id: '/_authenticated/_app/metrology/equipment/'

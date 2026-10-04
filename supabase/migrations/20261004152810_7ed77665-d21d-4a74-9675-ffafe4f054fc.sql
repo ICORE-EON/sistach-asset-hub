@@ -1,0 +1,2 @@
+UPDATE public.asset_families SET company_id = 'f80df1ea-1d54-43f1-9330-e35d277c91a6', is_system = false WHERE is_system = true AND company_id IS NULL;
+UPDATE public.asset_types SET company_id = 'f80df1ea-1d54-43f1-9330-e35d277c91a6', is_system = false WHERE is_system = true AND company_id IS NULL;
