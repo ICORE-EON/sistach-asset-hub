@@ -9,6 +9,7 @@
  *  - item.metadata.snapshot: asset, type, location and checklist version at opening
  *  - session.metadata.close_snapshot: per-item results frozen at close
  */
+import type { ExternalRecord } from "../../../contracts/repositories";
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
 import type { NewSession } from "../../../contracts/repositories";
@@ -30,7 +31,7 @@ export function createSessionsRepo(c: StandaloneClient) {
   };
   const assertPlan = async (orgId: string, planId: string) => {
     const p = ok(await c.from("maintenance_plans")
-      .select("id, code, name, frequency, interval_months, checklist_template_id, scope_mode, scope_location_ids, scope_include_sublocations")
+      .select("id, code, name, frequency, interval_months, checklist_template_id, execution_mode, default_provider, scope_mode, scope_location_ids, scope_include_sublocations")
       .eq("id", planId).eq("company_id", orgId).maybeSingle());
     if (!p) throw new Error(`Plan ${DENY.replace("encontrada", "encontrado")}`);
     return p;
@@ -105,9 +106,10 @@ export function createSessionsRepo(c: StandaloneClient) {
       const typeMap = ok(await c.from("maintenance_plan_type_templates").select("asset_type_id, checklist_template_id").eq("plan_id", v.planId)) ?? [];
       const templateByType = new Map<string, string>(typeMap.map((t) => [t.asset_type_id, t.checklist_template_id]));
       const templateFor = (typeId: string) => templateByType.get(typeId) ?? plan.checklist_template_id;
-      const templateIds = [...new Set(rows.map((pa) => templateFor(pa.assets!.asset_type_id)))];
+      const external = plan.execution_mode === "external";
+      const templateIds = external ? [] : [...new Set(rows.map((pa) => templateFor(pa.assets!.asset_type_id)).filter(Boolean) as string[])];
       const own = ok(await c.from("checklist_templates").select("id").eq("company_id", orgId).in("id", templateIds)) ?? [];
-      const ownIds = own.map((t) => t.id);
+      const ownIds = (templateIds.length ? own : []).map((t) => t.id);
       const vers = ownIds.length ? ok(await c.from("checklist_template_versions").select("id, version, template_id")
         .in("template_id", ownIds).eq("is_published", true).order("version", { ascending: false })) ?? [] : [];
       const versionByTemplate = new Map<string, { id: string; version: number }>();
@@ -130,6 +132,7 @@ export function createSessionsRepo(c: StandaloneClient) {
         const s = ok(await c.from("maintenance_sessions").insert({
           company_id: orgId, code: code as string, plan_id: v.planId, location_id: v.locationId,
           scheduled_for: v.scheduledFor, technician_name: v.technicianName, status: "draft",
+          is_external: external, external_provider: external ? plan.default_provider : null,
           metadata: { client_request_id: v.requestId, snapshot } as unknown as Json,
         }).select("id").single())!;
         sessionId = s.id;
@@ -138,16 +141,16 @@ export function createSessionsRepo(c: StandaloneClient) {
       const have = new Set(already.map((r) => r.asset_id));
       const items = rows.filter((pa) => !have.has(pa.asset_id)).map((pa) => {
         const a = pa.assets!;
-        const tpl = templateFor(a.asset_type_id);
-        const ver = versionByTemplate.get(tpl)!;
+        const tpl = external ? null : templateFor(a.asset_type_id);
+        const ver = tpl ? versionByTemplate.get(tpl)! : null;
         return {
-          session_id: sessionId!, asset_id: pa.asset_id, checklist_template_version_id: ver.id, result: "pending",
+          session_id: sessionId!, asset_id: pa.asset_id, checklist_template_version_id: ver?.id ?? null, result: "pending",
           metadata: { snapshot: {
             asset: { id: a.id, code: a.code, name: a.name, asset_type_id: a.asset_type_id, type_code: a.asset_types?.code ?? null,
               type_name: ((n) => n?.es ?? n?.ca ?? n?.en ?? a.asset_types?.code ?? null)(a.asset_types?.name_i18n as Record<string, string> | null | undefined),
               manufacturer: a.manufacturer ?? null, model: a.model ?? null,
               location_id: a.location_id, location_name: a.locations?.name ?? null },
-            checklist: { template_id: tpl, version_id: ver.id, version: ver.version },
+            checklist: ver ? { template_id: tpl, version_id: ver.id, version: ver.version } : null,
           } } as unknown as Json,
         };
       });
@@ -163,6 +166,29 @@ export function createSessionsRepo(c: StandaloneClient) {
       const upd = ok(await c.from("maintenance_sessions").update({ status: "in_progress", started_at: new Date().toISOString() })
         .eq("id", sessionId).eq("company_id", orgId).eq("status", "draft").select("id")) ?? [];
       return upd.length > 0;
+    },
+
+    async recordExternal(orgId: string, sessionId: string, v: ExternalRecord) {
+      const s = await getOwn(orgId, sessionId);
+      if (s.status === "closed" || s.status === "cancelled") throw new Error("La sesión está cerrada");
+      const items = ok(await c.from("maintenance_items").select("id, asset_id, metadata").eq("session_id", sessionId)) ?? [];
+      const result = v.result === "ok" ? "ok" : "failed";
+      const at = new Date(`${v.performedOn}T12:00:00`).toISOString();
+      for (const it of items)
+        ok(await c.from("maintenance_items").update({
+          result, observations: v.description, completed_at: at,
+          metadata: { ...meta(it.metadata), completion: { result, external: true, at } } as unknown as Json,
+        }).eq("id", it.id).eq("session_id", sessionId));
+      const closedAt = new Date().toISOString();
+      const close_snapshot = { at: closedAt, items: items.map((i) => ({ item_id: i.id, asset_id: i.asset_id, result, asset: meta(meta(i.metadata).snapshot).asset ?? null })) };
+      const upd = ok(await c.from("maintenance_sessions").update({
+        status: "closed", started_at: at, closed_at: closedAt, is_external: true,
+        external_provider: v.provider, external_cert_number: v.reference, signer_name: v.provider,
+        outcome: v.result,
+        metadata: { ...meta(s.metadata), outcome: v.result, skipped_count: 0, close_snapshot,
+          external: { performed_on: v.performedOn, result: v.result, description: v.description } } as unknown as Json,
+      }).eq("id", sessionId).eq("company_id", orgId).in("status", ["draft", "in_progress"]).select("id")) ?? [];
+      if (!upd.length) throw new Error("No se pudo registrar la revisión");
     },
 
     /** Item must belong to a session of the org that is in progress. */

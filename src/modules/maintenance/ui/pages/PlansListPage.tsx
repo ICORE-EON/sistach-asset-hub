@@ -333,6 +333,8 @@ function CreatePlanDialog({
   const [manualPicked, setManualPicked] = useState<string[]>([]);
   const [typeTemplates, setTypeTemplates] = useState<Record<string, string>>({});
   const [certTemplateId, setCertTemplateId] = useState("");
+  const [executionMode, setExecutionMode] = useState<"internal" | "external">("internal");
+  const [defaultProvider, setDefaultProvider] = useState("");
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -430,7 +432,7 @@ function CreatePlanDialog({
     mutationFn: () =>
       planService.createPlan(activeCompanyId, {
         code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
-        selectedIds, usedTypeIds, templateFor, certTemplateId,
+        selectedIds, usedTypeIds, templateFor, certTemplateId, executionMode, defaultProvider,
       }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
@@ -465,6 +467,22 @@ function CreatePlanDialog({
               </SelectContent>
             </Select>
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Tipo de ejecución *</Label>
+          <RadioGroup value={executionMode} onValueChange={(v) => setExecutionMode(v as "internal" | "external")} className="grid grid-cols-2 gap-2">
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm">
+              <RadioGroupItem value="internal" className="mt-0.5" />
+              <span><span className="font-medium">Interno</span><br /><span className="text-xs text-muted-foreground">Revisión propia con checklist</span></span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border p-3 text-sm">
+              <RadioGroupItem value="external" className="mt-0.5" />
+              <span><span className="font-medium">Externo</span><br /><span className="text-xs text-muted-foreground">Empresa externa: fecha, resultado y documento</span></span>
+            </label>
+          </RadioGroup>
+          {executionMode === "external" && (
+            <Input value={defaultProvider} onChange={(e) => setDefaultProvider(e.target.value)} placeholder="Empresa mantenedora habitual (opcional)" />
+          )}
         </div>
         <div className="space-y-2">
           <Label>Nombre *</Label>
@@ -613,7 +631,7 @@ function CreatePlanDialog({
           </div>
         </div>
 
-        {usedTypeIds.length > 0 && (
+        {executionMode === "internal" && usedTypeIds.length > 0 && (
           <div className="space-y-2 rounded-lg border p-3">
             <Label className="text-xs uppercase text-muted-foreground">
               Plantilla de checklist por tipo

@@ -99,13 +99,15 @@ export function createPlansRepo(c: StandaloneClient) {
       const plan = ok(await c.from("maintenance_plans").insert({
         company_id: orgId, code: v.code, name: v.name, asset_family_id: v.asset_family_id,
         asset_type_id: types.length === 1 ? types[0] : null,
-        checklist_template_id: v.type_templates[0].checklist_template_id,
+        checklist_template_id: v.type_templates[0]?.checklist_template_id ?? null,
+        execution_mode: v.execution_mode ?? "internal", default_provider: v.default_provider ?? null,
         certificate_template_id: v.certificate_template_id, frequency: v.frequency,
         interval_months: v.interval_months, notes: v.notes, scope_mode: v.scope_mode,
         scope_location_ids: v.scope_location_ids, scope_include_sublocations: v.scope_include_sublocations,
       }).select("id").single())!;
       ok(await c.from("maintenance_plan_assets").insert(v.asset_ids.map((asset_id) => ({ plan_id: plan.id, asset_id }))));
-      ok(await c.from("maintenance_plan_type_templates").insert(v.type_templates.map((t) => ({ plan_id: plan.id, ...t }))));
+      if (v.type_templates.length)
+        ok(await c.from("maintenance_plan_type_templates").insert(v.type_templates.map((t) => ({ plan_id: plan.id, ...t }))));
       return plan.id as string;
     },
     async setCertificateTemplate(orgId: string, planId: string, templateId: string | null) {
