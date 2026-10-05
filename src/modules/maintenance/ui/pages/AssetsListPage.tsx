@@ -32,6 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
@@ -48,6 +49,8 @@ export function AssetsListPage() {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [grouped, setGrouped] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [familyFilter, setFamilyFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -93,13 +96,77 @@ export function AssetsListPage() {
 
   const typeMap = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t])), [types]);
 
+  const { data: savedCats = [] } = useQuery({
+    queryKey: assetKeys.categories(activeCompanyId),
+    enabled: !!activeCompanyId,
+    queryFn: () => assetService.listCategories(activeCompanyId),
+  });
+  const catName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of savedCats) m[c.code] = c.name;
+    return (code: string) => m[code] ?? code;
+  }, [savedCats]);
+  const categoryCodes = useMemo(
+    () => Array.from(new Set([...savedCats.map((c) => c.code), ...types.map((t) => t.category)])).filter(Boolean),
+    [savedCats, types],
+  );
+
   const visibleTypes = useMemo(
     () =>
-      familyFilter === "all"
-        ? types
-        : types.filter((t) => t.family_id === familyFilter),
-    [types, familyFilter],
+      types.filter(
+        (t) =>
+          (familyFilter === "all" || t.family_id === familyFilter) &&
+          (categoryFilter === "all" || t.category === categoryFilter),
+      ),
+    [types, familyFilter, categoryFilter],
   );
+
+  const shownAssets = useMemo(
+    () =>
+      categoryFilter === "all"
+        ? assets
+        : assets.filter((a) => a.asset_type_id && typeMap[a.asset_type_id]?.category === categoryFilter),
+    [assets, categoryFilter, typeMap],
+  );
+
+  const groups = useMemo(() => {
+    const m = new Map<string, typeof shownAssets>();
+    for (const a of shownAssets) {
+      const k = (a.asset_type_id && typeMap[a.asset_type_id]?.category) || "__none";
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(a);
+    }
+    return Array.from(m.entries())
+      .map(([k, list]) => ({ key: k, label: k === "__none" ? "Sin categoría" : catName(k), list }))
+      .sort((x, y) => (x.key === "__none" ? 1 : y.key === "__none" ? -1 : x.label.localeCompare(y.label)));
+  }, [shownAssets, typeMap, catName]);
+
+  const renderRow = (a: (typeof assets)[number]) => {
+    const t = a.asset_type_id ? typeMap[a.asset_type_id] : null;
+    return (
+      <TableRow key={a.id} className="cursor-pointer">
+        <TableCell className="font-mono text-xs">
+          <Link to="/assets/$id" params={{ id: a.id }} className="hover:underline">{a.code}</Link>
+        </TableCell>
+        <TableCell>
+          <Link to="/assets/$id" params={{ id: a.id }} className="font-medium hover:underline">{a.name ?? "—"}</Link>
+          {(a.manufacturer || a.model) && (
+            <div className="text-xs text-muted-foreground">{[a.manufacturer, a.model].filter(Boolean).join(" · ")}</div>
+          )}
+        </TableCell>
+        <TableCell className="text-sm">{t ? i18nName(t.name_i18n, t.code) : "—"}</TableCell>
+        <TableCell className="text-sm">{a.locations ? `${a.locations.name}` : "—"}</TableCell>
+        <TableCell>
+          <Badge variant={statusVariant[a.status] ?? "secondary"}>{a.status}</Badge>
+        </TableCell>
+        <TableCell>
+          <Link to="/assets/$id" params={{ id: a.id }}>
+            <Button variant="ghost" size="icon"><QrCode className="h-4 w-4" /></Button>
+          </Link>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -111,7 +178,7 @@ export function AssetsListPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Activos</h1>
             <p className="text-sm text-muted-foreground">
-              {assets.length} equipo{assets.length === 1 ? "" : "s"} en el inventario
+              {shownAssets.length} equipo{shownAssets.length === 1 ? "" : "s"} en el inventario
             </p>
           </div>
         </div>
@@ -168,6 +235,24 @@ export function AssetsListPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => {
+            setCategoryFilter(v);
+            const t = types.find((x) => x.id === typeFilter);
+            if (v !== "all" && t && t.category !== v) setTypeFilter("all");
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Categoría" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las categorías</SelectItem>
+            {categoryCodes.map((c) => (
+              <SelectItem key={c} value={c}>{catName(c)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Tipo" />
@@ -206,6 +291,10 @@ export function AssetsListPage() {
             <SelectItem value="retired">Retirado</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2">
+          <Switch id="grouped" checked={grouped} onCheckedChange={setGrouped} />
+          <Label htmlFor="grouped" className="text-sm">Agrupar por categoría</Label>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card">
@@ -227,51 +316,26 @@ export function AssetsListPage() {
                   Cargando…
                 </TableCell>
               </TableRow>
-            ) : assets.length === 0 ? (
+            ) : shownAssets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   No hay activos. {canManage && "Crea el primero con el botón superior."}
                 </TableCell>
               </TableRow>
+            ) : grouped ? (
+              groups.flatMap((g) => [
+                <TableRow key={`g-${g.key}`} className="bg-muted/50 hover:bg-muted/50">
+                  <TableCell colSpan={6} className="py-2 text-sm font-semibold">
+                    Categoría: {g.label}
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      · {g.list.length} equipo{g.list.length === 1 ? "" : "s"}
+                    </span>
+                  </TableCell>
+                </TableRow>,
+                ...g.list.map(renderRow),
+              ])
             ) : (
-              assets.map((a) => {
-                const t = a.asset_type_id ? typeMap[a.asset_type_id] : null;
-                return (
-                  <TableRow key={a.id} className="cursor-pointer">
-                    <TableCell className="font-mono text-xs">
-                      <Link to="/assets/$id" params={{ id: a.id }} className="hover:underline">
-                        {a.code}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Link to="/assets/$id" params={{ id: a.id }} className="font-medium hover:underline">
-                        {a.name ?? "—"}
-                      </Link>
-                      {(a.manufacturer || a.model) && (
-                        <div className="text-xs text-muted-foreground">
-                          {[a.manufacturer, a.model].filter(Boolean).join(" · ")}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {t ? i18nName(t.name_i18n, t.code) : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {a.locations ? `${a.locations.name}` : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[a.status] ?? "secondary"}>{a.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Link to="/assets/$id" params={{ id: a.id }}>
-                        <Button variant="ghost" size="icon">
-                          <QrCode className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              shownAssets.map(renderRow)
             )}
           </TableBody>
         </Table>
