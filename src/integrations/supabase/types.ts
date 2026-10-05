@@ -2094,7 +2094,7 @@ export type Database = {
       maintenance_items: {
         Row: {
           asset_id: string
-          checklist_template_version_id: string
+          checklist_template_version_id: string | null
           company_id: string | null
           completed_at: string | null
           completed_by: string | null
@@ -2108,7 +2108,7 @@ export type Database = {
         }
         Insert: {
           asset_id: string
-          checklist_template_version_id: string
+          checklist_template_version_id?: string | null
           company_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
@@ -2122,7 +2122,7 @@ export type Database = {
         }
         Update: {
           asset_id?: string
-          checklist_template_version_id?: string
+          checklist_template_version_id?: string | null
           company_id?: string | null
           completed_at?: string | null
           completed_by?: string | null
@@ -2303,11 +2303,13 @@ export type Database = {
           asset_family_id: string | null
           asset_type_id: string | null
           certificate_template_id: string | null
-          checklist_template_id: string
+          checklist_template_id: string | null
           code: string
           company_id: string
           created_at: string
+          default_provider: string | null
           deleted_at: string | null
+          execution_mode: string
           frequency: string
           id: string
           interval_months: number | null
@@ -2323,11 +2325,13 @@ export type Database = {
           asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
-          checklist_template_id: string
+          checklist_template_id?: string | null
           code: string
           company_id: string
           created_at?: string
+          default_provider?: string | null
           deleted_at?: string | null
+          execution_mode?: string
           frequency: string
           id?: string
           interval_months?: number | null
@@ -2343,11 +2347,13 @@ export type Database = {
           asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
-          checklist_template_id?: string
+          checklist_template_id?: string | null
           code?: string
           company_id?: string
           created_at?: string
+          default_provider?: string | null
           deleted_at?: string | null
+          execution_mode?: string
           frequency?: string
           id?: string
           interval_months?: number | null

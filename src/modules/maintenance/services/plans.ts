@@ -38,6 +38,7 @@ export type CreatePlanInput = {
   scopeMode: "scoped" | "manual"; locationIds: string[]; includeSub: boolean;
   selectedIds: string[]; usedTypeIds: string[]; templateFor: (typeId: string) => string;
   certTemplateId: string;
+  executionMode?: "internal" | "external"; defaultProvider?: string;
 };
 
 export const planService = {
@@ -56,7 +57,8 @@ export const planService = {
     if (!orgId) throw new Error("Sin empresa activa");
     if (!v.code || !v.name || !v.familyId) throw new Error("Completa los campos obligatorios");
     if (!v.selectedIds.length) throw new Error("Selecciona al menos un equipo");
-    if (v.usedTypeIds.some((id) => !v.templateFor(id)))
+    const external = v.executionMode === "external";
+    if (!external && v.usedTypeIds.some((id) => !v.templateFor(id)))
       throw new Error("Hay tipos de activo sin plantilla de checklist publicada");
     const freq = FREQUENCIES.find((f) => f.value === v.frequency);
     await repo().createPlan(orgId, {
@@ -65,7 +67,8 @@ export const planService = {
       scope_location_ids: v.scopeMode === "scoped" ? v.locationIds : [],
       scope_include_sublocations: v.includeSub, certificate_template_id: v.certTemplateId || null,
       asset_ids: v.selectedIds,
-      type_templates: v.usedTypeIds.map((t) => ({ asset_type_id: t, checklist_template_id: v.templateFor(t) })),
+      execution_mode: external ? "external" : "internal", default_provider: external ? v.defaultProvider?.trim() || null : null,
+      type_templates: external ? [] : v.usedTypeIds.map((t) => ({ asset_type_id: t, checklist_template_id: v.templateFor(t) })),
     });
     return v.selectedIds.length;
   },

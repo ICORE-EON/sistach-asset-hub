@@ -47,6 +47,10 @@ export type NewPlan = {
   notes: string | null; scope_mode: "scoped" | "manual"; scope_location_ids: string[];
   scope_include_sublocations: boolean; certificate_template_id: string | null;
   asset_ids: string[]; type_templates: Array<{ asset_type_id: string; checklist_template_id: string }>;
+  execution_mode?: "internal" | "external"; default_provider?: string | null;
+};
+export type ExternalRecord = {
+  performedOn: string; provider: string; reference: string | null; result: "ok" | "with_incidents"; description: string | null;
 };
 export type ScopeQuery = {
   assetTypeIds: string[]; locationIds: string[]; includeSublocations: boolean; locations?: ScopeLocation[];
@@ -137,6 +141,8 @@ export interface SessionsRepository {
   listAssetHistory(orgId: string, assetId: string): Promise<{ result: string; maintenance_sessions: ({ id: string; code: string; status: string; closed_at: string | null; scheduled_for: string | null; company_id: string; plan_id: string | null; metadata: Json; maintenance_plans: { name: string; } | null; } & { history_source: HistorySource; }) | null; id: string; completed_at: string | null; created_at: string; observations: string | null; }[]>;
   createSession(orgId: string, v: NewSession): Promise<string>;
   startSession(orgId: string, sessionId: string): Promise<boolean>;
+  /** External/simplified sessions: stores provider, date and global result on every item, then closes. */
+  recordExternal(orgId: string, sessionId: string, v: ExternalRecord): Promise<void>;
   assertItemWritable(orgId: string, sessionId: string, itemId: string): Promise<{ id: string; asset_id: string; metadata: Json; }>;
   setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number): Promise<void>;
   closeSession(orgId: string, sessionId: string, v: { signerName: string; signerRole: string | null; signature: string; }): Promise<{ closedNow: boolean; session: { closed_at: string | null; code: string; company_id: string; created_at: string; created_by: string | null; external_cert_number: string | null; external_provider: string | null; id: string; is_external: boolean; location_id: string | null; metadata: Json; notes: string | null; outcome: string | null; pdf_hash_sha256: string | null; pdf_url: string | null; plan_id: string | null; reopen_reason: string | null; scheduled_for: string | null; signature_image_url: string | null; signer_ip: unknown; signer_name: string | null; signer_role: string | null; signer_user_agent: string | null; started_at: string | null; status: string; technician_id: string | null; technician_name: string | null; updated_at: string; maintenance_plans: { name: string; interval_months: number | null; asset_families: { requires_certificate: boolean; } | null; } | null; }; items: { id: string; asset_id: string; result: string; observations: string | null; metadata: Json; }[]; pendingCount: number; }>;

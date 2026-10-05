@@ -48,6 +48,12 @@ export const sessionService = {
     });
   },
   startSession: (orgId: string | null, id: string) => repo().startSession(need(orgId), id),
+  recordExternal: (orgId: string | null, id: string, v: import("../contracts/repositories").ExternalRecord) => {
+    if (!v.performedOn) throw new Error("Indica la fecha de realización");
+    if (!v.provider.trim()) throw new Error("Indica la empresa que ha realizado la revisión");
+    if (v.result === "with_incidents" && !v.description?.trim()) throw new Error("Describe las incidencias detectadas");
+    return repo().recordExternal(need(orgId), id, v);
+  },
 
   /** Saves the item result; opens incidents for failed answers flagged creates_incident (block-5 residual). */
   completeItem: async (orgId: string | null, a: {
