@@ -245,7 +245,7 @@ export function SessionDetailPage() {
         {activeItem ? (
           <ItemChecklist
             key={activeItem.id}
-            item={activeItem}
+            item={{ ...activeItem, checklist_template_version_id: activeItem.checklist_template_version_id ?? "" }}
             editable={editable && session.status === "in_progress"}
             companyId={orgId ?? session.company_id}
             sessionId={id}
