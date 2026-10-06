@@ -75,6 +75,7 @@ export const OPERATIONS = {
   "sessions.listAssetHistory": { kind: "read", perm: "mnt.view", authority: "RLS mnt_session_items / mnt_session_history", host: [], orgScoped: true },
   "sessions.createSession": { kind: "atomic", perm: "mnt.run", authority: "RPC mnt_create_session (idempotente por request_id)", host: ["sites", "people"], orgScoped: true },
   "sessions.startSession": { kind: "write", perm: "mnt.run", authority: "RLS + mnt_tg_session_guard (draft→in_progress)", host: [], orgScoped: true },
+  "sessions.recordExternal": { kind: "write", perm: "mnt.run", authority: "RLS + mnt_tg_session_guard (→closed, revisión externa)", host: [], orgScoped: true },
   "sessions.assertItemWritable": { kind: "read", perm: "mnt.run", authority: "Solo UX: la autoridad es mnt_tg_item_guard", host: [], orgScoped: true },
   "sessions.setItemResult": { kind: "write", perm: "mnt.run", authority: "RLS + mnt_tg_item_guard", host: ["people"], orgScoped: true },
   "sessions.closeSession": { kind: "atomic", perm: "mnt.close", authority: "RPC mnt_close_session (snapshot + historial + outbox)", host: ["people"], orgScoped: true },
