@@ -159,13 +159,13 @@ export function SessionDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {session.status === "draft" && canRun && (
+          {session.status === "draft" && canRun && !session.is_external && (
             <Button onClick={() => start.mutate()} disabled={start.isPending}>
               <PlayCircle className="mr-2 h-4 w-4" />
               Iniciar
             </Button>
           )}
-          {session.status === "in_progress" && canRun && (
+          {session.status === "in_progress" && canRun && !session.is_external && (
             <Button onClick={() => setCloseOpen(true)}>
               <Lock className="mr-2 h-4 w-4" />
               Cerrar y firmar
@@ -174,6 +174,20 @@ export function SessionDetailPage() {
         </div>
       </div>
 
+      {session.is_external ? (
+        <ExternalRecordCard
+          orgId={orgId}
+          sessionId={id}
+          session={session}
+          assetCount={items.length}
+          editable={editable}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.items(orgId, id), exact: true });
+            qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+          }}
+        />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <Card>
           <CardHeader>
@@ -244,6 +258,7 @@ export function SessionDetailPage() {
           </Card>
         )}
       </div>
+      )}
 
       {linkedCert && (
         <Card>
@@ -686,5 +701,72 @@ function CloseSessionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ExternalRecordCard({ orgId, sessionId, session, assetCount, editable, onSaved }: {
+  orgId: string | null; sessionId: string; assetCount: number; editable: boolean; onSaved: () => void;
+  session: { status: string; external_provider: string | null; external_cert_number: string | null; metadata: unknown };
+}) {
+  const ext = ((session.metadata as Record<string, unknown> | null)?.external ?? {}) as { performed_on?: string; result?: string; description?: string | null };
+  const closed = session.status === "closed";
+  const [performedOn, setPerformedOn] = useState(ext.performed_on ?? format(new Date(), "yyyy-MM-dd"));
+  const [provider, setProvider] = useState(session.external_provider ?? "");
+  const [reference, setReference] = useState(session.external_cert_number ?? "");
+  const [result, setResult] = useState<"ok" | "with_incidents">((ext.result as "ok" | "with_incidents") ?? "ok");
+  const [description, setDescription] = useState(ext.description ?? "");
+  const save = useMutation({
+    mutationFn: () => sessionService.recordExternal(orgId, sessionId, {
+      performedOn, provider, reference: reference || null, result, description: description || null,
+    }),
+    onSuccess: () => { toast.success("Revisión externa registrada"); onSaved(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const ro = closed || !editable;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Revisión externa · {assetCount} equipo(s)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Fecha de realización *</Label>
+            <Input type="date" value={performedOn} disabled={ro} onChange={(e) => setPerformedOn(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Empresa que la realizó *</Label>
+            <Input value={provider} disabled={ro} onChange={(e) => setProvider(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Nº de informe / certificado</Label>
+            <Input value={reference} disabled={ro} onChange={(e) => setReference(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Resultado *</Label>
+            <Select value={result} disabled={ro} onValueChange={(v) => setResult(v as "ok" | "with_incidents")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ok">Correcto</SelectItem>
+                <SelectItem value="with_incidents">Con incidencias</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>{result === "with_incidents" ? "Descripción de las incidencias *" : "Observaciones"}</Label>
+          <Textarea value={description} disabled={ro} onChange={(e) => setDescription(e.target.value)} rows={3} />
+        </div>
+        <p className="text-xs text-muted-foreground">Adjunta el informe, certificado o factura en el apartado de documentos de abajo.</p>
+        {!ro && (
+          <div className="flex justify-end">
+            <Button onClick={() => save.mutate()} disabled={save.isPending}>
+              <Lock className="mr-2 h-4 w-4" />
+              Registrar y cerrar
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
