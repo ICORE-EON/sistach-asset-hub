@@ -81,7 +81,7 @@ describe.skipIf(!run)("sessions repo · integración real", () => {
       if (items[0]) {
         await expect(repo.setItemResult(orgId, closed.id, items[0].id, "ok", null, 0)).rejects.toThrow(/cerrada/);
         await expect(repo.setItemResult(FOREIGN_ORG, closed.id, items[0].id, "ok", null, 0)).rejects.toThrow(/organización activa/);
-        await expect(chk.saveResponse(orgId, items[0].id, items[0].checklist_template_version_id,
+        await expect(chk.saveResponse(orgId, items[0].id, items[0].checklist_template_version_id!,
           { question_id: FOREIGN_ID, answer: true, is_fail: false, observations: null })).rejects.toThrow(/cerrada/);
       }
       // Second close of an already closed session: returns closedNow=false and writes nothing.
