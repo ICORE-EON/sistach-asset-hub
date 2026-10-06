@@ -84,6 +84,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       listAssetHistory: nc("sessions.listAssetHistory"),
       createSession: nc("sessions.createSession"),
       startSession: nc("sessions.startSession"),
+      recordExternal: nc("sessions.recordExternal"),
       assertItemWritable: nc("sessions.assertItemWritable"),
       setItemResult: nc("sessions.setItemResult"),
       closeSession: nc("sessions.closeSession"),
