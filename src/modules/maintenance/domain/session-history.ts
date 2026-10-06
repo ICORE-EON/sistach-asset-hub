@@ -51,7 +51,7 @@ export function closeResults(sessionMetadata: unknown): Map<string, string> {
   return out;
 }
 
-type ItemLike = { id: string; asset_id: string; result: string; checklist_template_version_id?: string; metadata?: unknown; assets?: Obj | null };
+type ItemLike = { id: string; asset_id: string; result: string; checklist_template_version_id?: string | null; metadata?: unknown; assets?: Obj | null };
 
 /** Replaces joined asset/type/location with the frozen ones; result from close_snapshot. */
 export function historicalItem<I extends ItemLike>(
