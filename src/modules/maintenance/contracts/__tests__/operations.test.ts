@@ -20,7 +20,7 @@ for (const l of src.split("\n")) {
 describe("catálogo de operaciones", () => {
   it("coincide exactamente con las operaciones declaradas en el contrato", () => {
     expect(Object.keys(OPERATIONS).sort()).toEqual([...declared].sort());
-    expect(declared).toHaveLength(100);
+    expect(declared).toHaveLength(101);
   });
   it("cada operación atómica nombra una RPC o transacción de la base como autoridad", () => {
     const sql = readFileSync("src/modules/maintenance/sql/install_v1.sql", "utf8");

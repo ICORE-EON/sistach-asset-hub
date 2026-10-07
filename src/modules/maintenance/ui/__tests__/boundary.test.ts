@@ -7,7 +7,7 @@ const UI = "src/modules/maintenance/ui";
 const MNT_ROUTES = [
   "_app.assets.index.tsx", "_app.assets.$id.tsx", "_app.asset-families.tsx", "_app.asset-types.tsx",
   "_app.checklist-templates.index.tsx", "_app.checklist-templates.$id.tsx",
-  "_app.maintenance-plans.index.tsx", "_app.maintenance-plans.$id.tsx",
+  "_app.maintenance-plans.$id.tsx",
   "_app.maintenance.index.tsx", "_app.maintenance.$id.tsx",
   "_app.incidents.index.tsx", "_app.incidents.$id.tsx",
   "_app.certificates.index.tsx", "_app.certificates.$id.tsx",
