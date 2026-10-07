@@ -44,7 +44,7 @@ import { FREQUENCIES, planKeys, planService } from "../../services/plans";
 export { FREQUENCIES };
 
 
-export function PlansListPage() {
+export function PlansListPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { orgId: activeCompanyId, role } = useMaintenanceRequest();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -126,7 +126,7 @@ export function PlansListPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className={embedded ? "hidden" : "flex items-center gap-3"}>
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <CalendarClock className="h-5 w-5" />
           </div>
