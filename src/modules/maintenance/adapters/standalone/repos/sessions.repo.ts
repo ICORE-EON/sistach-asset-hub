@@ -9,7 +9,7 @@
  *  - item.metadata.snapshot: asset, type, location and checklist version at opening
  *  - session.metadata.close_snapshot: per-item results frozen at close
  */
-import type { ExternalRecord } from "../../../contracts/repositories";
+import type { ExternalRecord, UpcomingRow } from "../../../contracts/repositories";
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
 import type { NewSession } from "../../../contracts/repositories";
@@ -166,6 +166,40 @@ export function createSessionsRepo(c: StandaloneClient) {
       const upd = ok(await c.from("maintenance_sessions").update({ status: "in_progress", started_at: new Date().toISOString() })
         .eq("id", sessionId).eq("company_id", orgId).eq("status", "draft").select("id")) ?? [];
       return upd.length > 0;
+    },
+
+    async listUpcoming(orgId: string): Promise<UpcomingRow[]> {
+      const plans = ok(await c.from("maintenance_plans").select("id, code, name, frequency, interval_months, execution_mode")
+        .eq("company_id", orgId).eq("active", true).is("deleted_at", null)) ?? [];
+      if (!plans.length) return [];
+      const planIds = plans.map((p) => p.id);
+      const [links, done, open] = await Promise.all([
+        c.from("maintenance_plan_assets").select("asset_id, plan_id, start_on, end_on").in("plan_id", planIds),
+        c.from("maintenance_sessions").select("plan_id, closed_at, maintenance_items(asset_id, completed_at)")
+          .eq("company_id", orgId).eq("status", "closed").in("plan_id", planIds),
+        c.from("maintenance_sessions").select("id, plan_id, maintenance_items(asset_id)")
+          .eq("company_id", orgId).in("status", ["draft", "in_progress"]).in("plan_id", planIds),
+      ]);
+      const last = new Map<string, string>();
+      for (const s of ok(done) ?? []) for (const it of (s.maintenance_items ?? []) as Array<{ asset_id: string; completed_at: string | null }>) {
+        const k = `${s.plan_id}|${it.asset_id}`; const d = it.completed_at ?? s.closed_at;
+        if (d && (!last.has(k) || d > last.get(k)!)) last.set(k, d);
+      }
+      const openBy = new Map<string, string>();
+      for (const s of ok(open) ?? []) for (const it of (s.maintenance_items ?? []) as Array<{ asset_id: string }>) openBy.set(`${s.plan_id}|${it.asset_id}`, s.id);
+      const months: Record<string, number> = { monthly: 1, quarterly: 3, biannual: 6, semiannual: 6, annual: 12, biennial: 24 };
+      const byId = new Map(plans.map((p) => [p.id, p]));
+      const today = new Date().toISOString().slice(0, 10);
+      return (ok(links) ?? []).filter((l) => !l.end_on || l.end_on >= today).map((l) => {
+        const p = byId.get(l.plan_id)!; const k = `${l.plan_id}|${l.asset_id}`;
+        const m = p.interval_months ?? months[p.frequency] ?? null;
+        const base = last.get(k) ?? (l.start_on as string | null) ?? null;
+        let next: string | null = null;
+        if (m) { const d = base ? new Date(base) : new Date(); if (base) d.setMonth(d.getMonth() + m); next = d.toISOString().slice(0, 10); }
+        return { asset_id: l.asset_id, plan_id: l.plan_id, plan_code: p.code, plan_name: p.name, frequency: p.frequency,
+          interval_months: m, execution_mode: p.execution_mode, last_done_at: last.get(k) ?? null, next_due_at: next,
+          open_session_id: openBy.get(k) ?? null };
+      });
     },
 
     async recordExternal(orgId: string, sessionId: string, v: ExternalRecord) {

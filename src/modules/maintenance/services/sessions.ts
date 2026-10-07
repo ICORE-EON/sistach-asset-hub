@@ -48,6 +48,7 @@ export const sessionService = {
     });
   },
   startSession: (orgId: string | null, id: string) => repo().startSession(need(orgId), id),
+  listUpcoming: (orgId: string | null) => repo().listUpcoming(need(orgId)),
   recordExternal: (orgId: string | null, id: string, v: import("../contracts/repositories").ExternalRecord) => {
     if (!v.performedOn) throw new Error("Indica la fecha de realización");
     if (!v.provider.trim()) throw new Error("Indica la empresa que ha realizado la revisión");

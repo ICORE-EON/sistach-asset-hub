@@ -101,6 +101,7 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `listAssetHistory` | `orgId: string, assetId: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_session_items / mnt_session_history | — |
 | `createSession` | `orgId: string, v: NewSession` | `string` | atomic | mnt.run | RPC mnt_create_session (idempotente por request_id) | sites, people |
 | `startSession` | `orgId: string, sessionId: string` | `boolean` | write | mnt.run | RLS + mnt_tg_session_guard (draft→in_progress) | — |
+| `listUpcoming` | `orgId: string` | `UpcomingRow[]` | read | mnt.view | RLS | — |
 | `recordExternal` | `orgId: string, sessionId: string, v: ExternalRecord` | `void` | write | mnt.run | RLS + mnt_tg_session_guard (→closed, revisión externa) | — |
 | `assertItemWritable` | `orgId: string, sessionId: string, itemId: string` | `{ id: string; asset_id: string; metadata: Json; }` | read | mnt.run | Solo UX: la autoridad es mnt_tg_item_guard | — |
 | `setItemResult` | `orgId: string, sessionId: string, itemId: string, result: string, observations: string \| null, failCount: number` | `void` | write | mnt.run | RLS + mnt_tg_item_guard | people |
