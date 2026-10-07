@@ -12,6 +12,7 @@ const repo = () => getRepositories().sessions;
 export const sessionKeys = {
   list: (orgId: string | null, status: string) => ["maintenance-sessions", orgId, status] as const,
   lists: (orgId: string | null) => ["maintenance-sessions", orgId] as const,
+  upcoming: (orgId: string | null) => ["maintenance-sessions", orgId, "upcoming"] as const,
   detail: (orgId: string | null, id: string) => ["session", orgId, id] as const,
   items: (orgId: string | null, id: string) => ["session-items", orgId, id] as const,
   certificate: (orgId: string | null, id: string) => ["session-cert", orgId, id] as const,

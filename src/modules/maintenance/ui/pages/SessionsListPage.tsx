@@ -147,7 +147,7 @@ export function SessionsListPage() {
   );
 }
 
-function CreateSessionDialog({ companyId }: { companyId: string }) {
+export function CreateSessionDialog({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [planId, setPlanId] = useState<string>("");
