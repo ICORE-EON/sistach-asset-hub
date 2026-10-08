@@ -170,7 +170,7 @@ function UpcomingTab() {
       <TableCell className="text-sm">
         <Link to="/maintenance-plans/$id" params={{ id: r.plan_id }} className="hover:underline">{r.plan_name}</Link>
         <div className="text-xs text-muted-foreground">
-          {freqLabel(r.frequency)}{r.execution_mode === "external" ? " · Externo" : ""}
+          {freqLabel(r.frequency, r.interval_months)}{r.execution_mode === "external" ? " · Externo" : ""}
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{fdate(r.last_done_at)}</TableCell>
