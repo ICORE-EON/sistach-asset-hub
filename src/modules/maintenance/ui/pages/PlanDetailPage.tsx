@@ -35,7 +35,7 @@ import {
 import { toast } from "sonner";
 import { describeScopeLocations, type ScopeAsset } from "../../domain/scope";
 import { assetKeys, assetService } from "../../services/assets";
-import { FREQUENCIES, planKeys, planService } from "../../services/plans";
+import { planFrequencyLabel, planKeys, planService } from "../../services/plans";
 
 
 export function PlanDetailPage() {
@@ -197,7 +197,7 @@ export function PlanDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Row label="Frecuencia">
-              {FREQUENCIES.find((f) => f.value === plan.frequency)?.label ?? plan.frequency}
+              {planFrequencyLabel(plan.frequency, plan.interval_months)}
             </Row>
             <Row label="Plantilla">{plan.checklist_templates?.name ?? "—"}</Row>
             <Row label="Familia">

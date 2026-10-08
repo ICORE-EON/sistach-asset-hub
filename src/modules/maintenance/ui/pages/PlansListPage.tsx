@@ -39,7 +39,7 @@ import { groupAssets } from "../../domain/scope";
 import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/checklist-scope";
 import { assetKeys, assetService } from "../../services/assets";
 import { checklistKeys, checklistService } from "../../services/checklists";
-import { FREQUENCIES, planKeys, planService } from "../../services/plans";
+import { FREQUENCIES, planFrequencyLabel, planKeys, planService } from "../../services/plans";
 
 export { FREQUENCIES };
 
@@ -288,7 +288,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
                   </TableCell>
                   <TableCell className="text-sm">{p.checklist_templates?.name ?? "—"}</TableCell>
                   <TableCell className="text-sm">
-                    {FREQUENCIES.find((f) => f.value === p.frequency)?.label ?? p.frequency}
+                    {planFrequencyLabel(p.frequency, p.interval_months)}
                   </TableCell>
                   <TableCell>
                     {p.active ? <Badge>Activo</Badge> : <Badge variant="secondary">Pausado</Badge>}
@@ -324,6 +324,7 @@ function CreatePlanDialog({
   const [name, setName] = useState("");
   const [familyId, setFamilyId] = useState("");
   const [frequency, setFrequency] = useState("quarterly");
+  const [customYears, setCustomYears] = useState("2");
   const [notes, setNotes] = useState("");
   const [scopeMode, setScopeMode] = useState<"scoped" | "manual">("scoped");
   const [locationIds, setLocationIds] = useState<string[]>([]);
@@ -433,6 +434,7 @@ function CreatePlanDialog({
       planService.createPlan(activeCompanyId, {
         code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
         selectedIds, usedTypeIds, templateFor, certTemplateId, executionMode, defaultProvider,
+        customYears: Number(customYears) || 0,
       }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
@@ -466,6 +468,20 @@ function CreatePlanDialog({
                 ))}
               </SelectContent>
             </Select>
+            {frequency === "custom" && (
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-sm text-muted-foreground">Cada</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={customYears}
+                  onChange={(e) => setCustomYears(e.target.value)}
+                  className="w-20"
+                />
+                <span className="text-sm text-muted-foreground">años</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="space-y-2">

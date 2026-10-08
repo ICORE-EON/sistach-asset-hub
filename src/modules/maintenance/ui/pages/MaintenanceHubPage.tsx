@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { assetKeys, assetService } from "../../services/assets";
 import { sessionKeys, sessionService } from "../../services/sessions";
-import { FREQUENCIES } from "../../services/plans";
+import { planFrequencyLabel } from "../../services/plans";
 import { i18nName } from "../../domain/i18n-name";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
 import { PlansListPage } from "./PlansListPage";
@@ -25,7 +25,7 @@ import { CreateSessionDialog } from "./SessionsListPage";
 export type HubTab = "upcoming" | "history" | "plans";
 
 const fdate = (d: string | null | undefined) => (d ? format(new Date(d), "dd/MM/yyyy") : "—");
-const freqLabel = (f: string) => FREQUENCIES.find((x) => x.value === f)?.label ?? f;
+const freqLabel = (f: string, m?: number | null) => planFrequencyLabel(f, m);
 
 export function MaintenanceHubPage({ tab, onTabChange }: { tab: HubTab; onTabChange: (t: HubTab) => void }) {
   const { orgId, role } = useMaintenanceRequest();
@@ -170,7 +170,7 @@ function UpcomingTab() {
       <TableCell className="text-sm">
         <Link to="/maintenance-plans/$id" params={{ id: r.plan_id }} className="hover:underline">{r.plan_name}</Link>
         <div className="text-xs text-muted-foreground">
-          {freqLabel(r.frequency)}{r.execution_mode === "external" ? " · Externo" : ""}
+          {freqLabel(r.frequency, r.interval_months)}{r.execution_mode === "external" ? " · Externo" : ""}
         </div>
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{fdate(r.last_done_at)}</TableCell>
