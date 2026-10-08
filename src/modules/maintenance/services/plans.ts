@@ -15,7 +15,17 @@ export const FREQUENCIES = [
   { value: "quarterly", label: "Trimestral", months: 3 },
   { value: "biannual", label: "Semestral", months: 6 },
   { value: "annual", label: "Anual", months: 12 },
+  { value: "custom", label: "Cada X años", months: null },
 ];
+
+/** Etiqueta legible de la frecuencia de un plan (custom = cada N años). */
+export const planFrequencyLabel = (frequency: string, intervalMonths?: number | null): string => {
+  if (frequency === "custom") {
+    const years = Math.max(1, Math.round((intervalMonths ?? 12) / 12));
+    return years === 1 ? "Cada año" : `Cada ${years} años`;
+  }
+  return FREQUENCIES.find((f) => f.value === frequency)?.label ?? frequency;
+};
 
 export const planKeys = {
   list: (orgId: string | null) => ["maintenance-plans", orgId] as const,
@@ -39,6 +49,8 @@ export type CreatePlanInput = {
   selectedIds: string[]; usedTypeIds: string[]; templateFor: (typeId: string) => string;
   certTemplateId: string;
   executionMode?: "internal" | "external"; defaultProvider?: string;
+  /** Número de años cuando frequency === "custom". */
+  customYears?: number;
 };
 
 export const planService = {
