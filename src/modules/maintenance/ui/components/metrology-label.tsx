@@ -91,9 +91,11 @@ export function MetrologyLabelDialog({ open, onOpenChange, equipment, nextDue }:
           <div><Label>Formato</Label>
             <Select value={fmt} onValueChange={(v) => setFmt(v as Fmt)}><SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>{Object.entries(FORMATS).map(([k, f]) => <SelectItem key={k} value={k}>{f.label}</SelectItem>)}</SelectContent></Select></div>
-          <div className="flex min-h-48 items-center justify-center rounded-md border bg-muted p-4">
-            <div style={{ transform: "scale(2)", transformOrigin: "center" }}>
-              <div ref={ref}><LabelView e={equipment} nextDue={nextDue} fmt={fmt} url={url} /></div>
+          <div className="flex min-h-48 items-center justify-center overflow-auto rounded-md border bg-muted p-4">
+            <div style={{ width: `${FORMATS[fmt].w * 2}mm`, height: `${FORMATS[fmt].h * 2}mm`, flexShrink: 0 }}>
+              <div style={{ transform: "scale(2)", transformOrigin: "top left", width: `${FORMATS[fmt].w}mm` }}>
+                <div ref={ref}><LabelView e={equipment} nextDue={nextDue} fmt={fmt} url={url} /></div>
+              </div>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">Vista previa ampliada ×2. Se imprime a tamaño real; en el diálogo de impresión elige escala 100 % y tu impresora de etiquetas.</p>
