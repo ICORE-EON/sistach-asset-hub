@@ -73,9 +73,14 @@ export const planService = {
     if (!external && v.usedTypeIds.some((id) => !v.templateFor(id)))
       throw new Error("Hay tipos de activo sin plantilla de checklist publicada");
     const freq = FREQUENCIES.find((f) => f.value === v.frequency);
+    const intervalMonths =
+      v.frequency === "custom"
+        ? Math.max(1, Math.round(v.customYears ?? 0)) * 12
+        : (freq?.months ?? null);
+    if (v.frequency === "custom" && !intervalMonths) throw new Error("Indica cada cuántos años se repite");
     await repo().createPlan(orgId, {
       code: v.code.toUpperCase(), name: v.name, asset_family_id: v.familyId, frequency: v.frequency,
-      interval_months: freq?.months ?? null, notes: v.notes || null, scope_mode: v.scopeMode,
+      interval_months: intervalMonths, notes: v.notes || null, scope_mode: v.scopeMode,
       scope_location_ids: v.scopeMode === "scoped" ? v.locationIds : [],
       scope_include_sublocations: v.includeSub, certificate_template_id: v.certTemplateId || null,
       asset_ids: v.selectedIds,
