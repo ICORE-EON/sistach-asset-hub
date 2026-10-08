@@ -25,7 +25,7 @@ import { CreateSessionDialog } from "./SessionsListPage";
 export type HubTab = "upcoming" | "history" | "plans";
 
 const fdate = (d: string | null | undefined) => (d ? format(new Date(d), "dd/MM/yyyy") : "—");
-const freqLabel = (f: string) => FREQUENCIES.find((x) => x.value === f)?.label ?? f;
+const freqLabel = (f: string, m?: number | null) => planFrequencyLabel(f, m);
 
 export function MaintenanceHubPage({ tab, onTabChange }: { tab: HubTab; onTabChange: (t: HubTab) => void }) {
   const { orgId, role } = useMaintenanceRequest();
