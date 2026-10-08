@@ -1,7 +1,8 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Printer, Trash2 } from "lucide-react";
+import { MetrologyLabelDialog } from "../components/metrology-label";
 import { toast } from "sonner";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function MetrologyEquipmentDetailPage() {
 
   const { data: people = [] } = useQuery({ queryKey: metrologyKeys.people(orgId), enabled: !!orgId, queryFn: () => metrologyService.listPeople(orgId) });
   const [edit, setEdit] = useState<Partial<MtrEquipmentInput> | null>(null);
+  const [labelOpen, setLabelOpen] = useState(false);
   const saveEdit = useMutation({
     mutationFn: () => metrologyService.updateEquipment(orgId, id, edit!),
     onSuccess: () => { toast.success("Equipo actualizado"); setEdit(null); refresh(); },
@@ -81,6 +83,8 @@ export function MetrologyEquipmentDetailPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">{e.code} · {e.name}</h1>
         <StatusBadge stored={e.status} nextDue={nextDue} />
+        <Button variant="outline" size="sm" className="ml-auto" onClick={() => setLabelOpen(true)}><Printer className="mr-1 h-4 w-4" />Imprimir etiqueta</Button>
+        <MetrologyLabelDialog open={labelOpen} onOpenChange={setLabelOpen} equipment={e} nextDue={nextDue} />
       </div>
       {pending && <ImpactBanner />}
 
