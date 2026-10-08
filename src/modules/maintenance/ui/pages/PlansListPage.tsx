@@ -39,7 +39,7 @@ import { groupAssets } from "../../domain/scope";
 import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/checklist-scope";
 import { assetKeys, assetService } from "../../services/assets";
 import { checklistKeys, checklistService } from "../../services/checklists";
-import { FREQUENCIES, planKeys, planService } from "../../services/plans";
+import { FREQUENCIES, planFrequencyLabel, planKeys, planService } from "../../services/plans";
 
 export { FREQUENCIES };
 
@@ -288,7 +288,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
                   </TableCell>
                   <TableCell className="text-sm">{p.checklist_templates?.name ?? "—"}</TableCell>
                   <TableCell className="text-sm">
-                    {FREQUENCIES.find((f) => f.value === p.frequency)?.label ?? p.frequency}
+                    {planFrequencyLabel(p.frequency, p.interval_months)}
                   </TableCell>
                   <TableCell>
                     {p.active ? <Badge>Activo</Badge> : <Badge variant="secondary">Pausado</Badge>}

@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { assetKeys, assetService } from "../../services/assets";
 import { sessionKeys, sessionService } from "../../services/sessions";
-import { FREQUENCIES } from "../../services/plans";
+import { planFrequencyLabel } from "../../services/plans";
 import { i18nName } from "../../domain/i18n-name";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
 import { PlansListPage } from "./PlansListPage";
