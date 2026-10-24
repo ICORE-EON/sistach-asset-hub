@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { assetKeys, assetService } from "../../services/assets";
@@ -147,43 +148,91 @@ function DueBadge({ date }: { date: string | null }) {
   return <Badge variant="outline">Al día</Badge>;
 }
 
+type SortKey = "status" | "date" | "plan" | "last";
+
 function UpcomingTab() {
   const { orgId } = useMaintenanceRequest();
   const f = useAssetFilters();
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: 1 });
+  const [viewing, setViewing] = useState<null | { title: string; assets: any[] }>(null);
   const { data: upcoming = [], isLoading } = useQuery({ queryKey: sessionKeys.upcoming(orgId), enabled: !!orgId, queryFn: () => sessionService.listUpcoming(orgId) });
   const { data: sessions = [] } = useQuery({ queryKey: sessionKeys.list(orgId, "all"), enabled: !!orgId, queryFn: () => sessionService.listSessions(orgId, "all") });
   const openSessions = sessions.filter((s) => s.status === "draft" || s.status === "in_progress");
   const assetMap = new Map(f.shown.map((a) => [a.id, a]));
-  const rows = upcoming.filter((u) => assetMap.has(u.asset_id))
-    .map((u) => ({ ...u, asset: assetMap.get(u.asset_id)! }))
-    .sort((a, b) => (a.next_due_at ?? "9999").localeCompare(b.next_due_at ?? "9999"));
+  const planTotals = new Map<string, number>();
+  for (const u of upcoming) planTotals.set(u.plan_id, (planTotals.get(u.plan_id) ?? 0) + 1);
+  const filtered = upcoming.filter((u) => assetMap.has(u.asset_id)).map((u) => ({ ...u, asset: assetMap.get(u.asset_id)! }));
 
-  const renderRow = (r: (typeof rows)[number]) => (
-    <TableRow key={`${r.plan_id}-${r.asset_id}`}>
-      <TableCell><DueBadge date={r.next_due_at} /></TableCell>
-      <TableCell className="text-sm font-medium">{fdate(r.next_due_at)}</TableCell>
-      <TableCell>
-        <Link to="/assets/$id" params={{ id: r.asset.id }} className="font-medium hover:underline">{r.asset.name ?? r.asset.code}</Link>
-        <div className="font-mono text-xs text-muted-foreground">{r.asset.code} · {f.typeName(r.asset.asset_type_id)}</div>
-      </TableCell>
-      <TableCell className="text-sm">{r.asset.locations?.name ?? "—"}</TableCell>
+  type Row = (typeof filtered)[number];
+  const buildGroups = (list: Row[]) => {
+    const m = new Map<string, Row[]>();
+    for (const r of list) { const k = `${r.plan_id}|${r.next_due_at ?? ""}`; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); }
+    const groups = [...m.entries()].map(([key, items]) => {
+      const first = items[0];
+      const last = items.map((i) => i.last_done_at).filter(Boolean).sort().pop() ?? null;
+      return {
+        key, plan_id: first.plan_id, plan_name: first.plan_name, frequency: first.frequency, interval_months: first.interval_months,
+        execution_mode: first.execution_mode, next_due_at: first.next_due_at, last_done_at: last,
+        open_session_id: items.find((i) => i.open_session_id)?.open_session_id ?? null,
+        assets: items.map((i) => i.asset), total: planTotals.get(first.plan_id) ?? items.length,
+      };
+    });
+    const due = (d: string | null) => (d ? differenceInCalendarDays(new Date(d), new Date()) : 99999);
+    const status = (d: string | null) => { const x = due(d); return x < 0 ? 0 : x <= 30 ? 1 : d ? 2 : 3; };
+    const cmp = (a: (typeof groups)[number], b: (typeof groups)[number]) => {
+      switch (sort.key) {
+        case "status": return status(a.next_due_at) - status(b.next_due_at) || due(a.next_due_at) - due(b.next_due_at);
+        case "plan": return a.plan_name.localeCompare(b.plan_name);
+        case "last": return (a.last_done_at ?? "").localeCompare(b.last_done_at ?? "");
+        default: return (a.next_due_at ?? "9999").localeCompare(b.next_due_at ?? "9999");
+      }
+    };
+    return groups.sort((a, b) => cmp(a, b) * sort.dir);
+  };
+  type Group = ReturnType<typeof buildGroups>[number];
+
+  const renderRow = (g: Group) => (
+    <TableRow key={g.key}>
+      <TableCell><DueBadge date={g.next_due_at} /></TableCell>
+      <TableCell className="text-sm font-medium">{fdate(g.next_due_at)}</TableCell>
       <TableCell className="text-sm">
-        <Link to="/maintenance-plans/$id" params={{ id: r.plan_id }} className="hover:underline">{r.plan_name}</Link>
+        <Link to="/maintenance-plans/$id" params={{ id: g.plan_id }} className="font-medium hover:underline">{g.plan_name}</Link>
         <div className="text-xs text-muted-foreground">
-          {freqLabel(r.frequency, r.interval_months)}{r.execution_mode === "external" ? " · Externo" : ""}
+          {freqLabel(g.frequency, g.interval_months)} · {g.execution_mode === "external" ? "Externo" : "Interno"}
         </div>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{fdate(r.last_done_at)}</TableCell>
+      <TableCell className="text-sm text-muted-foreground">{fdate(g.last_done_at)}</TableCell>
       <TableCell>
-        {r.open_session_id && (
-          <Link to="/maintenance/$id" params={{ id: r.open_session_id }}>
+        {g.assets.length === 1 ? (
+          <>
+            <Link to="/assets/$id" params={{ id: g.assets[0].id }} className="font-medium hover:underline">{g.assets[0].name ?? g.assets[0].code}</Link>
+            <div className="font-mono text-xs text-muted-foreground">{g.assets[0].code} · {g.assets[0].locations?.name ?? "—"}</div>
+          </>
+        ) : (
+          <button type="button" className="text-sm font-medium text-primary hover:underline" onClick={() => setViewing({ title: g.plan_name, assets: g.assets })}>
+            {g.assets.length < g.total ? `${g.assets.length} de ${g.total} equipos` : `${g.assets.length} equipos`} · Ver equipos
+          </button>
+        )}
+      </TableCell>
+      <TableCell>
+        {g.open_session_id && (
+          <Link to="/maintenance/$id" params={{ id: g.open_session_id }}>
             <Button size="sm" variant="outline"><PlayCircle className="mr-1 h-4 w-4" />Sesión abierta</Button>
           </Link>
         )}
       </TableCell>
     </TableRow>
   );
-  const cols = 7;
+  const cols = 6;
+  const SortHead = ({ k, children, className }: { k: SortKey; children: React.ReactNode; className?: string }) => (
+    <TableHead className={className}>
+      <button type="button" className="inline-flex items-center gap-1 hover:text-foreground"
+        onClick={() => setSort((s) => (s.key === k ? { key: k, dir: (s.dir * -1) as 1 | -1 } : { key: k, dir: 1 }))}>
+        {children}{sort.key === k && <span className="text-xs">{sort.dir === 1 ? "▲" : "▼"}</span>}
+      </button>
+    </TableHead>
+  );
+  const flatGroups = buildGroups(filtered);
   return (
     <div className="space-y-4">
       {openSessions.length > 0 && (
@@ -207,33 +256,55 @@ function UpcomingTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[130px]">Estado</TableHead>
-              <TableHead>Próxima fecha</TableHead>
-              <TableHead>Activo</TableHead>
-              <TableHead>Ubicación</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead>Último realizado</TableHead>
+              <SortHead k="status" className="w-[130px]">Estado</SortHead>
+              <SortHead k="date">Próxima fecha</SortHead>
+              <SortHead k="plan">Plan de mantenimiento</SortHead>
+              <SortHead k="last">Último realizado</SortHead>
+              <TableHead>Activos</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading || f.isLoading ? (
               <TableRow><TableCell colSpan={cols} className="py-10 text-center text-sm text-muted-foreground">Cargando…</TableCell></TableRow>
-            ) : rows.length === 0 ? (
+            ) : flatGroups.length === 0 ? (
               <TableRow><TableCell colSpan={cols} className="py-10 text-center text-sm text-muted-foreground">No hay mantenimientos previstos para estos filtros.</TableCell></TableRow>
             ) : f.grouped ? (
-              groupBy(rows, (r) => f.categoryOf(r.asset), f.catLabel).flatMap((g) => [
-                <TableRow key={`g-${g.key}`} className="bg-muted/50 hover:bg-muted/50">
-                  <TableCell colSpan={cols} className="py-2 text-sm font-semibold">
-                    Categoría: {g.label}<span className="ml-2 font-normal text-muted-foreground">· {g.list.length} previsto{g.list.length === 1 ? "" : "s"}</span>
-                  </TableCell>
-                </TableRow>,
-                ...g.list.map(renderRow),
-              ])
-            ) : rows.map(renderRow)}
+              groupBy(filtered, (r) => f.categoryOf(r.asset), f.catLabel).flatMap((c) => {
+                const gs = buildGroups(c.list);
+                return [
+                  <TableRow key={`c-${c.key}`} className="bg-muted/50 hover:bg-muted/50">
+                    <TableCell colSpan={cols} className="py-2 text-sm font-semibold">
+                      Categoría: {c.label}<span className="ml-2 font-normal text-muted-foreground">· {gs.length} previsto{gs.length === 1 ? "" : "s"}</span>
+                    </TableCell>
+                  </TableRow>,
+                  ...gs.map((g) => renderRow({ ...g, key: `${c.key}-${g.key}` })),
+                ];
+              })
+            ) : flatGroups.map(renderRow)}
           </TableBody>
         </Table>
       </div>
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Equipos incluidos · {viewing?.title}</DialogTitle></DialogHeader>
+          <div className="max-h-[60vh] overflow-auto">
+            <Table>
+              <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Nombre</TableHead><TableHead>Tipo</TableHead><TableHead>Ubicación</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {viewing?.assets.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-mono text-xs">{a.code}</TableCell>
+                    <TableCell><Link to="/assets/$id" params={{ id: a.id }} className="font-medium hover:underline">{a.name ?? a.code}</Link></TableCell>
+                    <TableCell className="text-sm">{f.typeName(a.asset_type_id)}</TableCell>
+                    <TableCell className="text-sm">{a.locations?.name ?? "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
