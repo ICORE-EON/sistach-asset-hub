@@ -21,11 +21,15 @@ export type MntRequestContext = {
 
 export type AttachmentEntity = "asset" | "incident" | "maintenance_session" | "certificate";
 export type AttachmentsSlotProps = { entity: AttachmentEntity; entityId: string; defaultCategory?: string };
+/** Single document reference picker (value = host document id). */
+export type RecordDocumentSlotProps = { value: string | null; onChange: (id: string | null) => void; disabled?: boolean };
 
 export type MaintenanceUiHost = {
   request: MntRequestContext;
   /** Host document system panel (kept outside the module). */
   Attachments: ComponentType<AttachmentsSlotProps>;
+  /** Optional host picker to upload/open one evidence document. */
+  RecordDocument?: ComponentType<RecordDocumentSlotProps>;
 };
 
 const Ctx = createContext<MaintenanceUiHost | null>(null);

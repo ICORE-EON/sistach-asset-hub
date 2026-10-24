@@ -14,6 +14,7 @@ import { metrologyKeys, metrologyService } from "../../services/metrology";
 import type { MtrControlPlan, MtrEquipment, MtrImpactReview, MtrPerson, MtrRecord, MtrRecordDraft, MtrRecordLine } from "../../contracts/metrology";
 import { aggregateLines, lineError, lineEval, type MtrImpactConclusion, type MtrUnfitDecision } from "../../domain/metrology";
 import { DECISION_LABEL, IMPACT_NOTICE, KIND_LABEL, NONE, PersonSelect, today } from "./metrology-common";
+import { useMaintenanceUi } from "../host";
 
 const RES: Record<string, string> = { fit: "Apto", unfit: "No apto", restricted: "Apto con restricciones" };
 const MODE_LABEL: Record<string, string> = { absolute: "abs.", percentage: "%", manual: "manual" };
@@ -34,6 +35,7 @@ type Props = {
 export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, canRun, canClose, canManage }: Props) {
   const id = equipment.id;
   const qc = useQueryClient();
+  const { RecordDocument } = useMaintenanceUi();
   const refresh = () => qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) });
   const err = (e: Error) => toast.error(e.message);
   const { data: records = [] } = useQuery({ queryKey: metrologyKeys.records(orgId, id), enabled: !!orgId, queryFn: () => metrologyService.listRecords(orgId, id) });
@@ -223,7 +225,9 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
             <div><Label>Ajuste de próxima fecha</Label><Input type="date" value={dv.nextDueOverride ?? ""} onChange={(e) => set({ nextDueOverride: e.target.value || null })} /></div>
             {dv.nextDueOverride && <div><Label>Motivo del ajuste *</Label><Input value={dv.overrideReason ?? ""} onChange={(e) => set({ overrideReason: e.target.value || null })} /></div>}
             <div className="sm:col-span-2"><Label>Observaciones</Label><Textarea value={dv.observations ?? ""} onChange={(e) => set({ observations: e.target.value || null })} /></div>
-            {dPlan?.requiresDocument && <p className="sm:col-span-2 text-xs text-muted-foreground">Este control exige documento; el vínculo documental se resolverá con el control documental de ICORE.</p>}
+            <div className="sm:col-span-2"><Label>Certificado / documento{dPlan?.requiresDocument ? " *" : ""}</Label>
+              {RecordDocument ? <RecordDocument value={dv.documentRef} onChange={(v) => set({ documentRef: v })} />
+                : <p className="text-xs text-muted-foreground">El sistema documental no está disponible en este entorno.</p>}</div>
           </div>}
           <DialogFooter>
             <Button variant="outline" onClick={() => save.mutate(false)} disabled={save.isPending}>Guardar borrador</Button>

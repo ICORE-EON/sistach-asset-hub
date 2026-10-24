@@ -3,6 +3,7 @@ import { useMemo, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
 import { AttachmentsPanel } from "@/components/attachments-panel";
+import { StandaloneRecordDocument } from "./record-document";
 import { MaintenanceUiProvider, type MaintenanceUiHost } from "../../ui/host";
 
 export function StandaloneMaintenanceProvider({ children }: { children: ReactNode }) {
@@ -11,7 +12,7 @@ export function StandaloneMaintenanceProvider({ children }: { children: ReactNod
   const userId = user?.id ?? null;
   const role = activeMembership?.role ?? null;
   const value = useMemo<MaintenanceUiHost>(
-    () => ({ request: { orgId: activeCompanyId ?? null, userId, role }, Attachments: AttachmentsPanel }),
+    () => ({ request: { orgId: activeCompanyId ?? null, userId, role }, Attachments: AttachmentsPanel, RecordDocument: StandaloneRecordDocument }),
     [activeCompanyId, userId, role],
   );
   return <MaintenanceUiProvider value={value}>{children}</MaintenanceUiProvider>;
