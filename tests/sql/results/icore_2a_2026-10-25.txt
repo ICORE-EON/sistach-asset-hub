@@ -1,0 +1,109 @@
+PASS preflight: sin prerequisitos del host falla y no deja nada
+PASS instalacion limpia desde cero + catalogo
+PASS idempotencia: reinstalar y resembrar deja el mismo esquema y catalogo
+PASS version de instalacion y catalogo registradas una sola vez
+PASS catalogo: 5 familias y 14 tipos globales
+PASS catalogo: ningun tipo activado automaticamente
+PASS tipo no activado: no se puede crear el activo
+PASS codigo automatico por organizacion
+PASS codigos independientes por organizacion
+PASS aislamiento: B no ve activos, planes ni plantillas de A
+PASS aislamiento: B no inserta en A
+PASS aislamiento: B no modifica activos de A (0 filas -> sin efecto)
+PASS cruce: equipo de botiquin de B apuntando a activo de A (FK compuesta)
+PASS cruce: activo de B en centro de A
+PASS aislamiento: B no ejecuta RPC sobre A
+PASS cruce: plan de A con activo de B (FK compuesta)
+PASS cruce: fila con org_id de B apuntando a plan de A
+PASS sin organizacion: no ve datos de ninguna organizacion
+PASS sin organizacion: el catalogo global si es visible
+PASS sin organizacion: no inserta
+PASS sin organizacion: no ejecuta RPC
+PASS usuarios: no se modifica el catalogo global
+PASS sin sesion: nada visible salvo catalogo
+PASS anonimo: sin acceso a tablas
+PASS anonimo: sin acceso al catalogo
+PASS anonimo: sin acceso a RPC
+PASS anonimo: sin acceso a mnt_can
+PASS lector: ve los datos de su organizacion
+PASS lector: no crea activos
+PASS lector: no crea sesiones
+PASS lector: no activa tipos
+PASS crear sesion es idempotente por request_id
+PASS la sesion incluye un equipo por activo del plan
+PASS las sesiones no se insertan directamente
+PASS no se cierra con equipos pendientes
+PASS duplicado: una respuesta por pregunta y equipo
+PASS estado de sesion no editable directamente
+PASS cierre atomico: estado, historial, incidencia, certificado y eventos
+PASS snapshot historico del actor en el cierre
+PASS duplicado: segundo cierre rechazado
+PASS reabrir y cerrar no duplica certificado ni incidencias
+PASS vencimientos: el cierre avanza cada equipo realizado (conforme e incidencias) con realizacion + intervalo
+PASS vencimientos: reabrir y cerrar no reescribe la fecha prevista ni duplica la bitacora
+PASS vencimientos: la fecha no se cambia directamente
+PASS vencimientos: reprogramar sin motivo una fecha existente
+PASS vencimientos: reprogramar con motivo queda en la bitacora con autor
+PASS vencimientos: la bitacora no se modifica
+PASS vencimientos: un lector no reprograma
+PASS vencimientos: otra organizacion no reprograma
+PASS vencimientos: otra organizacion no ve la bitacora
+PASS incidencia: estado no editable directamente
+PASS incidencia: transicion no permitida
+PASS incidencia: estado de partida obsoleto
+PASS incidencia: historial y evento en la misma operacion
+PASS certificado: hash que no coincide con el documento
+PASS certificado: documento de otra organizacion
+PASS certificado: el PDF emitido no se sustituye
+PASS certificado: los clientes no escriben certificados
+PASS inmutable: historial de sesion (update)
+PASS inmutable: historial de sesion (delete)
+PASS inmutable: historial de incidencias
+PASS inmutable: snapshot del certificado
+PASS inmutable: certificado no se borra
+PASS inmutable: items del certificado
+PASS inmutable: pregunta de version publicada
+PASS inmutable: version publicada
+PASS inmutable: respuestas de sesion cerrada
+PASS inmutable: equipos de sesion cerrada
+PASS certificado: revocado no vuelve a emitido
+PASS rollback: el cierre falla al emitir el certificado
+PASS rollback: sesion, historial, incidencias y eventos intactos
+PASS outbox: eventos disponibles para el host
+PASS outbox: el host no altera el contenido de eventos
+PASS outbox: los usuarios no leen eventos
+PASS 2A: la sesion guarda la periodicidad con la que se creo
+PASS 2A: el cliente no borra activos directamente
+PASS 2A: el cliente no borra vinculos directamente
+PASS 2A: una bandera del cliente no autoriza borrar activos
+PASS 2A: una bandera del cliente no autoriza borrar vinculos
+PASS 2A: vinculo nunca usado se quita como correccion de alta
+PASS 2A: desvincular equipo usado sin motivo
+PASS 2A: equipo usado y vinculado hoy no recibe fin anterior al inicio
+PASS 2A: vista previa enumera contenido de botiquin sin eliminarlo
+PASS 2A: activo sin actividad se elimina
+PASS 2A: activo con sesiones no se elimina
+PASS 2A: plan con actividad no se elimina
+PASS 2A: plan sin actividad se elimina
+PASS 2A: una sesion en curso no se borra como borrador
+PASS 2A: cancelar sin motivo
+PASS 2A: cancelar deja historial y no mueve fechas
+PASS 2A: cancelar dos veces no repite
+PASS 2A: no se cancela una sesion cerrada
+PASS 2A: un lector no elimina planes
+PASS 2A: otra organizacion no elimina activos
+PASS 2A: otra organizacion no cancela
+PASS 2A: otra organizacion no desvincula
+PASS 2A: otra organizacion no elimina borrador
+PASS 2A: lector no cancela
+PASS 2A: lector no elimina borrador
+PASS 2A: lector no desvincula
+PASS 2A: desvincular usado conserva vinculo y registra motivo
+PASS 2A: fin inclusivo excluye hoy y conserva evidencia
+PASS 2A: archivar conserva sesiones
+PASS 2A: lector no modifica archivo del plan
+PASS 2A: borrador con observaciones no se elimina
+PASS 2A: borrador genuinamente vacio se elimina
+TESTS_DONE
+PASS concurrencia: dos cierres simultaneos -> uno gana, un certificado y un historial
+ALL_DONE
