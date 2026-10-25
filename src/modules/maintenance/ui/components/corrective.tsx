@@ -23,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { correctiveKeys, correctiveService } from "../../services/corrective";
 import { incidentKeys, incidentService } from "../../services/incidents";
-import { assetKeys, assetService } from "../../services/assets";
+import { assetKeys } from "../../services/assets";
 import { sessionKeys, sessionService } from "../../services/sessions";
 import type { CorrectiveOutcome, CorrectivePriority, CorrectiveRow } from "../../contracts/corrective";
 import { OUTCOME_LABEL, PRIORITY_LABEL, correctiveStatusLabel, isCorrectiveOpen } from "../../domain/corrective-rules";
@@ -78,7 +78,7 @@ export function NewRepairButton({ assetId, incidentId, size = "sm" }: { assetId?
       toast.success(`Reparación ${r.code} creada`);
       qc.invalidateQueries({ queryKey: correctiveKeys.all(orgId) });
       qc.invalidateQueries({ queryKey: assetKeys.list(orgId) });
-      if (asset) qc.invalidateQueries({ queryKey: assetKeys.detail?.(orgId, asset) ?? ["asset", orgId, asset] });
+      if (asset) qc.invalidateQueries({ queryKey: assetKeys.detail(orgId, asset) });
       setOpen(false); reset();
     },
     onError: (e) => toast.error(errMsg(e)),
