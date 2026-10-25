@@ -36,3 +36,11 @@
 - [x] Histórico por intervenciones paginado + vista por activo
 - [x] Planes: alcance vigente/vinculado y próximo vencimiento estimado
 - [x] Bloque 1B: vencimientos — next_due_on por vínculo, bitácora mnt_due_changes, cierre atómico (interno/externo), primera fecha en alta de plan y al añadir equipos, excepciones por equipo en revisión externa. Suites: vitest 195/15 omitidas, SQL app 49/49, SQL paquete ICORE OK.
+
+## Bloque 2A (en curso)
+- [x] Etapa 2: migraciones 0002–0005 (borrado seguro, evidencias, cancelar/desvincular, snapshot de frecuencia); SQL 2A 51/51; instalador ICORE ALL_DONE
+- [x] Activo: Retirar/Reactivar y Eliminar seguro (UI)
+- [ ] UI plan: editar, archivar, eliminar, desvincular con motivo (servicios listos)
+- [ ] UI sesión: cancelar con motivo, eliminar borrador vacío (servicios listos)
+- [ ] Aviso de frecuencia legado en decisiones de cierre
+- [ ] Repetir SQL B1B, Vitest, navegador PYME, specs/exportación ICORE (RPC 2A aún no portadas al instalador)
