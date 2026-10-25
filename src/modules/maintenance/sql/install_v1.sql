@@ -727,7 +727,9 @@ BEGIN
     SELECT pa.next_due_on INTO l FROM public.mnt_plan_assets pa WHERE pa.org_id = p_org AND pa.plan_id = p_plan AND pa.asset_id = it.asset_id FOR UPDATE;
     has_link := FOUND;
     v_planned := CASE WHEN has_link THEN l.next_due_on END;
-    v_exec := CASE WHEN it.result IN ('ok','failed') THEN (it.completed_at AT TIME ZONE v_tz)::date END;
+    -- reopen + close again: the first close's snapshot and decisions are kept, never rewritten
+    CONTINUE WHEN (SELECT coalesce(metadata->'due', '{}'::jsonb) ? it.id::text FROM public.mnt_sessions WHERE id = p_session);
+    v_exec := CASE WHEN it.result IN ('ok','failed') THEN (coalesce(it.completed_at, now()) AT TIME ZONE v_tz)::date END;
     v_prop := CASE WHEN v_exec IS NOT NULL AND v_months IS NOT NULL THEN (v_exec + make_interval(months => v_months))::date END;
     v_cal := CASE WHEN v_exec IS NOT NULL AND v_planned IS NOT NULL AND v_months IS NOT NULL THEN (v_planned + make_interval(months => v_months))::date END;
     v_action := coalesce(d->>'action', CASE WHEN it.result IN ('ok','failed') THEN 'advance' WHEN it.result = 'not_applicable' THEN NULL ELSE 'keep' END);
