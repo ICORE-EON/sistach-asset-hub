@@ -32,3 +32,14 @@ Sin arrays de UUID: ámbitos en tablas de relación. Relaciones entre tablas del
 ## Pruebas
 `__tests__/run.sh` levanta un PostgreSQL temporal y desechable, instala el host simulado (`fixtures/host_stub.sql`, solo pruebas),
 el esquema y el catálogo, y ejecuta las comprobaciones. No se conecta nunca a la base de la aplicación.
+
+## Bloque 2A — edición, desactivación y eliminación controlada
+
+- Los clientes (`authenticated`) no pueden borrar físicamente `mnt_assets`, `mnt_plans`, `mnt_plan_assets`, `mnt_sessions` ni `mnt_session_items` (trigger `mnt_delete_guard`). Solo estas RPC, tras comprobar actividad/evidencias en la misma transacción:
+  - `mnt_delete_asset(org, asset, confirm)` y `mnt_delete_plan(org, plan, confirm)` — permiso `mnt.admin`; con `confirm=false` solo devuelven `{eligible, blockers, remove}`. El plan elimina sus sesiones vacías solo con confirmación y las lista antes.
+  - `mnt_unlink_plan_asset(org, plan, asset, reason)` — `mnt.admin`; vínculo nunca usado → se quita (`link_removed`); usado → `end_on = ayer` en la zona de la organización (`unlink`, motivo obligatorio). `end_on` es inclusivo.
+  - `mnt_cancel_session(org, session, reason)` — `mnt.run`; motivo obligatorio, historial `cancelled`, evento `session.cancelled`, no mueve fechas, idempotente.
+  - `mnt_delete_draft_session(org, session)` — `mnt.run`; solo borradores sin resultados, observaciones, respuestas, certificados, historial ni cambios de fecha.
+- Archivar un plan = `status = 'archived'` (ya existente); no se borra el historial.
+- Las sesiones guardan `metadata.plan_frequency` al crearse; el cierre usa esa periodicidad (`mnt_session_months`). Sesiones sin ella usan la frecuencia vigente del plan.
+- **Responsabilidad del host ICORE:** los documentos y archivos viven en el DocumentPort del host. El host debe impedir borrar (fila y objeto de almacenamiento) documentos vinculados a una sesión cerrada o a un certificado, y las incidencias del host originadas en un cierre. Si ICORE necesita que el borrado definitivo sea solo de "administrador", debe mapear `mnt.admin` a ese rol (o separar un permiso propio).

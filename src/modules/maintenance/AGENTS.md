@@ -1,0 +1,1 @@
+- Physical deletes of maintenance assets/plans/links/sessions/items go only through `mnt_sa_delete_*` / `mnt_sa_unlink_plan_asset` RPCs (standalone) and `mnt_delete_*` / `mnt_unlink_plan_asset` (ICORE installer); BEFORE DELETE guards block direct deletes — keeps evidence and the due-date log intact.
