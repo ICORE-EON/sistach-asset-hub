@@ -39,6 +39,19 @@ BEGIN
   INSERT INTO public.incidents(id, company_id, code, title, source_maintenance_item_id, asset_id) VALUES
     ('00000000-0000-4000-8000-0000000a0061', CB, 'T2A-X1', 'T2A incidencia', '00000000-0000-4000-8000-0000000a0045', '00000000-0000-4000-8000-0000000a0013');
 
+  -- Regression outside the original 51-case count: client GUC is not deletion authority.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', UB, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('mnt.safe_delete', 'on', true);
+  BEGIN
+    DELETE FROM public.assets WHERE id='00000000-0000-4000-8000-0000000a0015';
+    RAISE EXCEPTION 'FAIL bandera cliente autorizó borrado';
+  EXCEPTION WHEN insufficient_privilege THEN
+    results := results || E'\nPASS adicional: bandera cliente no autoriza borrado';
+  END;
+  PERFORM set_config('mnt.safe_delete', 'off', true);
+  RESET ROLE;
+
   FOR r IN SELECT * FROM (VALUES
   (1,'manager','A','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_unlink_plan_asset(':CB', '00000000-0000-4000-8000-0000000a0024', 'x')$$),
   (2,'admin','B','authenticated','count','rows:1',$$SELECT 1 WHERE public.mnt_sa_unlink_plan_asset(':CB', '00000000-0000-4000-8000-0000000a0021', NULL)->>'action'='removed'$$),
