@@ -12,6 +12,7 @@ import { createSessionsRepo } from "./repos/sessions.repo";
 import { createIncidentsRepo } from "./repos/incidents.repo";
 import { createCertificatesRepo } from "./repos/certificates.repo";
 import { createMetrologyRepo } from "./repos/metrology.repo";
+import { createCorrectiveRepo } from "./repos/corrective.repo";
 import type { StandaloneClient } from "./client";
 
 /** Compile-time conformance: the standalone implementation must satisfy the module contracts. */
@@ -24,6 +25,7 @@ export function createStandaloneRepositories(client: StandaloneClient): Maintena
     incidents: createIncidentsRepo(client),
     certificates: createCertificatesRepo(client),
     metrology: createMetrologyRepo(client),
+    corrective: createCorrectiveRepo(client),
   } satisfies MaintenanceRepositories;
 }
 
