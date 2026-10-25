@@ -54,6 +54,16 @@ export type UpcomingRow = {
   interval_months: number | null; execution_mode: string; last_done_at: string | null; next_due_at: string | null;
   open_session_id: string | null;
 };
+/** One closed intervention. executed_on is the effective execution date (null = not recorded); closed_at is the administrative close. */
+export type InterventionRow = {
+  id: string; code: string; plan_id: string | null; plan_name: string | null; plan_code: string | null;
+  is_external: boolean; external_provider: string | null; outcome: string | null;
+  executed_on: string | null; executed_source: "performed_on" | "items" | null;
+  closed_at: string | null; asset_count: number;
+};
+export type InterventionPage = { rows: InterventionRow[]; total: number };
+/** Plan scope: links ever made vs links currently in force (start_on ≤ today and no past end_on). */
+export type PlanScopeCount = { plan_id: string; linked: number; current: number };
 export type ExternalRecord = {
   performedOn: string; provider: string; reference: string | null; result: "ok" | "with_incidents"; description: string | null;
 };

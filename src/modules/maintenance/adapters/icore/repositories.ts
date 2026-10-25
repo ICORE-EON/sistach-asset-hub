@@ -66,6 +66,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
     plans: {
       listPlans: nc("plans.listPlans"),
       getPlan: nc("plans.getPlan"),
+      listPlanScopeCounts: nc("plans.listPlanScopeCounts"),
       listPlanAssets: nc("plans.listPlanAssets"),
       listCertificateTemplates: nc("plans.listCertificateTemplates"),
       listScopeAssets: nc("plans.listScopeAssets"),
@@ -86,6 +87,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       startSession: nc("sessions.startSession"),
       recordExternal: nc("sessions.recordExternal"),
       listUpcoming: nc("sessions.listUpcoming"),
+      listInterventions: nc("sessions.listInterventions"),
       assertItemWritable: nc("sessions.assertItemWritable"),
       setItemResult: nc("sessions.setItemResult"),
       closeSession: nc("sessions.closeSession"),
