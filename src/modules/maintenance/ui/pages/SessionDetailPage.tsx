@@ -1,4 +1,5 @@
 import { DueDecisionsPanel, buildDueDecisions, type DueChoices, type DuePanelRow } from "../components/due-decisions-panel";
+import { addMonthsClamped } from "../../domain/due-date";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -715,9 +716,12 @@ function CloseSessionDialog({
   );
 }
 
-function ExternalRecordCard({ orgId, sessionId, session, assetCount, editable, onSaved }: {
-  orgId: string | null; sessionId: string; assetCount: number; editable: boolean; onSaved: () => void;
+type ExtException = { result: "ok" | "with_incident" | "skipped"; note: string };
+
+function ExternalRecordCard({ orgId, sessionId, session, items, editable, onSaved }: {
+  orgId: string | null; sessionId: string; editable: boolean; onSaved: () => void;
   session: { status: string; external_provider: string | null; external_cert_number: string | null; metadata: unknown };
+  items: Array<{ id: string; result: string; assets: { code: string; name: string | null } | null }>;
 }) {
   const ext = ((session.metadata as Record<string, unknown> | null)?.external ?? {}) as { performed_on?: string; result?: string; description?: string | null };
   const closed = session.status === "closed";
@@ -726,10 +730,39 @@ function ExternalRecordCard({ orgId, sessionId, session, assetCount, editable, o
   const [reference, setReference] = useState(session.external_cert_number ?? "");
   const [result, setResult] = useState<"ok" | "with_incidents">((ext.result as "ok" | "with_incidents") ?? "ok");
   const [description, setDescription] = useState(ext.description ?? "");
+  const [hasExceptions, setHasExceptions] = useState(false);
+  const [exceptions, setExceptions] = useState<Record<string, ExtException>>({});
+  const [dueChoices, setDueChoices] = useState<DueChoices>({});
+
+  const { data: preview = [] } = useQuery({
+    queryKey: sessionKeys.duePreview(orgId, sessionId), enabled: !closed && !!orgId,
+    queryFn: () => sessionService.listDuePreview(orgId, sessionId),
+  });
+  // La fecha de ejecución externa es performed_on (el servidor aplica la misma regla al cerrar).
+  const dueRows: DuePanelRow[] = preview.map((r) => {
+    const proposed = r.executed_on ? r.proposed_on
+      : performedOn && r.months ? addMonthsClamped(performedOn, r.months) : null;
+    const calendar = r.planned_on && r.months ? addMonthsClamped(r.planned_on, r.months) : null;
+    return { item_id: r.item_id, code: r.asset_code, name: r.asset_name,
+      result: exceptions[r.item_id]?.result ?? (result === "ok" ? "ok" : "with_incident"),
+      linked: r.linked, planned_on: r.planned_on, proposed_on: proposed,
+      calendar_on: calendar && calendar !== proposed ? calendar : null };
+  });
+  const setException = (itemId: string, patch: Partial<ExtException>) =>
+    setExceptions((p) => ({ ...p, [itemId]: { result: "ok", note: "", ...p[itemId], ...patch } }));
+
   const save = useMutation({
-    mutationFn: () => sessionService.recordExternal(orgId, sessionId, {
-      performedOn, provider, reference: reference || null, result, description: description || null,
-    }),
+    mutationFn: () => {
+      const { decisions, error } = buildDueDecisions(dueRows, dueChoices);
+      if (error) throw new Error(error);
+      return sessionService.recordExternal(orgId, sessionId, {
+        performedOn, provider, reference: reference || null, result, description: description || null,
+        exceptions: Object.entries(exceptions)
+          .filter(([, e]) => e.result !== (result === "ok" ? "ok" : "with_incident"))
+          .map(([itemId, e]) => ({ itemId, result: e.result, note: e.note.trim() || null })),
+        decisions,
+      });
+    },
     onSuccess: () => { toast.success("Revisión externa registrada"); onSaved(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -737,7 +770,7 @@ function ExternalRecordCard({ orgId, sessionId, session, assetCount, editable, o
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Revisión externa · {assetCount} equipo(s)</CardTitle>
+        <CardTitle className="text-base">Revisión externa · {items.length} equipo(s)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
