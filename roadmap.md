@@ -49,3 +49,9 @@
 - [x] UI sesión: cancelar con motivo, eliminar borrador vacío
 - [x] Aviso de frecuencia legado en decisiones de cierre
 - [x] Instalador ICORE con RPC 2A + pruebas; SQL B1B 49/49; Vitest; navegador PYME
+
+## Bloque 2B — Reparaciones (EN CURSO)
+- [x] Base de datos, seguridad y pruebas SQL (app 55/55, instalador ICORE 133 PASS / 26 de 2B)
+- [x] Contratos, servicios, repositorio standalone y pantallas (Mantenimientos > Reparaciones, ficha de activo, incidencia)
+- [ ] Prueba en navegador con datos TEST (pendiente decisión: los registros de reparación no se pueden borrar)
+- [ ] Repetir batería 1B; adaptador ICORE TypeScript de reparaciones; documentación EXPORT/specs
