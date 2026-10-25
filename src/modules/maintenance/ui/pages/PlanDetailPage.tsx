@@ -239,7 +239,7 @@ export function PlanDetailPage() {
               {!!c.remove?.empty_drafts?.length && <p>También se eliminarán estos borradores vacíos: {c.remove.empty_drafts.join(", ")}.</p>}
             </>
           )}
-          onDeleted={() => { toast.success("Plan eliminado"); qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true }); navigate({ to: "/maintenance", search: { tab: "plans" } as never }); }}
+          onDeleted={() => { toast.success("Plan eliminado"); qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true }); navigate({ to: "/maintenance-plans" }); }}
         />
         <ReasonDialog
           open={!!unlinkTarget}
