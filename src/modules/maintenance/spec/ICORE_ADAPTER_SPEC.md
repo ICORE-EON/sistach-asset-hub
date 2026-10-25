@@ -48,6 +48,7 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `getAsset` | `orgId: string, id: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_assets | sites |
 | `createAsset` | `orgId: string, v: NewAsset` | `void` | write | mnt.manage_assets | RLS + triggers mnt_tg_site_scope / mnt_type_usable + código mnt_next_code | sites |
 | `updateAsset` | `orgId: string, id: string, v: AssetPatch` | `void` | write | mnt.manage_assets | RLS + trigger mnt_tg_site_scope | sites |
+| `deleteAsset` | `orgId: string, id: string, confirm: boolean` | `DeleteCheck` | atomic | mnt.admin | RPC mnt_delete_asset (solo sin evidencias) | — |
 | `softDeleteAsset` | `orgId: string, id: string` | `void` | write | mnt.manage_assets | RLS mnt_assets (deleted_at) | — |
 | `listKitItems` | `orgId: string, assetId: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_kit_items | — |
 | `saveKitItem` | `orgId: string, assetId: string, id: string \| null, v: KitItemInput` | `void` | write | mnt.manage_assets | RLS mnt_kit_items (FK compuesta org,asset) | — |
@@ -88,7 +89,10 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `setCertificateTemplate` | `orgId: string, planId: string, templateId: string \| null` | `void` | write | mnt.admin | RLS mnt_plans (FK compuesta) | — |
 | `setActive` | `orgId: string, planId: string, active: boolean` | `void` | write | mnt.admin | RLS mnt_plans | — |
 | `addAssets` | `orgId: string, planId: string, assetIds: string[], initialDue?: string \| null` | `void` | write | mnt.admin | RLS mnt_plan_assets (FK compuesta) | — |
-| `removeAsset` | `orgId: string, planId: string, assignmentId: string` | `void` | write | mnt.admin | RLS mnt_plan_assets | — |
+| `removeAsset` | `orgId: string, planId: string, assignmentId: string, reason?: string \| null` | `{ action }` | atomic | mnt.manage_assets | RPC mnt_unlink_plan_asset (nunca usado: se quita; usado: end_on = ayer + motivo) | people |
+| `updatePlan` | `orgId: string, planId: string, v: PlanEdit` | `void` | write | mnt.manage_assets | RLS mnt_plans; no reprograma vencimientos | — |
+| `setArchived` | `orgId: string, planId: string, archived: boolean` | `void` | write | mnt.manage_assets | RLS mnt_plans (status archived) | — |
+| `deletePlan` | `orgId: string, planId: string, confirm: boolean` | `DeleteCheck` | atomic | mnt.admin | RPC mnt_delete_plan (solo sin actividad) | — |
 | `setDue` | `orgId: string, changes: DueChange[], reason: string \| null` | `number` | atomic | mnt.admin | RPC mnt_set_due (bitácora mnt_due_changes) | people |
 
 ## Sesiones (`sessions`)
@@ -109,6 +113,8 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `recordExternal` | `orgId: string, sessionId: string, v: ExternalRecord` | `void` | atomic | mnt.close | Transacción: resultado común + excepciones + vencimientos | — |
 | `assertItemWritable` | `orgId: string, sessionId: string, itemId: string` | `{ id: string; asset_id: string; metadata: Json; }` | read | mnt.run | Solo UX: la autoridad es mnt_tg_item_guard | — |
 | `setItemResult` | `orgId: string, sessionId: string, itemId: string, result: string, observations: string \| null, failCount: number` | `void` | write | mnt.run | RLS + mnt_tg_item_guard | people |
+| `cancelSession` | `orgId: string, sessionId: string, reason: string` | `{ cancelledNow }` | atomic | mnt.run | RPC mnt_cancel_session | people |
+| `deleteDraftSession` | `orgId: string, sessionId: string` | `void` | atomic | mnt.run | RPC mnt_delete_draft_session | — |
 | `closeSession` | `orgId: string, sessionId: string, v: { signerName: string; signerRole: string \| null; signature: string; }` | `DTO (ver contrato)` | atomic | mnt.close | RPC mnt_close_session (snapshot + historial + outbox) | people |
 
 ## Incidencias (`incidents`)
