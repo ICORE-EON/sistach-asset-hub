@@ -23,6 +23,8 @@ import { planFrequencyLabel } from "../../services/plans";
 import { i18nName } from "../../domain/i18n-name";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
 import { PlansListPage } from "./PlansListPage";
+import { DueScheduleDialog, type DueScheduleRow } from "../components/due-schedule-dialog";
+import { dueState, planIntervalMonths } from "../../domain/due-date";
 import { CreateSessionDialog } from "./SessionsListPage";
 
 export type HubTab = "upcoming" | "history" | "plans";
@@ -153,9 +155,12 @@ function groupBy<T>(rows: T[], key: (r: T) => string, label: (k: string) => stri
     .sort((a, b) => (a.key === "__none" ? 1 : b.key === "__none" ? -1 : a.label.localeCompare(b.label)));
 }
 
-function DueBadge({ date }: { date: string | null }) {
-  if (!date) return <Badge variant="outline">Sin fecha</Badge>;
-  const d = differenceInCalendarDays(new Date(date), new Date());
+const todayIso = () => format(new Date(), "yyyy-MM-dd");
+function DueBadge({ date, startsOn }: { date: string | null; startsOn?: string | null }) {
+  const st = dueState(date, todayIso(), startsOn);
+  if (st === "not_started") return <Badge variant="outline">Desde {fdate(startsOn)}</Badge>;
+  if (!date) return <Badge variant="outline">Sin programar</Badge>;
+  const d = differenceInCalendarDays(new Date(`${date}T00:00:00`), new Date());
   if (d < 0) return <Badge variant="destructive">Vencido · {-d} d</Badge>;
   if (d <= 30) return <Badge variant="secondary">En {d} d</Badge>;
   return <Badge variant="outline">Al día</Badge>;
@@ -164,7 +169,9 @@ function DueBadge({ date }: { date: string | null }) {
 type SortKey = "status" | "date" | "plan" | "last";
 
 function UpcomingTab() {
-  const { orgId } = useMaintenanceRequest();
+  const { orgId, role } = useMaintenanceRequest();
+  const canManage = role === "administrator" || role === "system_manager";
+  const [scheduling, setScheduling] = useState<null | { title: string; months: number | null; rows: DueScheduleRow[] }>(null);
   const f = useAssetFilters();
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "status", dir: 1 });
   const [viewing, setViewing] = useState<null | { title: string; assets: any[] }>(null);
@@ -177,9 +184,10 @@ function UpcomingTab() {
   const filtered = upcoming.filter((u) => assetMap.has(u.asset_id)).map((u) => ({ ...u, asset: assetMap.get(u.asset_id)! }));
 
   type Row = (typeof filtered)[number];
+  const today = todayIso();
   const buildGroups = (list: Row[]) => {
     const m = new Map<string, Row[]>();
-    for (const r of list) { const k = `${r.plan_id}|${r.next_due_at ?? ""}`; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); }
+    for (const r of list) { const k = `${r.plan_id}|${r.next_due_at ?? ""}|${dueState(r.next_due_at, today, r.starts_on) === "not_started" ? r.starts_on : ""}`; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); }
     const groups = [...m.entries()].map(([key, items]) => {
       const first = items[0];
       const last = items.map((i) => i.last_done_at).filter(Boolean).sort().pop() ?? null;
@@ -188,13 +196,17 @@ function UpcomingTab() {
         execution_mode: first.execution_mode, next_due_at: first.next_due_at, last_done_at: last,
         open_session_id: items.find((i) => i.open_session_id)?.open_session_id ?? null,
         assets: items.map((i) => i.asset), total: planTotals.get(first.plan_id) ?? items.length,
+        starts_on: dueState(first.next_due_at, today, first.starts_on) === "not_started" ? first.starts_on : null,
+        incidents: items.filter((i) => i.last_result === "with_incident").length,
+        due_rows: items.map((i) => ({ planAssetId: i.plan_asset_id, code: i.asset.code, name: i.asset.name, current: i.next_due_at })),
       };
     });
-    const due = (d: string | null) => (d ? differenceInCalendarDays(new Date(d), new Date()) : 99999);
-    const status = (d: string | null) => { const x = due(d); return x < 0 ? 0 : x <= 30 ? 1 : d ? 2 : 3; };
+    const due = (d: string | null) => (d ? differenceInCalendarDays(new Date(`${d}T00:00:00`), new Date()) : 99999);
+    const RANK = { overdue: 0, soon: 1, ok: 2, not_started: 3, unscheduled: 4 } as const;
+    const status = (d: string | null, s?: string | null) => RANK[dueState(d, today, s)];
     const cmp = (a: (typeof groups)[number], b: (typeof groups)[number]) => {
       switch (sort.key) {
-        case "status": return status(a.next_due_at) - status(b.next_due_at) || due(a.next_due_at) - due(b.next_due_at);
+        case "status": return status(a.next_due_at, a.starts_on) - status(b.next_due_at, b.starts_on) || due(a.next_due_at) - due(b.next_due_at);
         case "plan": return a.plan_name.localeCompare(b.plan_name);
         case "last": return (a.last_done_at ?? "").localeCompare(b.last_done_at ?? "");
         default: return (a.next_due_at ?? "9999").localeCompare(b.next_due_at ?? "9999");
@@ -206,7 +218,7 @@ function UpcomingTab() {
 
   const renderRow = (g: Group) => (
     <TableRow key={g.key}>
-      <TableCell><DueBadge date={g.next_due_at} /></TableCell>
+      <TableCell><DueBadge date={g.next_due_at} startsOn={g.starts_on} /></TableCell>
       <TableCell className="text-sm font-medium">{fdate(g.next_due_at)}</TableCell>
       <TableCell className="text-sm">
         <Link to="/maintenance-plans/$id" params={{ id: g.plan_id }} className="font-medium hover:underline">{g.plan_name}</Link>
@@ -214,7 +226,10 @@ function UpcomingTab() {
           {freqLabel(g.frequency, g.interval_months)} · {g.execution_mode === "external" ? "Externo" : "Interno"}
         </div>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{fdate(g.last_done_at)}</TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {fdate(g.last_done_at)}
+        {g.incidents > 0 && <div><Badge variant="secondary" className="mt-1 text-[10px]">{g.incidents === 1 && g.assets.length === 1 ? "Última con incidencias" : `${g.incidents} con incidencias`}</Badge></div>}
+      </TableCell>
       <TableCell>
         {g.assets.length === 1 ? (
           <>
@@ -227,7 +242,12 @@ function UpcomingTab() {
           </button>
         )}
       </TableCell>
-      <TableCell>
+      <TableCell className="space-x-1 whitespace-nowrap">
+        {canManage && (
+          <Button size="sm" variant="ghost" onClick={() => setScheduling({ title: g.plan_name, months: planIntervalMonths(g.frequency, g.interval_months), rows: g.due_rows })}>
+            {g.next_due_at ? "Reprogramar" : "Programar"}
+          </Button>
+        )}
         {g.open_session_id && (
           <Link to="/maintenance/$id" params={{ id: g.open_session_id }}>
             <Button size="sm" variant="outline"><PlayCircle className="mr-1 h-4 w-4" />Sesión abierta</Button>
@@ -298,7 +318,11 @@ function UpcomingTab() {
           </TableBody>
         </Table>
       </div>
-      <p className="text-xs text-muted-foreground">Fechas estimadas con las reglas de cálculo actuales, pendientes de revisión.</p>
+      <p className="text-xs text-muted-foreground">Fecha prevista guardada por equipo. Al cerrar una revisión se propone la siguiente (fecha real + frecuencia) y puede cambiarse.</p>
+      {scheduling && orgId && (
+        <DueScheduleDialog orgId={orgId} title={scheduling.title} months={scheduling.months} rows={scheduling.rows}
+          open onOpenChange={(o) => !o && setScheduling(null)} />
+      )}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Equipos incluidos · {viewing?.title}</DialogTitle></DialogHeader>
