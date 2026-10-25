@@ -36,6 +36,13 @@
       "when": 1792956586873,
       "tag": "0004_mnt_2a_delete_guard_parent_company",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792956707836,
+      "tag": "0005_mnt_2a_permission_null_safe",
+      "breakpoints": true
     }
   ]
 }
