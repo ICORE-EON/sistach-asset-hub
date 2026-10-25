@@ -801,6 +801,48 @@ function ExternalRecordCard({ orgId, sessionId, session, items, editable, onSave
           <Label>{result === "with_incidents" ? "Descripción de las incidencias *" : "Observaciones"}</Label>
           <Textarea value={description} disabled={ro} onChange={(e) => setDescription(e.target.value)} rows={3} />
         </div>
+        {!ro && items.length > 0 && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={hasExceptions} onCheckedChange={(c) => { setHasExceptions(!!c); if (!c) setExceptions({}); }} />
+              Algún equipo tiene un resultado distinto del general
+            </label>
+            {hasExceptions && (
+              <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
+                {items.map((it) => {
+                  const ex = exceptions[it.id];
+                  return (
+                    <div key={it.id} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="font-mono text-xs">{it.assets?.code}</span>
+                      <span className="min-w-0 flex-1 truncate">{it.assets?.name ?? "—"}</span>
+                      <Select
+                        value={ex?.result ?? "__common__"}
+                        onValueChange={(v) => v === "__common__"
+                          ? setExceptions((p) => { const n = { ...p }; delete n[it.id]; return n; })
+                          : setException(it.id, { result: v as ExtException["result"] })}
+                      >
+                        <SelectTrigger className="h-8 w-[210px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__common__">Como el resultado general</SelectItem>
+                          <SelectItem value="ok">Correcto</SelectItem>
+                          <SelectItem value="with_incident">Con incidencias</SelectItem>
+                          <SelectItem value="skipped">No realizado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {ex && (
+                        <Input className="h-8 w-[220px]" placeholder="Nota (opcional)" value={ex.note}
+                          onChange={(e) => setException(it.id, { note: e.target.value })} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        {!ro && dueRows.some((r) => r.linked) && (
+          <DueDecisionsPanel rows={dueRows} value={dueChoices} onChange={setDueChoices} disabled={save.isPending} />
+        )}
         <p className="text-xs text-muted-foreground">Adjunta el informe, certificado o factura en el apartado de documentos de abajo.</p>
         {!ro && (
           <div className="flex justify-end">
