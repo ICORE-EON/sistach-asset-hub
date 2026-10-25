@@ -102,7 +102,7 @@ const baseCreate = {
 describe("plan query keys", () => {
   it("every factory embeds orgId at position 1 and differs between tenants", () => {
     const f = Object.entries(planKeys) as Array<[string, (o: string, x?: string) => readonly unknown[]]>;
-    expect(f.length).toBe(8);
+    expect(f.length).toBe(9);
     for (const [name, k] of f) {
       expect(k(A, "x")[1], name).toBe(A);
       expect(JSON.stringify(k(A, "x"))).not.toBe(JSON.stringify(k(B, "x")));
@@ -119,7 +119,7 @@ describe("plan query keys", () => {
       expect(src, f).not.toMatch(/invalidateQueries\(\{\s*queryKey:\s*\[/);
       for (const line of src.split("\n")) {
         if (!line.includes("queryKey:")) continue;
-        expect(line, `${f}: ${line.trim()}`).toMatch(/planKeys\.|assetKeys\.|checklistKeys\./);
+        expect(line, `${f}: ${line.trim()}`).toMatch(/planKeys\.|assetKeys\.|checklistKeys\.|sessionKeys\./);
       }
     }
   });
