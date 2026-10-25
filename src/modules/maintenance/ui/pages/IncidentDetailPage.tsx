@@ -1,5 +1,6 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
+import { NewRepairButton } from "../components/corrective";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Save, History, UserPlus, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
@@ -231,6 +232,9 @@ export function IncidentDetailPage() {
                       <dd>{format(new Date(incident.created_at), "dd/MM/yyyy HH:mm")}</dd>
                     </div>
                     <IncidentOriginRow incident={incident} />
+                    {incident.assets && incident.status !== "closed" && (
+                      <div className="col-span-2"><NewRepairButton assetId={incident.assets.id} incidentId={incident.id} /></div>
+                    )}
                     {incident.resolved_at && (
                       <div>
                         <dt className="text-xs text-muted-foreground">Resuelta</dt>

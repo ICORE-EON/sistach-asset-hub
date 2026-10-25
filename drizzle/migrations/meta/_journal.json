@@ -50,6 +50,20 @@
       "when": 1792959712180,
       "tag": "0006_mnt_2a_delete_guard_owner_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792966464994,
+      "tag": "0007_mnt_2b_corrective",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792966482347,
+      "tag": "0008_mnt_2b_authority_exec",
+      "breakpoints": true
     }
   ]
 }

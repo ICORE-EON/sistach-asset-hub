@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MaintenanceHubPage, type HubTab } from "@/modules/maintenance/ui/pages/MaintenanceHubPage";
 
-const TABS: HubTab[] = ["upcoming", "history", "plans"];
+const TABS: HubTab[] = ["upcoming", "repairs", "history", "plans"];
 
 export const Route = createFileRoute("/_authenticated/_app/maintenance/")({
   validateSearch: (s: Record<string, unknown>): { tab?: HubTab } =>

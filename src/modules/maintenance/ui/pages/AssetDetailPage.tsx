@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
 import { FirstAidKitPanel } from "../components/first-aid-kit-panel";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
+import { NewRepairButton, RepairsList } from "../components/corrective";
 import { SafeDeleteDialog } from "../components/safe-actions";
 
 
@@ -342,6 +343,14 @@ export function AssetDetailPage() {
             <FirstAidKitPanel assetId={id} canManage={canManage} />
           </div>
         )}
+
+        <Card className="lg:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Reparaciones</CardTitle>
+            {asset.status !== "retired" && <NewRepairButton assetId={id} />}
+          </CardHeader>
+          <CardContent><RepairsList assetId={id} showAsset={false} /></CardContent>
+        </Card>
 
         <div className="lg:col-span-3">
           <AssetHistoryPanel assetId={id} />
