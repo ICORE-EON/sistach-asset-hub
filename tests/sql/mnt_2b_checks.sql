@@ -20,8 +20,10 @@ BEGIN
     ('00000000-0000-4000-8000-0000000b0013', CB, T, 'T2B-3', 'Retirado TEST', 'retired');
   INSERT INTO public.maintenance_plans(id, company_id, code, name, frequency, asset_family_id, execution_mode) VALUES
     ('00000000-0000-4000-8000-0000000b0001', CB, 'T2B-P1', 'Anual', 'annual', F, 'internal');
+  PERFORM set_config('mnt.due_writer', 'on', true); -- solo fixture, revertido
   INSERT INTO public.maintenance_plan_assets(id, plan_id, asset_id, start_on, next_due_on) VALUES
     ('00000000-0000-4000-8000-0000000b0021', '00000000-0000-4000-8000-0000000b0001', '00000000-0000-4000-8000-0000000b0011', DATE '2025-01-01', DATE '2027-01-15');
+  PERFORM set_config('mnt.due_writer', 'off', true);
   INSERT INTO public.incidents(id, company_id, code, title, asset_id, status) VALUES
     ('00000000-0000-4000-8000-0000000b0061', CB, 'T2B-X1', 'TEST incidencia clima', '00000000-0000-4000-8000-0000000b0012', 'open'),
     ('00000000-0000-4000-8000-0000000b0062', CA, 'T2B-X0', 'TEST otra org', NULL, 'open');
