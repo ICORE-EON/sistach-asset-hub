@@ -9,7 +9,8 @@
  *  - item.metadata.snapshot: asset, type, location and checklist version at opening
  *  - session.metadata.close_snapshot: per-item results frozen at close
  */
-import type { ExternalRecord, UpcomingRow } from "../../../contracts/repositories";
+import type { ExternalRecord, InterventionPage, UpcomingRow } from "../../../contracts/repositories";
+import { effectiveExecution, interventionScope } from "../../../domain/intervention";
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
 import type { NewSession } from "../../../contracts/repositories";
@@ -200,6 +201,30 @@ export function createSessionsRepo(c: StandaloneClient) {
           interval_months: m, execution_mode: p.execution_mode, last_done_at: last.get(k) ?? null, next_due_at: next,
           open_session_id: openBy.get(k) ?? null };
       });
+    },
+
+    async listInterventions(orgId: string, page: { offset: number; limit: number }): Promise<InterventionPage> {
+      const limit = Math.min(Math.max(1, Math.floor(page.limit)), 200), offset = Math.max(0, Math.floor(page.offset));
+      const r = await c.from("maintenance_sessions")
+        .select("id, code, plan_id, is_external, external_provider, outcome, closed_at, metadata, maintenance_plans(name, code), maintenance_items(completed_at)", { count: "exact" })
+        .eq("company_id", orgId).eq("status", "closed")
+        .order("closed_at", { ascending: false, nullsFirst: false }).order("id")
+        .range(offset, offset + limit - 1);
+      const rows = ok(r) ?? [];
+      return {
+        total: r.count ?? rows.length,
+        rows: rows.map((s) => {
+          const items = (s.maintenance_items ?? []) as Array<{ completed_at: string | null }>;
+          const ex = effectiveExecution({ is_external: s.is_external, metadata: s.metadata, item_completions: items.map((i) => i.completed_at) });
+          const plan = s.maintenance_plans as { name: string; code: string } | null;
+          return {
+            id: s.id, code: s.code, plan_id: s.plan_id, plan_name: plan?.name ?? null, plan_code: plan?.code ?? null,
+            is_external: s.is_external, external_provider: s.external_provider, outcome: s.outcome,
+            executed_on: ex.date, executed_source: ex.source, closed_at: s.closed_at,
+            asset_count: interventionScope(s.metadata, items.length),
+          };
+        }),
+      };
     },
 
     async recordExternal(orgId: string, sessionId: string, v: ExternalRecord) {
