@@ -104,8 +104,11 @@ export const planService = {
     else await repo().addAssets(need(orgId), planId, assetIds);
     return assetIds.length;
   },
-  removeAsset: (orgId: string | null, planId: string, assignmentId: string) =>
-    repo().removeAsset(need(orgId), planId, assignmentId),
+  removeAsset: (orgId: string | null, planId: string, assignmentId: string, reason?: string | null) =>
+    repo().removeAsset(need(orgId), planId, assignmentId, reason ?? null),
+  updatePlan: (orgId: string | null, planId: string, v: PlanEdit) => repo().updatePlan(need(orgId), planId, v),
+  setArchived: (orgId: string | null, planId: string, archived: boolean) => repo().setArchived(need(orgId), planId, archived),
+  deletePlan: (orgId: string | null, planId: string, confirm: boolean) => repo().deletePlan(need(orgId), planId, confirm),
   /**
    * Programar / reprogramar: misma fecha para un lote con excepciones por equipo. Solo envía lo que cambia.
    * El motivo es obligatorio si se modifica una fecha ya establecida (la base de datos lo exige igualmente).
