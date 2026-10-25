@@ -53,7 +53,6 @@ BEGIN
   (11,'admin','B','authenticated','exec','rej:42501',$$DELETE FROM public.maintenance_plan_assets WHERE id='00000000-0000-4000-8000-0000000a0024'$$),
   (12,'admin','B','authenticated','exec','rej:42501',$$DELETE FROM public.maintenance_sessions WHERE id='00000000-0000-4000-8000-0000000a0032'$$),
   (13,'admin','B','authenticated','exec','rej:42501',$$DELETE FROM public.assets WHERE id='00000000-0000-4000-8000-0000000a0015'$$),
-  (14,'admin otra org','A0','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_delete_draft_session(':CB', '00000000-0000-4000-8000-0000000a0032')$$),
   (15,'manager','A','authenticated','exec','rej:23514',$$SELECT public.mnt_sa_delete_draft_session(':CB', '00000000-0000-4000-8000-0000000a0033')$$),
   (16,'manager','A','authenticated','exec','rej:23514',$$SELECT public.mnt_sa_delete_draft_session(':CB', '00000000-0000-4000-8000-0000000a0031')$$),
   (17,'manager','A','authenticated','exec','ok',$$SELECT public.mnt_sa_delete_draft_session(':CB', '00000000-0000-4000-8000-0000000a0032')$$),
@@ -88,7 +87,10 @@ BEGIN
   (46,'manager','A','authenticated','exec','ok',$$SELECT public.mnt_sa_close_session(':CB', '00000000-0000-4000-8000-0000000a0036', 'Técnico', NULL, 'sig')$$),
   (47,'propietario','-','-','count','rows:1',$$SELECT 1 FROM public.maintenance_plan_assets WHERE id='00000000-0000-4000-8000-0000000a0024' AND next_due_on='2026-02-10'$$),
   (48,'anon','-','anon','exec','rej:42501',$$SELECT public.mnt_sa_delete_asset(':CB', '00000000-0000-4000-8000-0000000a0014', true)$$),
-  (49,'admin otra org','A0','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_cancel_session(':CB', '00000000-0000-4000-8000-0000000a0036', 'x')$$)
+  (50,'propietario','-','-','exec','ok',$$DELETE FROM public.company_members WHERE user_id='3b7de027-5b93-4336-a2a3-ececd12f7443' AND company_id=':CB'$$),
+  (51,'admin otra org','A0','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_delete_draft_session(':CB', '00000000-0000-4000-8000-0000000a0033')$$),
+  (52,'admin otra org','A0','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_cancel_session(':CB', '00000000-0000-4000-8000-0000000a0036', 'x')$$),
+  (53,'admin otra org','A0','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_unlink_plan_asset(':CB', '00000000-0000-4000-8000-0000000a0024', 'x')$$)
    ) t(n, actor, who, role, kind, expected, sql) ORDER BY n
   LOOP
     q := r.sql;
