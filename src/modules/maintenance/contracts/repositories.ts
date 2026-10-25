@@ -69,6 +69,8 @@ export type DuePreviewRow = {
   item_id: string; asset_id: string; asset_code: string | null; asset_name: string | null; result: string;
   planned_on: string | null; executed_on: string | null; proposed_on: string | null; calendar_on: string | null;
   linked: boolean;
+  /** Plan interval in months (lets the UI recompute the proposal for an external date not yet saved). */
+  months: number | null;
 };
 /** Batch due change: same date for many links, or per-link exceptions. Reason required to change an existing date. */
 export type DueChange = { planAssetId: string; due: string | null; reason?: string | null };

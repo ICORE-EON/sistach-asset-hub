@@ -261,7 +261,7 @@ export function createSessionsRepo(c: StandaloneClient) {
         return { item_id: it.id, asset_id: it.asset_id, asset_code: a?.code ?? snap?.code ?? null, asset_name: a?.name ?? snap?.name ?? null,
           result: it.result, planned_on: p, executed_on: exec,
           proposed_on: exec && months ? addMonthsClamped(exec, months) : null,
-          calendar_on: exec && p && months ? addMonthsClamped(p, months) : null, linked: planned.has(it.asset_id) };
+          calendar_on: exec && p && months ? addMonthsClamped(p, months) : null, linked: planned.has(it.asset_id), months };
       });
     },
 
