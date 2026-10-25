@@ -69,9 +69,15 @@ export type DuePreviewRow = {
   item_id: string; asset_id: string; asset_code: string | null; asset_name: string | null; result: string;
   planned_on: string | null; executed_on: string | null; proposed_on: string | null; calendar_on: string | null;
   linked: boolean;
-  /** Plan interval in months (lets the UI recompute the proposal for an external date not yet saved). */
+  /** Interval in months frozen in the session (lets the UI recompute the proposal for an external date not yet saved). */
   months: number | null;
+  /** "session" = frequency frozen when the session was created; "plan" = legacy session, current plan frequency. */
+  months_source: "session" | "plan";
 };
+/** Result of a safe permanent delete: blockers explain why it is not allowed (then archive/retire instead). */
+export type DeleteCheck = { deleted: boolean; eligible: boolean; blockers: string[]; already?: boolean; code?: string;
+  remove?: { plan_links?: number; kit_items?: number; removed_documents?: number; empty_drafts?: string[] } };
+export type PlanEdit = { name: string; frequency: string; interval_months: number | null; notes: string | null };
 /** Batch due change: same date for many links, or per-link exceptions. Reason required to change an existing date. */
 export type DueChange = { planAssetId: string; due: string | null; reason?: string | null };
 /** One closed intervention. executed_on is the effective execution date (null = not recorded); closed_at is the administrative close. */
@@ -128,8 +134,10 @@ export interface AssetsRepository {
   listAssets(orgId: string, f?: AssetFilters): Promise<{ id: string; code: string; name: string | null; status: string; manufacturer: string | null; model: string | null; serial_number: string | null; install_date: string | null; qr_token: string; asset_type_id: string; location_id: string | null; asset_types: { code: string; name_i18n: Json; }; locations: { name: string; code: string; } | null; }[]>;
   getAsset(orgId: string, id: string): Promise<{ asset_type_id: string; code: string; company_id: string; created_at: string; deleted_at: string | null; id: string; install_date: string | null; location_id: string | null; manufacture_date: string | null; manufacturer: string | null; metadata: Json; model: string | null; name: string | null; notes: string | null; qr_token: string; retire_date: string | null; serial_number: string | null; status: string; updated_at: string; warranty_until: string | null; asset_types: { code: string; name_i18n: Json; category: string; }; locations: { name: string; code: string; } | null; } | null>;
   createAsset(orgId: string, v: NewAsset): Promise<void>;
-  updateAsset(orgId: string, id: string, v: AssetPatch): Promise<void>;
+  updateAsset(orgId: string, id: string, v: Partial<AssetPatch>): Promise<void>;
   softDeleteAsset(orgId: string, id: string): Promise<void>;
+  /** Admin only: permanent delete of an asset created by mistake (no evidence). confirm=false only checks. */
+  deleteAsset(orgId: string, id: string, confirm: boolean): Promise<DeleteCheck>;
   listKitItems(orgId: string, assetId: string): Promise<{ id: string; product_code: string | null; product_name: string; quantity: number; unit: string | null; batch_code: string | null; expires_on: string | null; notes: string | null; }[]>;
   saveKitItem(orgId: string, assetId: string, id: string | null, v: KitItemInput): Promise<void>;
   insertKitItems(orgId: string, assetId: string, items: KitItemInput[]): Promise<void>;
@@ -157,8 +165,8 @@ export interface ChecklistsRepository {
 
 /** plans capability */
 export interface PlansRepository {
-  listPlans(orgId: string): Promise<{ active: boolean; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; } | null; }[]>;
-  getPlan(orgId: string, id: string): Promise<{ active: boolean; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; current_version: number; } | null; certificate_templates: { id: string; code: string; name: string; } | null; } | null>;
+  listPlans(orgId: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; } | null; }[]>;
+  getPlan(orgId: string, id: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; current_version: number; } | null; certificate_templates: { id: string; code: string; name: string; } | null; } | null>;
   listPlanScopeCounts(orgId: string): Promise<PlanScopeCount[]>;
   listPlanAssets(orgId: string, planId: string): Promise<{ asset_id: string; company_id: string | null; created_at: string; end_on: string | null; id: string; plan_id: string; start_on: string; next_due_on: string | null; assets: { id: string; code: string; name: string | null; status: string; locations: { name: string; } | null; }; }[]>;
   listCertificateTemplates(orgId: string, orderBy: "code" | "name"): Promise<{ id: string; code: string; name: string; is_default: boolean; asset_family_id: string | null; }[]>;
@@ -167,7 +175,14 @@ export interface PlansRepository {
   setCertificateTemplate(orgId: string, planId: string, templateId: string | null): Promise<void>;
   setActive(orgId: string, planId: string, active: boolean): Promise<void>;
   addAssets(orgId: string, planId: string, assetIds: string[], initialDue?: string | null): Promise<void>;
-  removeAsset(orgId: string, planId: string, assignmentId: string): Promise<void>;
+  /** Unlink an asset: never-used links are removed (correction), used ones end yesterday (reason required). Server RPC. */
+  removeAsset(orgId: string, planId: string, assignmentId: string, reason?: string | null): Promise<{ action: "removed" | "unlink" | "none" }>;
+  /** Edit name/frequency/notes. Never reschedules existing due dates; open sessions keep their frozen frequency. */
+  updatePlan(orgId: string, planId: string, v: PlanEdit): Promise<void>;
+  /** Archive (also pauses) or unarchive a plan; history stays visible. */
+  setArchived(orgId: string, planId: string, archived: boolean): Promise<void>;
+  /** Admin only. confirm=false only checks eligibility; empty drafts are listed and removed only with confirm. */
+  deletePlan(orgId: string, planId: string, confirm: boolean): Promise<DeleteCheck>;
   /** First date / rescheduling of links of the org (server checks plan-management permission and identity). */
   setDue(orgId: string, changes: DueChange[], reason: string | null): Promise<number>;
 }
@@ -192,6 +207,10 @@ export interface SessionsRepository {
   listInterventions(orgId: string, page: { offset: number; limit: number }): Promise<InterventionPage>;
   assertItemWritable(orgId: string, sessionId: string, itemId: string): Promise<{ id: string; asset_id: string; metadata: Json; }>;
   setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number): Promise<void>;
+  /** Cancel a draft/in-progress session with a reason; no due date moves. Idempotent. */
+  cancelSession(orgId: string, sessionId: string, reason: string): Promise<{ cancelledNow: boolean }>;
+  /** Delete a draft only when it has no activity or evidence at all (server checks). */
+  deleteDraftSession(orgId: string, sessionId: string): Promise<void>;
   closeSession(orgId: string, sessionId: string, v: { signerName: string; signerRole: string | null; signature: string; decisions?: DueDecision[]; }): Promise<{ closedNow: boolean; session: { closed_at: string | null; code: string; company_id: string; created_at: string; created_by: string | null; external_cert_number: string | null; external_provider: string | null; id: string; is_external: boolean; location_id: string | null; metadata: Json; notes: string | null; outcome: string | null; pdf_hash_sha256: string | null; pdf_url: string | null; plan_id: string | null; reopen_reason: string | null; scheduled_for: string | null; signature_image_url: string | null; signer_ip: unknown; signer_name: string | null; signer_role: string | null; signer_user_agent: string | null; started_at: string | null; status: string; technician_id: string | null; technician_name: string | null; updated_at: string; maintenance_plans: { name: string; interval_months: number | null; asset_families: { requires_certificate: boolean; } | null; } | null; }; items: { id: string; asset_id: string; result: string; observations: string | null; metadata: Json; }[]; pendingCount: number; }>;
 }
 

@@ -41,6 +41,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       createAsset: nc("assets.createAsset"),
       updateAsset: nc("assets.updateAsset"),
       softDeleteAsset: nc("assets.softDeleteAsset"),
+      deleteAsset: nc("assets.deleteAsset"),
       listKitItems: nc("assets.listKitItems"),
       saveKitItem: nc("assets.saveKitItem"),
       insertKitItems: nc("assets.insertKitItems"),
@@ -76,6 +77,9 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       addAssets: nc("plans.addAssets"),
       setDue: nc("plans.setDue"),
       removeAsset: nc("plans.removeAsset"),
+      updatePlan: nc("plans.updatePlan"),
+      setArchived: nc("plans.setArchived"),
+      deletePlan: nc("plans.deletePlan"),
     },
     sessions: {
       listSessions: nc("sessions.listSessions"),
@@ -92,6 +96,8 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       listInterventions: nc("sessions.listInterventions"),
       assertItemWritable: nc("sessions.assertItemWritable"),
       setItemResult: nc("sessions.setItemResult"),
+      cancelSession: nc("sessions.cancelSession"),
+      deleteDraftSession: nc("sessions.deleteDraftSession"),
       closeSession: nc("sessions.closeSession"),
     },
     incidents: {

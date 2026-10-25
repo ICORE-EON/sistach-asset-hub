@@ -81,8 +81,10 @@ export const assetService = {
     if (!v.asset_type_id) throw new Error("Selecciona un tipo");
     return repo().createAsset(need(orgId), v);
   },
-  updateAsset: (orgId: string | null, id: string, v: AssetPatch) => repo().updateAsset(need(orgId), id, v),
+  updateAsset: (orgId: string | null, id: string, v: Partial<AssetPatch>) => repo().updateAsset(need(orgId), id, v),
   deleteAsset: (orgId: string | null, id: string) => repo().softDeleteAsset(need(orgId), id),
+  /** Permanent delete (admin, no evidence). confirm=false = eligibility check only. */
+  deleteAssetPermanently: (orgId: string | null, id: string, confirm: boolean) => repo().deleteAsset(need(orgId), id, confirm),
 
   listKitItems: (orgId: string | null, assetId: string) => repo().listKitItems(need(orgId), assetId),
   saveKitItem: (orgId: string | null, assetId: string, id: string | null, v: KitItemInput) =>

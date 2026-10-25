@@ -3,7 +3,7 @@
  * Every read and write is scoped by orgId (company_id) to keep tenant isolation.
  */
 import type { StandaloneClient } from "../client";
-import type { AssetFilters, NewAsset, AssetPatch, KitItemInput } from "../../../contracts/repositories";
+import type { AssetFilters, DeleteCheck, NewAsset, AssetPatch, KitItemInput } from "../../../contracts/repositories";
 export type { AssetFilters, NewAsset, AssetPatch, KitItemInput };
 
 const NO_MATCH = "00000000-0000-0000-0000-000000000000";
@@ -116,11 +116,14 @@ export function createAssetsRepo(c: StandaloneClient) {
       const code = ok(await c.rpc("next_code", { p_company_id: orgId, p_scope: "assets", p_prefix: "AST" }));
       ok(await c.from("assets").insert({ ...v, company_id: orgId, qr_token: "", code: code as string }));
     },
-    async updateAsset(orgId: string, id: string, v: AssetPatch) {
+    async updateAsset(orgId: string, id: string, v: Partial<AssetPatch>) {
       ok(await c.from("assets").update(v).eq("id", id).eq("company_id", orgId));
     },
     async softDeleteAsset(orgId: string, id: string) {
       ok(await c.from("assets").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("company_id", orgId));
+    },
+    async deleteAsset(orgId: string, id: string, confirm: boolean) {
+      return ok(await c.rpc("mnt_sa_delete_asset", { p_company: orgId, p_asset: id, p_confirm: confirm })) as unknown as DeleteCheck;
     },
 
     // ---- first-aid kit contents ----

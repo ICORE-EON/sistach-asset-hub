@@ -203,9 +203,13 @@ CREATE TABLE IF NOT EXISTS public.mnt_due_changes (
   org_id uuid NOT NULL REFERENCES public.mnt_orgs(org_id),
   plan_id uuid NOT NULL, asset_id uuid NOT NULL, session_id uuid, item_id uuid,
   old_due date, new_due date,
-  kind text NOT NULL CHECK (kind IN ('initial','close','reschedule','exemption','no_advance')),
+  kind text NOT NULL CHECK (kind IN ('initial','close','reschedule','exemption','no_advance','unlink','link_removed')),
   reason text, changed_by_ref uuid NOT NULL, changed_by_snapshot jsonb,
   changed_at timestamptz NOT NULL DEFAULT now());
+-- 2A: unlink = vínculo finalizado (end_on); link_removed = vínculo nunca usado quitado como corrección de alta.
+ALTER TABLE public.mnt_due_changes DROP CONSTRAINT IF EXISTS mnt_due_changes_kind_check;
+ALTER TABLE public.mnt_due_changes ADD CONSTRAINT mnt_due_changes_kind_check
+  CHECK (kind IN ('initial','close','reschedule','exemption','no_advance','unlink','link_removed'));
 CREATE INDEX IF NOT EXISTS mnt_due_changes_link_idx ON public.mnt_due_changes(org_id, plan_id, asset_id, changed_at DESC);
 CREATE TABLE IF NOT EXISTS public.mnt_plan_type_templates (
   org_id uuid NOT NULL, plan_id uuid NOT NULL,

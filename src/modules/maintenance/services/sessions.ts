@@ -52,6 +52,8 @@ export const sessionService = {
     });
   },
   startSession: (orgId: string | null, id: string) => repo().startSession(need(orgId), id),
+  cancelSession: (orgId: string | null, id: string, reason: string) => repo().cancelSession(need(orgId), id, reason),
+  deleteDraftSession: (orgId: string | null, id: string) => repo().deleteDraftSession(need(orgId), id),
   listUpcoming: (orgId: string | null) => repo().listUpcoming(need(orgId)),
   listDuePreview: (orgId: string | null, id: string) => repo().listDuePreview(need(orgId), id),
   listInterventions: (orgId: string | null, offset: number, limit: number) => repo().listInterventions(need(orgId), { offset, limit }),

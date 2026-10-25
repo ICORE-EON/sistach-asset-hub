@@ -244,7 +244,11 @@ export function createSessionsRepo(c: StandaloneClient) {
       if (!s) throw new Error(`Sesión ${DENY}`);
       const tz = await orgTz(orgId);
       const plan = s.maintenance_plans as { frequency: string; interval_months: number | null } | null;
-      const months = plan ? planIntervalMonths(plan.frequency, plan.interval_months) : null;
+      // Same rule as mnt_sa_session_months: frequency frozen in the session; legacy sessions use the current plan.
+      const frozen = meta(meta(s.metadata).snapshot).plan as { frequency?: string; interval_months?: number | null } | undefined;
+      const months_source: "session" | "plan" = frozen && typeof frozen.frequency === "string" ? "session" : "plan";
+      const months = months_source === "session" ? planIntervalMonths(frozen!.frequency!, frozen!.interval_months ?? null)
+        : plan ? planIntervalMonths(plan.frequency, plan.interval_months) : null;
       const items = ok(await c.from("maintenance_items").select("id, asset_id, result, completed_at, metadata, assets(code, name)")
         .eq("session_id", sessionId).order("created_at")) ?? [];
       const links = s.plan_id ? ok(await c.from("maintenance_plan_assets").select("asset_id, next_due_on, end_on, created_at")
@@ -261,8 +265,16 @@ export function createSessionsRepo(c: StandaloneClient) {
         return { item_id: it.id, asset_id: it.asset_id, asset_code: a?.code ?? snap?.code ?? null, asset_name: a?.name ?? snap?.name ?? null,
           result: it.result, planned_on: p, executed_on: exec,
           proposed_on: exec && months ? addMonthsClamped(exec, months) : null,
-          calendar_on: exec && p && months ? addMonthsClamped(p, months) : null, linked: planned.has(it.asset_id), months };
+          calendar_on: exec && p && months ? addMonthsClamped(p, months) : null, linked: planned.has(it.asset_id), months, months_source };
       });
+    },
+
+    async cancelSession(orgId: string, sessionId: string, reason: string) {
+      const r = ok(await c.rpc("mnt_sa_cancel_session", { p_company: orgId, p_session: sessionId, p_reason: reason })) as { cancelled_now?: boolean } | null;
+      return { cancelledNow: !!r?.cancelled_now };
+    },
+    async deleteDraftSession(orgId: string, sessionId: string) {
+      ok(await c.rpc("mnt_sa_delete_draft_session", { p_company: orgId, p_session: sessionId }));
     },
 
     async listInterventions(orgId: string, page: { offset: number; limit: number }): Promise<InterventionPage> {

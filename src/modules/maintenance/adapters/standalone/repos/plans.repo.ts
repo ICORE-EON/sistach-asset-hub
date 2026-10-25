@@ -7,7 +7,7 @@
  * scope_location_ids stays an array until the phase-5 normalization.
  */
 import type { StandaloneClient } from "../client";
-import type { DueChange, NewPlan, PlanScopeCount, ScopeQuery } from "../../../contracts/repositories";
+import type { DeleteCheck, DueChange, NewPlan, PlanEdit, PlanScopeCount, ScopeQuery } from "../../../contracts/repositories";
 import type { Json } from "@/integrations/supabase/types";
 export type { NewPlan, ScopeQuery };
 import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../../../domain/scope";
@@ -157,9 +157,23 @@ export function createPlansRepo(c: StandaloneClient) {
     async setDue(orgId: string, changes: DueChange[], reason: string | null) {
       return setDueRpc(orgId, changes, reason);
     },
-    async removeAsset(orgId: string, planId: string, assignmentId: string) {
+    async removeAsset(orgId: string, planId: string, assignmentId: string, reason?: string | null) {
       await assertPlan(orgId, planId);
-      ok(await c.from("maintenance_plan_assets").delete().eq("id", assignmentId).eq("plan_id", planId));
+      const r = ok(await c.rpc("mnt_sa_unlink_plan_asset", { p_company: orgId, p_link: assignmentId, p_reason: reason ?? "" })) as { action?: string } | null;
+      return { action: (r?.action ?? "none") as "removed" | "unlink" | "none" };
+    },
+    async updatePlan(orgId: string, planId: string, v: PlanEdit) {
+      await assertPlan(orgId, planId);
+      ok(await c.from("maintenance_plans").update({ name: v.name, frequency: v.frequency, interval_months: v.interval_months, notes: v.notes })
+        .eq("id", planId).eq("company_id", orgId));
+    },
+    async setArchived(orgId: string, planId: string, archived: boolean) {
+      await assertPlan(orgId, planId);
+      ok(await c.from("maintenance_plans").update(archived ? { archived_at: new Date().toISOString(), active: false } : { archived_at: null })
+        .eq("id", planId).eq("company_id", orgId));
+    },
+    async deletePlan(orgId: string, planId: string, confirm: boolean): Promise<DeleteCheck> {
+      return ok(await c.rpc("mnt_sa_delete_plan", { p_company: orgId, p_plan: planId, p_confirm: confirm })) as unknown as DeleteCheck;
     },
   };
 }
