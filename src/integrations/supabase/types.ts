@@ -2422,10 +2422,14 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string | null
+          detected_on: string | null
           external_cert_number: string | null
           external_provider: string | null
+          fault_description: string | null
           id: string
+          incident_id: string | null
           is_external: boolean
+          kind: string
           location_id: string | null
           metadata: Json
           notes: string | null
@@ -2433,6 +2437,7 @@ export type Database = {
           pdf_hash_sha256: string | null
           pdf_url: string | null
           plan_id: string | null
+          priority: string | null
           reopen_reason: string | null
           scheduled_for: string | null
           signature_image_url: string | null
@@ -2452,10 +2457,14 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          detected_on?: string | null
           external_cert_number?: string | null
           external_provider?: string | null
+          fault_description?: string | null
           id?: string
+          incident_id?: string | null
           is_external?: boolean
+          kind?: string
           location_id?: string | null
           metadata?: Json
           notes?: string | null
@@ -2463,6 +2472,7 @@ export type Database = {
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
+          priority?: string | null
           reopen_reason?: string | null
           scheduled_for?: string | null
           signature_image_url?: string | null
@@ -2482,10 +2492,14 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          detected_on?: string | null
           external_cert_number?: string | null
           external_provider?: string | null
+          fault_description?: string | null
           id?: string
+          incident_id?: string | null
           is_external?: boolean
+          kind?: string
           location_id?: string | null
           metadata?: Json
           notes?: string | null
@@ -2493,6 +2507,7 @@ export type Database = {
           pdf_hash_sha256?: string | null
           pdf_url?: string | null
           plan_id?: string | null
+          priority?: string | null
           reopen_reason?: string | null
           scheduled_for?: string | null
           signature_image_url?: string | null
@@ -2520,6 +2535,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "company_kpis"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "maintenance_sessions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_sessions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_item_open_incidents"
+            referencedColumns: ["incident_id"]
           },
           {
             foreignKeyName: "maintenance_sessions_location_id_fkey"
@@ -3631,6 +3660,61 @@ export type Database = {
           },
         ]
       }
+      mnt_session_entries: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          body: string
+          company_id: string
+          created_at: string
+          id: string
+          performed_on: string
+          session_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          body: string
+          company_id: string
+          created_at?: string
+          id?: string
+          performed_on: string
+          session_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          body?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          performed_on?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_session_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_session_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_session_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_deliveries: {
         Row: {
           attempts: number
@@ -4278,6 +4362,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mnt_sa_add_entry: {
+        Args: {
+          p_company: string
+          p_performed_on: string
+          p_session: string
+          p_text: string
+        }
+        Returns: string
+      }
       mnt_sa_apply_due: {
         Args: {
           p_company: string
@@ -4290,6 +4383,19 @@ export type Database = {
       }
       mnt_sa_cancel_session: {
         Args: { p_company: string; p_reason: string; p_session: string }
+        Returns: Json
+      }
+      mnt_sa_close_corrective: {
+        Args: {
+          p_company: string
+          p_observations?: string
+          p_outcome: string
+          p_performed_on: string
+          p_provider?: string
+          p_reactivate?: boolean
+          p_reference?: string
+          p_session: string
+        }
         Returns: Json
       }
       mnt_sa_close_session: {
@@ -4305,6 +4411,23 @@ export type Database = {
       }
       mnt_sa_close_snapshot: {
         Args: { p_at: string; p_session: string }
+        Returns: Json
+      }
+      mnt_sa_corrective_authority: { Args: never; Returns: boolean }
+      mnt_sa_create_corrective: {
+        Args: {
+          p_asset: string
+          p_company: string
+          p_description: string
+          p_detected_on: string
+          p_external?: boolean
+          p_incident?: string
+          p_mark_out_of_service?: boolean
+          p_priority: string
+          p_provider?: string
+          p_request_id?: string
+          p_technician_name?: string
+        }
         Returns: Json
       }
       mnt_sa_delete_asset: {
@@ -4326,6 +4449,10 @@ export type Database = {
       mnt_sa_freq_months: {
         Args: { p_frequency: string; p_interval: number }
         Returns: number
+      }
+      mnt_sa_link_incident: {
+        Args: { p_company: string; p_incident: string; p_session: string }
+        Returns: undefined
       }
       mnt_sa_org_tz: { Args: { p_company: string }; Returns: string }
       mnt_sa_outcome: { Args: { p_session: string }; Returns: string }
