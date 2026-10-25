@@ -35,4 +35,4 @@
 - [x] Próximos: sin agrupar por defecto, vencidos primero, filtros compactos
 - [x] Histórico por intervenciones paginado + vista por activo
 - [x] Planes: alcance vigente/vinculado y próximo vencimiento estimado
-- [ ] Bloque 1B: reglas de cálculo de próximos — pendiente de aprobación separada
+- [x] Bloque 1B: vencimientos — next_due_on por vínculo, bitácora mnt_due_changes, cierre atómico (interno/externo), primera fecha en alta de plan y al añadir equipos, excepciones por equipo en revisión externa. Suites: vitest 195/15 omitidas, SQL app 49/49, SQL paquete ICORE OK.

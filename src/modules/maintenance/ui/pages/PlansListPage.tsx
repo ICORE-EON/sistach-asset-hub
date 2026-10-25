@@ -40,6 +40,8 @@ import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/check
 import { assetKeys, assetService } from "../../services/assets";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { FREQUENCIES, planFrequencyLabel, planKeys, planService } from "../../services/plans";
+import { planIntervalMonths } from "../../domain/due-date";
+import { InitialDuePicker } from "../components/initial-due-picker";
 import { sessionKeys, sessionService } from "../../services/sessions";
 
 export { FREQUENCIES };
@@ -354,6 +356,7 @@ function CreatePlanDialog({
   const [certTemplateId, setCertTemplateId] = useState("");
   const [executionMode, setExecutionMode] = useState<"internal" | "external">("internal");
   const [defaultProvider, setDefaultProvider] = useState("");
+  const [initialDue, setInitialDue] = useState<string | null>(null);
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -452,7 +455,7 @@ function CreatePlanDialog({
       planService.createPlan(activeCompanyId, {
         code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
         selectedIds, usedTypeIds, templateFor, certTemplateId, executionMode, defaultProvider,
-        customYears: Number(customYears) || 0,
+        customYears: Number(customYears) || 0, initialDue,
       }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
@@ -729,6 +732,13 @@ function CreatePlanDialog({
           <Label>Notas</Label>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </div>
+
+        {selectedIds.length > 0 && (
+          <InitialDuePicker
+            months={frequency === "custom" ? (Number(customYears) || 0) * 12 : planIntervalMonths(frequency, null)}
+            onChange={setInitialDue}
+          />
+        )}
       </div>
       <DialogFooter>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
