@@ -12,6 +12,8 @@ import {
   Lock,
   PenLine,
   Eraser,
+  Ban,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
@@ -37,6 +39,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { ReasonDialog } from "../components/safe-actions";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { sessionKeys, sessionService } from "../../services/sessions";
 
@@ -125,6 +132,12 @@ export function SessionDetailPage() {
   });
 
   const [closeOpen, setCloseOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const refreshSession = () => {
+    qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
+    qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+  };
 
   if (!session) return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
 
@@ -173,8 +186,47 @@ export function SessionDetailPage() {
               Cerrar y firmar
             </Button>
           )}
+          {(session.status === "draft" || session.status === "in_progress") && canRun && (
+            <Button variant="outline" onClick={() => setCancelOpen(true)}>
+              <Ban className="mr-2 h-4 w-4" />Cancelar sesión
+            </Button>
+          )}
+          {session.status === "draft" && canRun && (
+            <Button variant="ghost" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />Eliminar borrador
+            </Button>
+          )}
         </div>
       </div>
+      {session.status === "cancelled" && (session.metadata as { cancel?: { reason?: string } } | null)?.cancel?.reason && (
+        <p className="rounded-md border p-3 text-sm">Cancelada: {(session.metadata as { cancel: { reason: string } }).cancel.reason}</p>
+      )}
+      <ReasonDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        title="Cancelar sesión"
+        description={<p>La sesión queda cancelada con su motivo y su contenido se conserva. No cambia ninguna próxima fecha.</p>}
+        confirmLabel="Cancelar sesión"
+        destructive
+        onConfirm={async (reason) => { await sessionService.cancelSession(orgId, id, reason); toast.success("Sesión cancelada"); refreshSession(); }}
+      />
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este borrador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Solo se elimina si está vacío: sin resultados, observaciones, respuestas, documentos, incidencias ni firma. Si tiene algo, cancélalo en su lugar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              try { await sessionService.deleteDraftSession(orgId, id); toast.success("Borrador eliminado"); qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) }); navigate({ to: "/maintenance" }); }
+              catch (e) { toast.error(e instanceof Error ? e.message : (e as { message?: string }).message ?? "No se pudo eliminar"); }
+            }}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {session.is_external ? (
         <ExternalRecordCard
@@ -672,6 +724,7 @@ function CloseSessionDialog({
               constarán así en el certificado.
             </p>
           )}
+          {preview.some((r) => r.months_source === "plan") && <p className="text-xs text-muted-foreground">Sesión anterior al registro de periodicidad: la propuesta usa la frecuencia actual del plan.</p>}
           <DueDecisionsPanel rows={dueRows} value={dueChoices} onChange={setDueChoices} disabled={close.isPending} />
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -842,6 +895,9 @@ function ExternalRecordCard({ orgId, sessionId, session, items, editable, onSave
               </div>
             )}
           </div>
+        )}
+        {!ro && preview.some((r) => r.months_source === "plan") && (
+          <p className="text-xs text-muted-foreground">Sesión anterior al registro de periodicidad: la propuesta usa la frecuencia actual del plan.</p>
         )}
         {!ro && dueRows.some((r) => r.linked) && (
           <DueDecisionsPanel rows={dueRows} value={dueChoices} onChange={setDueChoices} disabled={save.isPending} />

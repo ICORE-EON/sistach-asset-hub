@@ -310,7 +310,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
                     {nextBy.get(p.id) ? new Date(nextBy.get(p.id)!).toLocaleDateString("es-ES") : "—"}
                   </TableCell>
                   <TableCell>
-                    {p.active ? <Badge>Activo</Badge> : <Badge variant="secondary">Pausado</Badge>}
+                    {p.archived_at ? <Badge variant="outline">Archivado</Badge> : p.active ? <Badge>Activo</Badge> : <Badge variant="secondary">Pausado</Badge>}
                   </TableCell>
                   <TableCell>
                     <Link to="/maintenance-plans/$id" params={{ id: p.id }}>

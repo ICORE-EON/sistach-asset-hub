@@ -661,8 +661,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.mnt_plans WHERE org_id = p_org AND id = p_plan AND deleted_at IS NULL AND status = 'active') THEN
     RAISE EXCEPTION 'mnt: plan no encontrado' USING ERRCODE = 'P0002';
   END IF;
-  INSERT INTO public.mnt_sessions(org_id, request_id, plan_id, site_ref, scheduled_for, technician_ref, technician_snapshot, created_by_ref)
-  VALUES (p_org, p_request_id, p_plan, p_site, p_scheduled_for, me, public.mnt_actor_snapshot(), me)
+  INSERT INTO public.mnt_sessions(org_id, request_id, plan_id, site_ref, scheduled_for, technician_ref, technician_snapshot, created_by_ref, metadata)
+  SELECT p_org, p_request_id, p_plan, p_site, p_scheduled_for, me, public.mnt_actor_snapshot(), me,
+         jsonb_build_object('plan_frequency', jsonb_build_object('frequency', p.frequency, 'interval_months', p.interval_months))
+    FROM public.mnt_plans p WHERE p.id = p_plan
   ON CONFLICT (org_id, request_id) DO NOTHING
   RETURNING id INTO sid;
   IF sid IS NULL THEN
@@ -717,12 +719,21 @@ END $$;
 
 -- Per-item due decisions inside the close transaction. Single rule: proposal = execution + interval;
 -- calendar alternative = planned + interval; anything else needs a reason. Skipped never advances.
+-- 2A: periodicidad congelada en la sesión al crearla; sesiones sin ella usan la frecuencia vigente del plan.
+CREATE OR REPLACE FUNCTION public.mnt_session_months(p_session uuid, p_plan uuid) RETURNS int
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT coalesce(nullif(f->>'interval_months', '')::int, CASE f->>'frequency' WHEN 'monthly' THEN 1 WHEN 'quarterly' THEN 3
+           WHEN 'semiannual' THEN 6 WHEN 'annual' THEN 12 END)
+    FROM (SELECT CASE WHEN s.metadata ? 'plan_frequency' THEN s.metadata->'plan_frequency'
+                      ELSE (SELECT jsonb_build_object('frequency', p.frequency, 'interval_months', p.interval_months) FROM public.mnt_plans p WHERE p.id = p_plan) END f
+            FROM public.mnt_sessions s WHERE s.id = p_session) x
+$$;
+
 CREATE OR REPLACE FUNCTION public.mnt_apply_due(p_org uuid, p_session uuid, p_plan uuid, p_decisions jsonb) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot();
   v_tz text := coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC');
-  v_months int := (SELECT coalesce(interval_months, CASE frequency WHEN 'monthly' THEN 1 WHEN 'quarterly' THEN 3
-    WHEN 'semiannual' THEN 6 WHEN 'annual' THEN 12 END) FROM public.mnt_plans WHERE id = p_plan);
+  v_months int := public.mnt_session_months(p_session, p_plan);
   it record; d jsonb; l record; has_link boolean; v_exec date; v_planned date; v_prop date; v_cal date;
   v_action text; v_due date; v_reason text; v_kind text;
 BEGIN
@@ -954,6 +965,180 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------- grants + RLS --
+-- ---------------------------------------------------------------------------------------------
+-- 2A: edición, desactivación y eliminación controlada. Los clientes no borran físicamente
+-- activos, planes, vínculos, sesiones ni equipos de sesión: solo estas funciones, tras comprobar
+-- que no hay actividad ni evidencia. Los documentos viven en el host (DocumentPort), que debe
+-- impedir borrar los vinculados a sesiones cerradas o certificados (ver INTEGRATION.md).
+-- ---------------------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.mnt_tg_delete_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF public.mnt_is_client() AND coalesce(current_setting('mnt.safe_delete', true), '') <> 'on' THEN
+    RAISE EXCEPTION 'mnt: solo se elimina con la acción segura de la aplicación' USING ERRCODE = '42501';
+  END IF;
+  RETURN OLD;
+END $$;
+DO $guards$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['mnt_assets','mnt_plans','mnt_plan_assets','mnt_sessions','mnt_session_items'] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS mnt_delete_guard ON public.%I', t);
+    EXECUTE format('CREATE TRIGGER mnt_delete_guard BEFORE DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_delete_guard()', t);
+  END LOOP;
+END $guards$;
+
+CREATE OR REPLACE FUNCTION public.mnt_session_activity(p_session uuid) RETURNS text[]
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT array_remove(ARRAY[
+    CASE WHEN s.status <> 'draft' THEN 'no es un borrador' END,
+    CASE WHEN s.closed_at IS NOT NULL OR s.closed_by_ref IS NOT NULL THEN 'tiene cierre o firma' END,
+    CASE WHEN nullif(btrim(coalesce(s.notes, '')), '') IS NOT NULL THEN 'tiene observaciones' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_items i WHERE i.session_id = s.id
+      AND (i.result <> 'pending' OR i.completed_at IS NOT NULL OR nullif(btrim(coalesce(i.observations, '')), '') IS NOT NULL))
+      THEN 'tiene resultados u observaciones en equipos' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_responses r JOIN public.mnt_session_items i ON i.id = r.item_id WHERE i.session_id = s.id)
+      THEN 'tiene respuestas de checklist' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_certificates c WHERE c.session_id = s.id) THEN 'tiene certificados' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_history h WHERE h.session_id = s.id) THEN 'tiene historial' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_due_changes d WHERE d.session_id = s.id) THEN 'tiene cambios de fecha' END
+  ], NULL) FROM public.mnt_sessions s WHERE s.id = p_session
+$$;
+
+CREATE OR REPLACE FUNCTION public.mnt_cancel_session(p_org uuid, p_session uuid, p_reason text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE st text; v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT status INTO st FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF st IS NULL THEN RAISE EXCEPTION 'mnt: sesión no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF st = 'cancelled' THEN RETURN jsonb_build_object('cancelled_now', false); END IF;
+  IF st NOT IN ('draft','in_progress') THEN RAISE EXCEPTION 'mnt: solo se cancelan sesiones en borrador o en curso' USING ERRCODE = '55000'; END IF;
+  IF v_reason IS NULL THEN RAISE EXCEPTION 'mnt: motivo obligatorio' USING ERRCODE = '23514'; END IF;
+  UPDATE public.mnt_sessions SET status = 'cancelled',
+    metadata = metadata || jsonb_build_object('cancel', jsonb_build_object('reason', v_reason, 'from_status', st, 'at', now()))
+   WHERE id = p_session;
+  INSERT INTO public.mnt_session_history(org_id, session_id, event, actor_ref, actor_snapshot, reason)
+  VALUES (p_org, p_session, 'cancelled', public.host_person_ref(), public.mnt_actor_snapshot(), v_reason);
+  PERFORM public.mnt_emit(p_org, 'session.cancelled', 'session', p_session, jsonb_build_object('reason', v_reason));
+  RETURN jsonb_build_object('cancelled_now', true);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_delete_draft_session(p_org uuid, p_session uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE v_act text[];
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  PERFORM 1 FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('deleted', false, 'already', true); END IF;
+  v_act := public.mnt_session_activity(p_session);
+  IF cardinality(v_act) > 0 THEN
+    RAISE EXCEPTION 'mnt: no se puede eliminar: la sesión %', array_to_string(v_act, ', ') USING ERRCODE = '23514';
+  END IF;
+  PERFORM set_config('mnt.safe_delete', 'on', true);
+  DELETE FROM public.mnt_session_items WHERE session_id = p_session;
+  DELETE FROM public.mnt_sessions WHERE id = p_session;
+  PERFORM set_config('mnt.safe_delete', 'off', true);
+  RETURN jsonb_build_object('deleted', true);
+END $$;
+
+-- Desvincular: nunca usado -> se quita (link_removed); usado -> end_on = ayer (unlink), con motivo.
+CREATE OR REPLACE FUNCTION public.mnt_unlink_plan_asset(p_org uuid, p_plan uuid, p_asset uuid, p_reason text) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); l record; v_used boolean;
+  v_today date := (now() AT TIME ZONE coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC'))::date;
+  v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
+  IF me IS NULL THEN RAISE EXCEPTION 'mnt: sin identidad' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO l FROM public.mnt_plan_assets WHERE org_id = p_org AND plan_id = p_plan AND asset_id = p_asset FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('action', 'none', 'already', true); END IF;
+  IF l.end_on IS NOT NULL AND l.end_on < v_today THEN RETURN jsonb_build_object('action', 'unlink', 'already', true); END IF;
+  v_used := EXISTS (SELECT 1 FROM public.mnt_session_items i JOIN public.mnt_sessions s ON s.id = i.session_id
+                     WHERE s.org_id = p_org AND s.plan_id = p_plan AND i.asset_id = p_asset)
+         OR EXISTS (SELECT 1 FROM public.mnt_due_changes d WHERE d.org_id = p_org AND d.plan_id = p_plan AND d.asset_id = p_asset
+                     AND d.kind NOT IN ('initial','link_removed'));
+  IF NOT v_used THEN
+    INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+    VALUES (p_org, p_plan, p_asset, l.next_due_on, NULL, 'link_removed', coalesce(v_reason, 'Corrección de alta'), me, snap);
+    PERFORM set_config('mnt.safe_delete', 'on', true);
+    DELETE FROM public.mnt_plan_assets WHERE org_id = p_org AND plan_id = p_plan AND asset_id = p_asset;
+    PERFORM set_config('mnt.safe_delete', 'off', true);
+    RETURN jsonb_build_object('action', 'removed');
+  END IF;
+  IF v_reason IS NULL THEN RAISE EXCEPTION 'mnt: motivo obligatorio' USING ERRCODE = '23514'; END IF;
+  IF l.start_on > v_today - 1 THEN
+    RAISE EXCEPTION 'mnt: vinculado hoy y con actividad; desvincula a partir de mañana o retira el equipo' USING ERRCODE = '23514';
+  END IF;
+  UPDATE public.mnt_plan_assets SET end_on = v_today - 1 WHERE org_id = p_org AND plan_id = p_plan AND asset_id = p_asset;
+  INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+  VALUES (p_org, p_plan, p_asset, l.next_due_on, l.next_due_on, 'unlink', v_reason, me, snap);
+  RETURN jsonb_build_object('action', 'unlink', 'end_on', v_today - 1);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_delete_asset(p_org uuid, p_asset uuid, p_confirm boolean DEFAULT false) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); b text[] := ARRAY[]::text[]; n int; v_links int; v_code text;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
+  SELECT code INTO v_code FROM public.mnt_assets WHERE org_id = p_org AND id = p_asset FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('deleted', false, 'already', true, 'eligible', false, 'blockers', '[]'::jsonb); END IF;
+  SELECT count(DISTINCT session_id) INTO n FROM public.mnt_session_items WHERE org_id = p_org AND asset_id = p_asset;
+  IF n > 0 THEN b := b || format('está incluido en %s sesión(es) de mantenimiento', n); END IF;
+  IF EXISTS (SELECT 1 FROM public.mnt_certificate_items WHERE org_id = p_org AND asset_id = p_asset) THEN b := b || 'figura en certificados'::text; END IF;
+  IF EXISTS (SELECT 1 FROM public.mnt_incidents WHERE org_id = p_org AND asset_id = p_asset) THEN b := b || 'tiene incidencias'::text; END IF;
+  IF EXISTS (SELECT 1 FROM public.mnt_due_changes WHERE org_id = p_org AND asset_id = p_asset AND kind NOT IN ('initial','link_removed'))
+    THEN b := b || 'tiene historial de fechas'::text; END IF;
+  SELECT count(*) INTO v_links FROM public.mnt_plan_assets WHERE org_id = p_org AND asset_id = p_asset;
+  IF cardinality(b) > 0 OR NOT coalesce(p_confirm, false) THEN
+    RETURN jsonb_build_object('deleted', false, 'eligible', cardinality(b) = 0, 'blockers', to_jsonb(b), 'code', v_code,
+      'remove', jsonb_build_object('plan_links', v_links));
+  END IF;
+  IF me IS NULL THEN RAISE EXCEPTION 'mnt: sin identidad' USING ERRCODE = '42501'; END IF;
+  INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+  SELECT p_org, pa.plan_id, pa.asset_id, pa.next_due_on, NULL, 'link_removed', 'Eliminación del activo ' || v_code, me, snap
+    FROM public.mnt_plan_assets pa WHERE pa.org_id = p_org AND pa.asset_id = p_asset;
+  PERFORM set_config('mnt.safe_delete', 'on', true);
+  DELETE FROM public.mnt_plan_assets WHERE org_id = p_org AND asset_id = p_asset;
+  DELETE FROM public.mnt_assets WHERE org_id = p_org AND id = p_asset;
+  PERFORM set_config('mnt.safe_delete', 'off', true);
+  PERFORM public.mnt_emit(p_org, 'asset.deleted', 'asset', p_asset, jsonb_build_object('code', v_code));
+  RETURN jsonb_build_object('deleted', true, 'eligible', true, 'blockers', '[]'::jsonb, 'code', v_code);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_delete_plan(p_org uuid, p_plan uuid, p_confirm boolean DEFAULT false) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); b text[] := ARRAY[]::text[];
+  v_busy int; v_drafts text[]; v_links int; v_code text;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
+  SELECT code INTO v_code FROM public.mnt_plans WHERE org_id = p_org AND id = p_plan FOR UPDATE;
+  IF NOT FOUND THEN RETURN jsonb_build_object('deleted', false, 'already', true, 'eligible', false, 'blockers', '[]'::jsonb); END IF;
+  PERFORM 1 FROM public.mnt_sessions WHERE org_id = p_org AND plan_id = p_plan FOR UPDATE;
+  SELECT count(*) FILTER (WHERE cardinality(public.mnt_session_activity(s.id)) > 0),
+         coalesce(array_agg(s.code ORDER BY s.code) FILTER (WHERE cardinality(public.mnt_session_activity(s.id)) = 0), ARRAY[]::text[])
+    INTO v_busy, v_drafts FROM public.mnt_sessions s WHERE s.org_id = p_org AND s.plan_id = p_plan;
+  IF v_busy > 0 THEN b := b || format('tiene %s sesión(es) con actividad', v_busy); END IF;
+  IF EXISTS (SELECT 1 FROM public.mnt_due_changes WHERE org_id = p_org AND plan_id = p_plan AND kind NOT IN ('initial','link_removed'))
+    THEN b := b || 'tiene historial de fechas'::text; END IF;
+  SELECT count(*) INTO v_links FROM public.mnt_plan_assets WHERE org_id = p_org AND plan_id = p_plan;
+  IF cardinality(b) > 0 OR NOT coalesce(p_confirm, false) THEN
+    RETURN jsonb_build_object('deleted', false, 'eligible', cardinality(b) = 0, 'blockers', to_jsonb(b), 'code', v_code,
+      'remove', jsonb_build_object('empty_drafts', to_jsonb(v_drafts), 'plan_links', v_links));
+  END IF;
+  IF me IS NULL THEN RAISE EXCEPTION 'mnt: sin identidad' USING ERRCODE = '42501'; END IF;
+  INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+  SELECT p_org, pa.plan_id, pa.asset_id, pa.next_due_on, NULL, 'link_removed', 'Eliminación del plan ' || v_code, me, snap
+    FROM public.mnt_plan_assets pa WHERE pa.org_id = p_org AND pa.plan_id = p_plan;
+  PERFORM set_config('mnt.safe_delete', 'on', true);
+  DELETE FROM public.mnt_session_items WHERE session_id IN (SELECT id FROM public.mnt_sessions WHERE org_id = p_org AND plan_id = p_plan);
+  DELETE FROM public.mnt_sessions WHERE org_id = p_org AND plan_id = p_plan;
+  DELETE FROM public.mnt_plans WHERE org_id = p_org AND id = p_plan;
+  PERFORM set_config('mnt.safe_delete', 'off', true);
+  PERFORM public.mnt_emit(p_org, 'plan.deleted', 'plan', p_plan, jsonb_build_object('code', v_code, 'removed_drafts', to_jsonb(v_drafts)));
+  RETURN jsonb_build_object('deleted', true, 'eligible', true, 'blockers', '[]'::jsonb, 'code', v_code, 'removed_drafts', to_jsonb(v_drafts));
+END $$;
+
 DO $security$
 DECLARE
   t text; p text; f regprocedure;
@@ -1024,7 +1209,9 @@ BEGIN
     'mnt_close_session(uuid,uuid,jsonb)','mnt_set_due(uuid,jsonb,text)','mnt_reopen_session(uuid,uuid,text)','mnt_open_incident(uuid,text,text,text,uuid,uuid)',
     'mnt_change_incident_status(uuid,uuid,text,text,text)','mnt_attach_certificate_pdf(uuid,uuid,uuid,text)',
     'mnt_revoke_certificate(uuid,uuid,text)','mnt_publish_checklist_version(uuid,uuid)',
-    'mnt_register_external_certificate(uuid,text,date,date,text,text,uuid,uuid,text)'] LOOP
+    'mnt_register_external_certificate(uuid,text,date,date,text,text,uuid,uuid,text)',
+    'mnt_cancel_session(uuid,uuid,text)','mnt_delete_draft_session(uuid,uuid)','mnt_unlink_plan_asset(uuid,uuid,uuid,text)',
+    'mnt_delete_asset(uuid,uuid,boolean)','mnt_delete_plan(uuid,uuid,boolean)'] LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO authenticated', p);
   END LOOP;
   EXECUTE 'GRANT EXECUTE ON FUNCTION public.mnt_register_org(uuid) TO service_role';

@@ -40,7 +40,7 @@
 ## Bloque 2A (en curso)
 - [x] Etapa 2: migraciones 0002–0005 (borrado seguro, evidencias, cancelar/desvincular, snapshot de frecuencia); SQL 2A 51/51; instalador ICORE ALL_DONE
 - [x] Activo: Retirar/Reactivar y Eliminar seguro (UI)
-- [ ] UI plan: editar, archivar, eliminar, desvincular con motivo (servicios listos)
-- [ ] UI sesión: cancelar con motivo, eliminar borrador vacío (servicios listos)
-- [ ] Aviso de frecuencia legado en decisiones de cierre
-- [ ] Repetir SQL B1B, Vitest, navegador PYME, specs/exportación ICORE (RPC 2A aún no portadas al instalador)
+- [x] UI plan: editar, archivar, eliminar, desvincular con motivo
+- [x] UI sesión: cancelar con motivo, eliminar borrador vacío
+- [x] Aviso de frecuencia legado en decisiones de cierre
+- [x] Instalador ICORE con RPC 2A + pruebas; SQL B1B 49/49; Vitest; navegador PYME

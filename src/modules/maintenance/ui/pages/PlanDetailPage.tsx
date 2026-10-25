@@ -1,7 +1,7 @@
-import { Link, useParams } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2, Power, Sparkles } from "lucide-react";
+import { ArrowLeft, Archive, Pencil, Plus, Trash2, Power, Sparkles } from "lucide-react";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,8 @@ import { describeScopeLocations, type ScopeAsset } from "../../domain/scope";
 import { assetKeys, assetService } from "../../services/assets";
 import { planFrequencyLabel, planKeys, planService } from "../../services/plans";
 import { InitialDuePicker } from "../components/initial-due-picker";
+import { ReasonDialog, SafeDeleteDialog } from "../components/safe-actions";
+import { PlanEditDialog } from "../components/plan-edit-dialog";
 
 
 export function PlanDetailPage() {
@@ -154,14 +156,27 @@ export function PlanDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const removeAsset = useMutation({
-    mutationFn: (assignmentId: string) => planService.removeAsset(activeCompanyId, id, assignmentId),
-    onSuccess: () => {
-      toast.success("Activo desvinculado");
-      qc.invalidateQueries({ queryKey: planKeys.assets(activeCompanyId, id), exact: true });
-    },
+  const isAdmin = role === "administrator";
+  const [unlinkTarget, setUnlinkTarget] = useState<{ id: string; label: string } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const navigate = useNavigate();
+  const refreshPlan = () => {
+    qc.invalidateQueries({ queryKey: planKeys.detail(activeCompanyId, id), exact: true });
+    qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true });
+  };
+  const doUnlink = async (reason: string) => {
+    const r = await planService.removeAsset(activeCompanyId, id, unlinkTarget!.id, reason);
+    toast.success(r.action === "removed" ? "Equipo quitado del plan (nunca se había usado)" : "Equipo desvinculado desde hoy; su historial se conserva");
+    qc.invalidateQueries({ queryKey: planKeys.assets(activeCompanyId, id), exact: true });
+  };
+  const toggleArchive = useMutation({
+    mutationFn: () => planService.setArchived(activeCompanyId, id, !plan?.archived_at),
+    onSuccess: () => { toast.success(plan?.archived_at ? "Plan desarchivado (sigue pausado)" : "Plan archivado"); refreshPlan(); },
     onError: (e: Error) => toast.error(e.message),
   });
+  const checkDelete = useCallback(() => planService.deletePlan(activeCompanyId, id, false), [activeCompanyId, id]);
+  const today = new Date().toLocaleDateString("sv-SE");
 
   if (!plan) return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
 
@@ -180,16 +195,61 @@ export function PlanDetailPage() {
               <Badge variant={plan.active ? "default" : "secondary"}>
                 {plan.active ? "Activo" : "Pausado"}
               </Badge>
+              {plan.archived_at && <Badge variant="outline">Archivado</Badge>}
             </div>
             <p className="font-mono text-xs text-muted-foreground">{plan.code}</p>
           </div>
         </div>
-        {canManage && (
-          <Button variant="outline" onClick={() => toggleActive.mutate()}>
-            <Power className="mr-2 h-4 w-4" />
-            {plan.active ? "Pausar" : "Reactivar"}
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {canManage && !plan.archived_at && (
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="mr-2 h-4 w-4" />Editar
+            </Button>
+          )}
+          {canManage && !plan.archived_at && (
+            <Button variant="outline" onClick={() => toggleActive.mutate()}>
+              <Power className="mr-2 h-4 w-4" />
+              {plan.active ? "Pausar" : "Reactivar"}
+            </Button>
+          )}
+          {canManage && (
+            <Button variant="outline" disabled={toggleArchive.isPending} onClick={() => toggleArchive.mutate()}>
+              <Archive className="mr-2 h-4 w-4" />{plan.archived_at ? "Desarchivar" : "Archivar"}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="ghost" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />Eliminar
+            </Button>
+          )}
+        </div>
+        <PlanEditDialog open={editOpen} onOpenChange={setEditOpen} plan={plan}
+          onSave={async (v) => { await planService.updatePlan(activeCompanyId, id, v); toast.success("Plan actualizado"); refreshPlan(); }} />
+        <SafeDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={`Eliminar plan ${plan.code}`}
+          check={checkDelete}
+          confirm={() => planService.deletePlan(activeCompanyId, id, true)}
+          blockedHint="Si ya no se usa, archívalo: deja de generar revisiones y se conserva su historial."
+          impact={(c) => (
+            <>
+              <p>El plan no tiene actividad: se puede eliminar.</p>
+              {!!c.remove?.plan_links && <p>Se quitarán {c.remove.plan_links} equipo(s) vinculados (queda constancia en el registro de fechas).</p>}
+              {!!c.remove?.empty_drafts?.length && <p>También se eliminarán estos borradores vacíos: {c.remove.empty_drafts.join(", ")}.</p>}
+            </>
+          )}
+          onDeleted={() => { toast.success("Plan eliminado"); qc.invalidateQueries({ queryKey: planKeys.list(activeCompanyId), exact: true }); navigate({ to: "/maintenance-plans" }); }}
+        />
+        <ReasonDialog
+          open={!!unlinkTarget}
+          onOpenChange={(o) => !o && setUnlinkTarget(null)}
+          title={`Desvincular ${unlinkTarget?.label ?? ""}`}
+          description={<p>Deja de aparecer en Próximos y en nuevas revisiones desde hoy. Sus revisiones, certificados y documentos se conservan. Si nunca se usó, simplemente se quita del plan.</p>}
+          confirmLabel="Desvincular"
+          destructive
+          onConfirm={doUnlink}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -325,10 +385,13 @@ export function PlanDetailPage() {
                       <TableCell className="font-mono text-xs">{pa.assets?.code}</TableCell>
                       <TableCell className="font-medium">{pa.assets?.name ?? "—"}</TableCell>
                       <TableCell className="text-sm">{pa.assets?.locations?.name ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{pa.start_on}</TableCell>
+                      <TableCell className="text-sm">
+                        {pa.start_on}
+                        {pa.end_on && <span className="block text-xs text-muted-foreground">{pa.end_on < today ? `Desvinculado (fin ${pa.end_on})` : `Hasta ${pa.end_on}`}</span>}
+                      </TableCell>
                       <TableCell>
-                        {canManage && (
-                          <Button variant="ghost" size="icon" onClick={() => removeAsset.mutate(pa.id)}>
+                        {canManage && !(pa.end_on && pa.end_on < today) && (
+                          <Button variant="ghost" size="icon" aria-label="Desvincular" onClick={() => setUnlinkTarget({ id: pa.id, label: pa.assets?.code ?? "" })}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         )}

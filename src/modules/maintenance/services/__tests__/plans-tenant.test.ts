@@ -84,7 +84,11 @@ function fakeClient() {
     });
     return b;
   };
-  return { from };
+  const rpc = async (fn: string, args: Record<string, unknown>) => {
+    writes.push({ table: fn, op: "rpc", payload: args, filters: [] } as never);
+    return { data: { action: "removed" }, error: null };
+  };
+  return { from, rpc };
 }
 
 const repo = createPlansRepo(fakeClient() as never);
@@ -231,9 +235,10 @@ describe("cross-org guards and writes", () => {
 
   it("add/remove on own plan are scoped to the plan and org", async () => {
     expect(await planService.addAssets(B, "pB", ["aB"])).toBe(1);
-    await planService.removeAsset(B, "pB", "paB");
+    expect(await planService.removeAsset(B, "pB", "paB", "Traslado")).toEqual({ action: "removed" });
     expect(writes[0]).toMatchObject({ table: "maintenance_plan_assets", op: "insert", payload: [{ plan_id: "pB", asset_id: "aB" }] });
-    expect(writes[1].filters).toEqual([["id", "paB"], ["plan_id", "pB"]]);
+    // Unlink goes through the server RPC with the active org (no direct DELETE).
+    expect(writes[1]).toMatchObject({ table: "mnt_sa_unlink_plan_asset", op: "rpc", payload: { p_company: B, p_link: "paB", p_reason: "Traslado" } });
     await expect(planService.addAssets(B, "pB", [])).rejects.toThrow(/al menos un equipo/);
   });
 });
