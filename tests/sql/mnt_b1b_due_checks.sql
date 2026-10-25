@@ -119,8 +119,10 @@ BEGIN
   (44,'manager','A','authenticated','count','rows:1',$$SELECT 1 WHERE (public.mnt_sa_record_external(':CB', ':S5', '2026-09-30', 'Extintores SL', NULL, 'ok', NULL)->>'closed_now')::boolean = false$$),
   (45,'propietario','-','-','count','rows:5',$$SELECT 1 FROM public.mnt_due_changes WHERE session_id=':S5'$$),
   -- Aislamiento de la bitácora
-  (46,'admin otra org','A0','authenticated','count','rows:0',$$SELECT 1 FROM public.mnt_due_changes WHERE company_id=':CB'$$),
-  (47,'admin','B','authenticated','count','rows:61',$$SELECT 1 FROM public.mnt_due_changes WHERE plan_id IN (':P1',':P2',':P3')$$)
+  (46,'propietario','-','-','exec','ok',$$DELETE FROM public.company_members WHERE user_id='3b7de027-5b93-4336-a2a3-ececd12f7443' AND company_id=':CB'$$),
+  (47,'admin otra org','A0','authenticated','count','rows:0',$$SELECT 1 FROM public.mnt_due_changes WHERE company_id=':CB'$$),
+  (48,'admin otra org','A0','authenticated','exec','rej:P0002',$$SELECT public.mnt_sa_close_session(':CB', ':S2', 'X', NULL, 'sig')$$),
+  (49,'admin','B','authenticated','count','rows:65',$$SELECT 1 FROM public.mnt_due_changes WHERE plan_id IN (':P1',':P2',':P3')$$)
    ) t(n, actor, who, role, kind, expected, sql) ORDER BY n
   LOOP
     q := r.sql;
