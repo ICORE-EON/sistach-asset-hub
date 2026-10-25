@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { describeScopeLocations, type ScopeAsset } from "../../domain/scope";
 import { assetKeys, assetService } from "../../services/assets";
 import { planFrequencyLabel, planKeys, planService } from "../../services/plans";
+import { InitialDuePicker } from "../components/initial-due-picker";
 
 
 export function PlanDetailPage() {
@@ -134,7 +135,8 @@ export function PlanDetailPage() {
   );
 
   const addAssets = useMutation({
-    mutationFn: (assetIds: string[]) => planService.addAssets(activeCompanyId, id, assetIds),
+    mutationFn: (v: { assetIds: string[]; initialDue?: string | null }) =>
+      planService.addAssets(activeCompanyId, id, v.assetIds, v.initialDue ?? null),
     onSuccess: (n) => {
       toast.success(`${n} equipo(s) añadidos`);
       qc.invalidateQueries({ queryKey: planKeys.assets(activeCompanyId, id), exact: true });
@@ -267,8 +269,9 @@ export function PlanDetailPage() {
                 </DialogTrigger>
                 <AssignAssetsDialog
                   candidates={availableAssets}
-                  onAdd={async (ids) => {
-                    await addAssets.mutateAsync(ids);
+                  months={plan.interval_months}
+                  onAdd={async (ids, initialDue) => {
+                    await addAssets.mutateAsync({ assetIds: ids, initialDue });
                     setOpen(false);
                   }}
                 />
@@ -293,7 +296,7 @@ export function PlanDetailPage() {
                 <Button
                   size="sm"
                   disabled={addAssets.isPending}
-                  onClick={() => addAssets.mutate(missingAssets.map((a) => a.id))}
+                  onClick={() => addAssets.mutate({ assetIds: missingAssets.map((a) => a.id) })}
                 >
                   Añadir los {missingAssets.length}
                 </Button>
@@ -353,12 +356,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function AssignAssetsDialog({
   candidates,
+  months,
   onAdd,
 }: {
   candidates: ScopeAsset[];
-  onAdd: (ids: string[]) => Promise<unknown>;
+  months: number | null;
+  onAdd: (ids: string[], initialDue: string | null) => Promise<unknown>;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [initialDue, setInitialDue] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("__all__");
   const [saving, setSaving] = useState(false);
@@ -446,6 +452,7 @@ function AssignAssetsDialog({
             ))
           )}
         </div>
+        {selected.length > 0 && <InitialDuePicker months={months} onChange={setInitialDue} />}
       </div>
       <DialogFooter>
         <Button
@@ -453,7 +460,7 @@ function AssignAssetsDialog({
           onClick={async () => {
             setSaving(true);
             try {
-              await onAdd(selected);
+              await onAdd(selected, initialDue);
               setSelected([]);
             } finally {
               setSaving(false);
