@@ -159,7 +159,7 @@ export function createPlansRepo(c: StandaloneClient) {
     },
     async removeAsset(orgId: string, planId: string, assignmentId: string, reason?: string | null) {
       await assertPlan(orgId, planId);
-      const r = ok(await c.rpc("mnt_sa_unlink_plan_asset", { p_company: orgId, p_link: assignmentId, p_reason: reason ?? null })) as { action?: string } | null;
+      const r = ok(await c.rpc("mnt_sa_unlink_plan_asset", { p_company: orgId, p_link: assignmentId, p_reason: reason ?? "" })) as { action?: string } | null;
       return { action: (r?.action ?? "none") as "removed" | "unlink" | "none" };
     },
     async updatePlan(orgId: string, planId: string, v: PlanEdit) {
