@@ -1,0 +1,2 @@
+-- Los triggers se ejecutan con el rol del cliente: necesitan poder evaluar la autoridad (solo devuelve verdadero para el propietario de la RPC con bandera).
+GRANT EXECUTE ON FUNCTION public.mnt_sa_corrective_authority() TO authenticated;
