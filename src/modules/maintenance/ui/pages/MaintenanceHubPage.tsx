@@ -29,7 +29,7 @@ import { CreateSessionDialog } from "./SessionsListPage";
 
 export type HubTab = "upcoming" | "history" | "plans";
 
-const fdate = (d: string | null | undefined) => (d ? format(new Date(d), "dd/MM/yyyy") : "—");
+const fdate = (d: string | null | undefined) => (d ? format(new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d), "dd/MM/yyyy") : "—");
 const freqLabel = (f: string, m?: number | null) => planFrequencyLabel(f, m);
 
 export function MaintenanceHubPage({ tab, onTabChange }: { tab: HubTab; onTabChange: (t: HubTab) => void }) {
