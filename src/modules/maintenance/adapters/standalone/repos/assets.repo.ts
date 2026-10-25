@@ -3,7 +3,7 @@
  * Every read and write is scoped by orgId (company_id) to keep tenant isolation.
  */
 import type { StandaloneClient } from "../client";
-import type { AssetFilters, NewAsset, AssetPatch, KitItemInput } from "../../../contracts/repositories";
+import type { AssetFilters, DeleteCheck, NewAsset, AssetPatch, KitItemInput } from "../../../contracts/repositories";
 export type { AssetFilters, NewAsset, AssetPatch, KitItemInput };
 
 const NO_MATCH = "00000000-0000-0000-0000-000000000000";
