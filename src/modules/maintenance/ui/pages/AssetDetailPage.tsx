@@ -107,7 +107,7 @@ export function AssetDetailPage() {
     mutationFn: (status: string) => assetService.updateAsset(activeCompanyId, id, { status }),
     onSuccess: (_d, status) => {
       toast.success(status === "retired" ? "Activo retirado: deja de aparecer en Próximos y conserva su historial" : "Activo reactivado");
-      setForm((f) => (f ? { ...f, status } : f));
+      setForm((f) => ({ ...f, status }));
       qc.invalidateQueries({ queryKey: assetKeys.detail(activeCompanyId, id) });
       qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
     },
