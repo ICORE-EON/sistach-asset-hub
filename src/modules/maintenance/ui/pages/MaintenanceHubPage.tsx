@@ -337,11 +337,13 @@ function HistoryTab() {
 }
 
 const PAGE = 50;
-const outcomeLabel = (o: string | null) =>
-  o === "ok" ? { t: "Correcto", v: "outline" as const } :
-  o === "with_incidents" || o === "failed" || o === "ko" ? { t: "Con incidencias", v: "destructive" as const } :
-  o === "partial" ? { t: "Parcial", v: "secondary" as const } :
-  o ? { t: o, v: "secondary" as const } : null;
+const OUTCOMES: Record<string, { t: string; v: "outline" | "destructive" | "secondary" }> = {
+  ok: { t: "Correcto", v: "outline" },
+  with_incidents: { t: "Con incidencias", v: "destructive" },
+  incomplete: { t: "Incompleto", v: "secondary" },
+  incomplete_with_incidents: { t: "Incompleto con incidencias", v: "destructive" },
+};
+const outcomeLabel = (o: string | null) => (o ? OUTCOMES[o] ?? { t: o, v: "secondary" as const } : null);
 
 function InterventionsHistory() {
   const { orgId } = useMaintenanceRequest();
