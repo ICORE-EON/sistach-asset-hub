@@ -717,7 +717,8 @@ CREATE OR REPLACE FUNCTION public.mnt_apply_due(p_org uuid, p_session uuid, p_pl
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot();
   v_tz text := coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC');
-  v_months int := (SELECT interval_months FROM public.mnt_plans WHERE id = p_plan);
+  v_months int := (SELECT coalesce(interval_months, CASE frequency WHEN 'monthly' THEN 1 WHEN 'quarterly' THEN 3
+    WHEN 'semiannual' THEN 6 WHEN 'annual' THEN 12 END) FROM public.mnt_plans WHERE id = p_plan);
   it record; d jsonb; l record; has_link boolean; v_exec date; v_planned date; v_prop date; v_cal date;
   v_action text; v_due date; v_reason text; v_kind text;
 BEGIN
