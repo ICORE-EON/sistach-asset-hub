@@ -248,7 +248,7 @@ CREATE INDEX IF NOT EXISTS mnt_sessions_status_idx ON public.mnt_sessions(org_id
 
 CREATE TABLE IF NOT EXISTS public.mnt_session_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id uuid NOT NULL, session_id uuid NOT NULL, asset_id uuid NOT NULL, checklist_version_id uuid NOT NULL,
+  org_id uuid NOT NULL, session_id uuid NOT NULL, asset_id uuid NOT NULL, checklist_version_id uuid, -- NULL solo en reparaciones (2B)
   result text NOT NULL DEFAULT 'pending' CHECK (result IN ('pending','ok','failed','not_applicable','skipped')),
   observations text, completed_at timestamptz, completed_by_ref uuid, completed_by_snapshot jsonb,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
@@ -295,6 +295,20 @@ CREATE TABLE IF NOT EXISTS public.mnt_incidents (
   FOREIGN KEY (org_id, source_response_id) REFERENCES public.mnt_responses(org_id, id));
 CREATE INDEX IF NOT EXISTS mnt_incidents_status_idx ON public.mnt_incidents(org_id, status);
 CREATE INDEX IF NOT EXISTS mnt_incidents_asset_idx ON public.mnt_incidents(org_id, asset_id);
+DO $fk$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'mnt_sessions_incident_fk') THEN
+    ALTER TABLE public.mnt_sessions ADD CONSTRAINT mnt_sessions_incident_fk FOREIGN KEY (org_id, incident_id) REFERENCES public.mnt_incidents(org_id, id);
+  END IF;
+END $fk$;
+
+-- 2B: actuaciones de una reparación (solo se añaden filas)
+CREATE TABLE IF NOT EXISTS public.mnt_session_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL, session_id uuid NOT NULL, performed_on date NOT NULL,
+  body text NOT NULL CHECK (nullif(btrim(body), '') IS NOT NULL),
+  author_ref uuid, author_snapshot jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (org_id, session_id) REFERENCES public.mnt_sessions(org_id, id));
+CREATE INDEX IF NOT EXISTS mnt_session_entries_idx ON public.mnt_session_entries(org_id, session_id, performed_on);
 
 CREATE TABLE IF NOT EXISTS public.mnt_incident_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -601,7 +615,7 @@ BEGIN
     EXECUTE format('DROP TRIGGER IF EXISTS mnt_site_scope ON public.%I', t);
     EXECUTE format('CREATE TRIGGER mnt_site_scope BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_site_scope()', t);
   END LOOP;
-  FOREACH t IN ARRAY ARRAY['mnt_session_history','mnt_incident_history','mnt_due_changes'] LOOP
+  FOREACH t IN ARRAY ARRAY['mnt_session_history','mnt_incident_history','mnt_due_changes','mnt_session_entries'] LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS mnt_append_only ON public.%I', t);
     EXECUTE format('CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only()', t);
   END LOOP;
@@ -800,6 +814,7 @@ BEGIN
   PERFORM public.mnt_assert_perm(p_org, 'mnt.close');
   SELECT * INTO s FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'mnt: sesión no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF s.kind <> 'preventive' THEN RAISE EXCEPTION 'mnt: las reparaciones se finalizan con mnt_close_corrective' USING ERRCODE = '23514'; END IF;
   IF s.status NOT IN ('in_progress','reopened') THEN
     RAISE EXCEPTION 'mnt: la sesión no se puede cerrar desde %', s.status USING ERRCODE = '55000';
   END IF;
@@ -1011,7 +1026,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
       THEN 'tiene respuestas de checklist' END,
     CASE WHEN EXISTS (SELECT 1 FROM public.mnt_certificates c WHERE c.session_id = s.id) THEN 'tiene certificados' END,
     CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_history h WHERE h.session_id = s.id) THEN 'tiene historial' END,
-    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_due_changes d WHERE d.session_id = s.id) THEN 'tiene cambios de fecha' END
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_due_changes d WHERE d.session_id = s.id) THEN 'tiene cambios de fecha' END,
+    CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_entries e WHERE e.session_id = s.id) THEN 'tiene actuaciones' END
   ], NULL) FROM public.mnt_sessions s WHERE s.id = p_session
 $$;
 
@@ -1158,7 +1174,7 @@ DECLARE
     'mnt_checklist_template_sites','mnt_checklist_versions','mnt_checklist_questions','mnt_certificate_templates',
     'mnt_plans','mnt_plan_sites','mnt_plan_assets','mnt_plan_type_templates','mnt_sessions','mnt_session_items',
     'mnt_responses','mnt_session_history','mnt_incidents','mnt_incident_history','mnt_certificates',
-    'mnt_certificate_items','mnt_counters','mnt_outbox','mnt_due_changes'];
+    'mnt_certificate_items','mnt_counters','mnt_outbox','mnt_due_changes','mnt_session_entries'];
   -- table => permission required to write (clients); reads always need mnt.view
   writable jsonb := '{
     "mnt_org_asset_types":"mnt.admin", "mnt_assets":"mnt.manage_assets", "mnt_kit_items":"mnt.manage_assets",
@@ -1168,7 +1184,7 @@ DECLARE
     "mnt_plan_sites":"mnt.admin", "mnt_plan_assets":"mnt.admin", "mnt_plan_type_templates":"mnt.admin",
     "mnt_session_items":"mnt.run", "mnt_responses":"mnt.run"}';
   update_only jsonb := '{"mnt_sessions":"mnt.run", "mnt_incidents":"mnt.run"}';
-  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items','mnt_due_changes'];
+  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items','mnt_due_changes','mnt_session_entries'];
 BEGIN
   FOREACH t IN ARRAY all_tables LOOP
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
