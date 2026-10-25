@@ -87,8 +87,9 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `createPlan` | `orgId: string, v: NewPlan` | `string` | write | mnt.admin | RLS + puentes mnt_plan_sites/_assets/_type_templates | sites |
 | `setCertificateTemplate` | `orgId: string, planId: string, templateId: string \| null` | `void` | write | mnt.admin | RLS mnt_plans (FK compuesta) | — |
 | `setActive` | `orgId: string, planId: string, active: boolean` | `void` | write | mnt.admin | RLS mnt_plans | — |
-| `addAssets` | `orgId: string, planId: string, assetIds: string[]` | `void` | write | mnt.admin | RLS mnt_plan_assets (FK compuesta) | — |
+| `addAssets` | `orgId: string, planId: string, assetIds: string[], initialDue?: string \| null` | `void` | write | mnt.admin | RLS mnt_plan_assets (FK compuesta) | — |
 | `removeAsset` | `orgId: string, planId: string, assignmentId: string` | `void` | write | mnt.admin | RLS mnt_plan_assets | — |
+| `setDue` | `orgId: string, changes: DueChange[], reason: string \| null` | `number` | atomic | mnt.admin | RPC mnt_set_due (bitácora mnt_due_changes) | people |
 
 ## Sesiones (`sessions`)
 
@@ -103,8 +104,9 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `createSession` | `orgId: string, v: NewSession` | `string` | atomic | mnt.run | RPC mnt_create_session (idempotente por request_id) | sites, people |
 | `startSession` | `orgId: string, sessionId: string` | `boolean` | write | mnt.run | RLS + mnt_tg_session_guard (draft→in_progress) | — |
 | `listUpcoming` | `orgId: string` | `UpcomingRow[]` | read | mnt.view | RLS | — |
+| `listDuePreview` | `orgId: string, sessionId: string` | `DuePreviewRow[]` | read | mnt.run | RLS mnt_session_items + mnt_plan_assets | — |
 | `listInterventions` | `orgId: string, page: { offset: number; limit: number }` | `InterventionPage` | read | mnt.view | RLS mnt_sessions | — |
-| `recordExternal` | `orgId: string, sessionId: string, v: ExternalRecord` | `void` | write | mnt.run | RLS + mnt_tg_session_guard (→closed, revisión externa) | — |
+| `recordExternal` | `orgId: string, sessionId: string, v: ExternalRecord` | `void` | atomic | mnt.close | Transacción: resultado común + excepciones + vencimientos | — |
 | `assertItemWritable` | `orgId: string, sessionId: string, itemId: string` | `{ id: string; asset_id: string; metadata: Json; }` | read | mnt.run | Solo UX: la autoridad es mnt_tg_item_guard | — |
 | `setItemResult` | `orgId: string, sessionId: string, itemId: string, result: string, observations: string \| null, failCount: number` | `void` | write | mnt.run | RLS + mnt_tg_item_guard | people |
 | `closeSession` | `orgId: string, sessionId: string, v: { signerName: string; signerRole: string \| null; signature: string; }` | `DTO (ver contrato)` | atomic | mnt.close | RPC mnt_close_session (snapshot + historial + outbox) | people |
@@ -160,3 +162,12 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 ## Notas Bloque 1A
 - `listInterventions`: sesiones cerradas de la org, orden `closed_at` desc, paginado en servidor. `executed_on` = fecha efectiva (externas: `performed_on` declarado; internas: última finalización de equipo); `null` si no consta, nunca se sustituye por `closed_at`. `asset_count` desde `close_snapshot` o, si falta, ítems vivos. Derivación pura en `domain/intervention.ts`.
 - `listPlanScopeCounts`: por plan, vínculos totales (`linked`) y vigentes hoy (`current`: `start_on` ≤ hoy y sin `end_on` pasado).
+
+## Notas Bloque 1B (vencimientos)
+- `mnt_plan_assets.next_due_on` es la próxima fecha **guardada** por vínculo (NULL = sin programar). `start_on` sigue siendo el inicio del vínculo y nunca se usa como vencimiento. Solo la cambian `mnt_set_due` y el cierre (`mnt_close_session`); un disparador rechaza cualquier otra escritura.
+- Regla única de propuesta: fecha real de realización (día calendario en la zona horaria de la organización, `mnt_orgs.timezone`, la fija el host) + intervalo del plan, con recorte a fin de mes (31-ene + 1 mes = 28/29-feb). Alternativa visible «Mantener calendario» = fecha prevista + intervalo. Cualquier otra fecha exige motivo.
+- Por equipo al cerrar: conforme y con incidencias avanzan por defecto (no avanzar con incidencias exige motivo); omitido nunca avanza; «No aplica» global exige decisión (exención con motivo). Varios equipos: resultado común + excepciones; nunca se impone una fecha común por estar en la misma sesión.
+- Cada ejecución conserva su instantánea (`planned_on`, `executed_on`, `late`, `proposed_on`, `calendar_on`, `applied_due`, `advanced`, `reason`); reprogramar después no la reescribe. Reabrir y volver a cerrar no repite decisiones.
+- `mnt_due_changes` es de solo inserción (quién —identidad del servidor—, cuándo, fecha anterior, nueva, tipo y motivo).
+- Permisos: reprogramar libremente = `mnt.admin`; confirmar o ajustar fechas al cerrar = `mnt.close`.
+- `listUpcoming` excluye equipos retirados/borrados y vínculos con `end_on` pasado (no los averiados ni en mantenimiento); lee por bloques sin truncado silencioso. Un vínculo con inicio futuro aparece como «Desde …» y nunca vencido; no entra en sesiones hasta su inicio.
