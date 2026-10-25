@@ -134,7 +134,7 @@ export interface AssetsRepository {
   listAssets(orgId: string, f?: AssetFilters): Promise<{ id: string; code: string; name: string | null; status: string; manufacturer: string | null; model: string | null; serial_number: string | null; install_date: string | null; qr_token: string; asset_type_id: string; location_id: string | null; asset_types: { code: string; name_i18n: Json; }; locations: { name: string; code: string; } | null; }[]>;
   getAsset(orgId: string, id: string): Promise<{ asset_type_id: string; code: string; company_id: string; created_at: string; deleted_at: string | null; id: string; install_date: string | null; location_id: string | null; manufacture_date: string | null; manufacturer: string | null; metadata: Json; model: string | null; name: string | null; notes: string | null; qr_token: string; retire_date: string | null; serial_number: string | null; status: string; updated_at: string; warranty_until: string | null; asset_types: { code: string; name_i18n: Json; category: string; }; locations: { name: string; code: string; } | null; } | null>;
   createAsset(orgId: string, v: NewAsset): Promise<void>;
-  updateAsset(orgId: string, id: string, v: AssetPatch): Promise<void>;
+  updateAsset(orgId: string, id: string, v: Partial<AssetPatch>): Promise<void>;
   softDeleteAsset(orgId: string, id: string): Promise<void>;
   /** Admin only: permanent delete of an asset created by mistake (no evidence). confirm=false only checks. */
   deleteAsset(orgId: string, id: string, confirm: boolean): Promise<DeleteCheck>;

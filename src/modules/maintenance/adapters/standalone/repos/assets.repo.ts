@@ -116,7 +116,7 @@ export function createAssetsRepo(c: StandaloneClient) {
       const code = ok(await c.rpc("next_code", { p_company_id: orgId, p_scope: "assets", p_prefix: "AST" }));
       ok(await c.from("assets").insert({ ...v, company_id: orgId, qr_token: "", code: code as string }));
     },
-    async updateAsset(orgId: string, id: string, v: AssetPatch) {
+    async updateAsset(orgId: string, id: string, v: Partial<AssetPatch>) {
       ok(await c.from("assets").update(v).eq("id", id).eq("company_id", orgId));
     },
     async softDeleteAsset(orgId: string, id: string) {
