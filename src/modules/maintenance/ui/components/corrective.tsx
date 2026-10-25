@@ -202,6 +202,7 @@ function RepairDetail({ r, onClose }: { r: CorrectiveRow; onClose: () => void })
     qc.invalidateQueries({ queryKey: correctiveKeys.all(orgId) });
     qc.invalidateQueries({ queryKey: assetKeys.list(orgId) });
     qc.invalidateQueries({ queryKey: sessionKeys.lists(orgId) });
+    if (r.asset) qc.invalidateQueries({ queryKey: assetKeys.detail(orgId, r.asset.id) });
   };
   const { data: entries = [] } = useQuery({ queryKey: correctiveKeys.entries(orgId, r.id), enabled: !!orgId, queryFn: () => correctiveService.listEntries(orgId, r.id) });
   const { data: incidents = [] } = useQuery({

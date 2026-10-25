@@ -26,8 +26,10 @@ import { PlansListPage } from "./PlansListPage";
 import { DueScheduleDialog, type DueScheduleRow } from "../components/due-schedule-dialog";
 import { dueState, planIntervalMonths } from "../../domain/due-date";
 import { CreateSessionDialog } from "./SessionsListPage";
+import { NewRepairButton, RepairsList } from "../components/corrective";
+import { Hammer } from "lucide-react";
 
-export type HubTab = "upcoming" | "history" | "plans";
+export type HubTab = "upcoming" | "repairs" | "history" | "plans";
 
 const fdate = (d: string | null | undefined) => (d ? format(new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d), "dd/MM/yyyy") : "—");
 const freqLabel = (f: string, m?: number | null) => planFrequencyLabel(f, m);
@@ -45,18 +47,21 @@ export function MaintenanceHubPage({ tab, onTabChange }: { tab: HubTab; onTabCha
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Mantenimientos</h1>
-            <p className="text-sm text-muted-foreground">Previsión, histórico y planes de mantenimiento</p>
+            <p className="text-sm text-muted-foreground">Previsión, reparaciones, histórico y planes de mantenimiento</p>
           </div>
         </div>
         {tab === "upcoming" && canRun && orgId && <CreateSessionDialog companyId={orgId} />}
+        {tab === "repairs" && <NewRepairButton size="default" />}
       </div>
       <Tabs value={tab} onValueChange={(v) => onTabChange(v as HubTab)}>
         <TabsList>
           <TabsTrigger value="upcoming"><CalendarClock className="mr-2 h-4 w-4" />Próximos</TabsTrigger>
+          <TabsTrigger value="repairs"><Hammer className="mr-2 h-4 w-4" />Reparaciones</TabsTrigger>
           <TabsTrigger value="history"><History className="mr-2 h-4 w-4" />Histórico</TabsTrigger>
           {canManage && <TabsTrigger value="plans"><ClipboardList className="mr-2 h-4 w-4" />Planes</TabsTrigger>}
         </TabsList>
         <TabsContent value="upcoming" className="pt-4"><UpcomingTab /></TabsContent>
+        <TabsContent value="repairs" className="pt-4"><RepairsList openOnly /></TabsContent>
         <TabsContent value="history" className="pt-4"><HistoryTab /></TabsContent>
         {canManage && <TabsContent value="plans" className="pt-4"><PlansListPage embedded /></TabsContent>}
       </Tabs>
