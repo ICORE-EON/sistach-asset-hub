@@ -106,7 +106,16 @@ export const planService = {
   },
   removeAsset: (orgId: string | null, planId: string, assignmentId: string, reason?: string | null) =>
     repo().removeAsset(need(orgId), planId, assignmentId, reason ?? null),
-  updatePlan: (orgId: string | null, planId: string, v: PlanEdit) => repo().updatePlan(need(orgId), planId, v),
+  /** Edit name/frequency/notes. Does not reschedule existing due dates (server keeps per-session frozen frequency). */
+  updatePlan: async (orgId: string | null, planId: string, v: { name: string; frequency: string; customYears?: number | null; notes: string | null }) => {
+    if (!v.name.trim()) throw new Error("El nombre es obligatorio");
+    const freq = FREQUENCIES.find((f) => f.value === v.frequency);
+    if (!freq) throw new Error("Frecuencia no válida");
+    const interval_months = v.frequency === "custom" ? Math.max(0, Math.round(v.customYears ?? 0)) * 12 : freq.months;
+    if (v.frequency === "custom" && !interval_months) throw new Error("Indica cada cuántos años se repite");
+    const edit: PlanEdit = { name: v.name.trim(), frequency: v.frequency, interval_months, notes: v.notes?.trim() || null };
+    return repo().updatePlan(need(orgId), planId, edit);
+  },
   setArchived: (orgId: string | null, planId: string, archived: boolean) => repo().setArchived(need(orgId), planId, archived),
   deletePlan: (orgId: string | null, planId: string, confirm: boolean) => repo().deletePlan(need(orgId), planId, confirm),
   /**
