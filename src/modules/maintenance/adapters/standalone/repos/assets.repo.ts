@@ -122,6 +122,9 @@ export function createAssetsRepo(c: StandaloneClient) {
     async softDeleteAsset(orgId: string, id: string) {
       ok(await c.from("assets").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("company_id", orgId));
     },
+    async deleteAsset(orgId: string, id: string, confirm: boolean) {
+      return ok(await c.rpc("mnt_sa_delete_asset", { p_company: orgId, p_asset: id, p_confirm: confirm })) as unknown as DeleteCheck;
+    },
 
     // ---- first-aid kit contents ----
     async listKitItems(orgId: string, assetId: string) {
