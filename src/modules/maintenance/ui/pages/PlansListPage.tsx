@@ -323,6 +323,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
           </TableBody>
         </Table>
       </div>
+      <p className="text-xs text-muted-foreground">* Próximo vencimiento estimado con las reglas de cálculo actuales, pendientes de revisión. «Vigentes»: equipos con vínculo en vigor hoy.</p>
     </div>
   );
 }
