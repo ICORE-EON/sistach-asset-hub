@@ -12,6 +12,8 @@ import {
   Lock,
   PenLine,
   Eraser,
+  Ban,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
