@@ -393,7 +393,7 @@ function InterventionsHistory() {
         </Table>
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{total} intervención{total === 1 ? "" : "es"} · página {page + 1} de {pages}</span>
+        <span>{total} {total === 1 ? "intervención" : "intervenciones"} · página {page + 1} de {pages}</span>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
           <Button variant="outline" size="sm" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
