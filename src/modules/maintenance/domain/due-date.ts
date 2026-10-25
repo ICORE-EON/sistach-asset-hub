@@ -28,7 +28,7 @@ export function addMonthsClamped(date: string, months: number): string {
   return `${pad(ny, 4)}-${pad(nm)}-${pad(Math.min(d, daysIn(ny, nm)))}`;
 }
 
-/** Calendar day of an instant in the organisation time zone (e.g. 22:30 UTC → next day in Madrid in summer? no: same rules as Intl). */
+/** Calendar day of an instant in the organisation time zone (Intl, no local-time arithmetic). */
 export function toOrgDate(instant: string | Date, timeZone = "Europe/Madrid"): string {
   const d = typeof instant === "string" ? new Date(instant) : instant;
   if (Number.isNaN(d.getTime())) throw new Error("Instante no válido");
