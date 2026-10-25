@@ -354,6 +354,7 @@ function CreatePlanDialog({
   const [certTemplateId, setCertTemplateId] = useState("");
   const [executionMode, setExecutionMode] = useState<"internal" | "external">("internal");
   const [defaultProvider, setDefaultProvider] = useState("");
+  const [initialDue, setInitialDue] = useState<string | null>(null);
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -452,7 +453,7 @@ function CreatePlanDialog({
       planService.createPlan(activeCompanyId, {
         code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
         selectedIds, usedTypeIds, templateFor, certTemplateId, executionMode, defaultProvider,
-        customYears: Number(customYears) || 0,
+        customYears: Number(customYears) || 0, initialDue,
       }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
