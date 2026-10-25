@@ -18,11 +18,10 @@ BEGIN
   SELECT id INTO T FROM public.asset_types WHERE company_id = CB LIMIT 1;
   SELECT id INTO F FROM public.asset_families WHERE company_id = CB LIMIT 1;
   INSERT INTO public.company_members(company_id, user_id, role, active) VALUES (CB, UA, 'manager', true);
-  INSERT INTO public.maintenance_plans(id, company_id, code, name, frequency, interval_months, asset_family_id) VALUES
-    ('00000000-0000-4000-8000-00000001b001', CB, 'B1B-P1', 'Mensual 5', 'monthly', NULL, F),
-    ('00000000-0000-4000-8000-00000001b002', CB, 'B1B-P2', 'Anual 50', 'annual', NULL, F),
-    ('00000000-0000-4000-8000-00000001b003', CB, 'B1B-P3', 'Externo 5', 'annual', NULL, F);
-  UPDATE public.maintenance_plans SET execution_mode = 'external' WHERE id = '00000000-0000-4000-8000-00000001b003';
+  INSERT INTO public.maintenance_plans(id, company_id, code, name, frequency, interval_months, asset_family_id, execution_mode) VALUES
+    ('00000000-0000-4000-8000-00000001b001', CB, 'B1B-P1', 'Mensual 5', 'monthly', NULL, F, 'internal'),
+    ('00000000-0000-4000-8000-00000001b002', CB, 'B1B-P2', 'Anual 50', 'annual', NULL, F, 'internal'),
+    ('00000000-0000-4000-8000-00000001b003', CB, 'B1B-P3', 'Externo 5', 'annual', NULL, F, 'external');
   FOR i IN 1..60 LOOP
     INSERT INTO public.assets(id, company_id, asset_type_id, code, name, status)
     VALUES (('00000000-0000-4000-8000-0000003' || lpad(i::text, 5, '0'))::uuid, CB, T, 'B1B-' || i, 'Extintor ' || i, 'active');
