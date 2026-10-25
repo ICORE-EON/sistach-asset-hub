@@ -16,7 +16,7 @@ import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
 import type { NewSession } from "../../../contracts/repositories";
 export type { NewSession };
-import { assertTransition, legacySessionOutcome } from "../../../domain/session-rules";
+import { assertTransition } from "../../../domain/session-rules";
 import { closeResults, historicalItem, historicalSession } from "../../../domain/session-history";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };

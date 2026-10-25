@@ -7,7 +7,8 @@
  * scope_location_ids stays an array until the phase-5 normalization.
  */
 import type { StandaloneClient } from "../client";
-import type { NewPlan, PlanScopeCount, ScopeQuery } from "../../../contracts/repositories";
+import type { DueChange, NewPlan, PlanScopeCount, ScopeQuery } from "../../../contracts/repositories";
+import type { Json } from "@/integrations/supabase/types";
 export type { NewPlan, ScopeQuery };
 import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../../../domain/scope";
 
@@ -52,6 +53,14 @@ export function createPlansRepo(c: StandaloneClient) {
     if (!id) return;
     const row = ok(await c.from("certificate_templates").select("id").eq("id", id).eq("company_id", orgId).maybeSingle());
     if (!row) throw new Error(`Plantilla de certificado ${DENY}`);
+  };
+  /** Due dates change only through the database function (permission, identity and log are server-side). */
+  const setDueRpc = async (orgId: string, changes: DueChange[], reason: string | null) => {
+    if (!changes.length) return 0;
+    return Number(ok(await c.rpc("mnt_sa_set_due", {
+      p_company: orgId, p_reason: reason ?? "",
+      p_items: changes.map((x) => ({ plan_asset_id: x.planAssetId, due: x.due, reason: x.reason ?? null })) as unknown as Json,
+    })) ?? 0);
   };
   const listSites = async (orgId: string) =>
     (ok(await c.from("locations").select("id, name, code, parent_location_id").eq("company_id", orgId)
@@ -124,7 +133,8 @@ export function createPlansRepo(c: StandaloneClient) {
         interval_months: v.interval_months, notes: v.notes, scope_mode: v.scope_mode,
         scope_location_ids: v.scope_location_ids, scope_include_sublocations: v.scope_include_sublocations,
       }).select("id").single())!;
-      ok(await c.from("maintenance_plan_assets").insert(v.asset_ids.map((asset_id) => ({ plan_id: plan.id, asset_id }))));
+      const links = ok(await c.from("maintenance_plan_assets").insert(v.asset_ids.map((asset_id) => ({ plan_id: plan.id, asset_id }))).select("id")) ?? [];
+      if (v.initial_due) await setDueRpc(orgId, links.map((l) => ({ planAssetId: l.id, due: v.initial_due! })), null);
       if (v.type_templates.length)
         ok(await c.from("maintenance_plan_type_templates").insert(v.type_templates.map((t) => ({ plan_id: plan.id, ...t }))));
       return plan.id as string;
@@ -138,10 +148,14 @@ export function createPlansRepo(c: StandaloneClient) {
       await assertPlan(orgId, planId);
       ok(await c.from("maintenance_plans").update({ active }).eq("id", planId).eq("company_id", orgId));
     },
-    async addAssets(orgId: string, planId: string, assetIds: string[]) {
+    async addAssets(orgId: string, planId: string, assetIds: string[], initialDue?: string | null) {
       await assertPlan(orgId, planId);
       await assertAssets(orgId, assetIds);
-      ok(await c.from("maintenance_plan_assets").insert(assetIds.map((asset_id) => ({ plan_id: planId, asset_id }))));
+      const links = ok(await c.from("maintenance_plan_assets").insert(assetIds.map((asset_id) => ({ plan_id: planId, asset_id }))).select("id")) ?? [];
+      if (initialDue) await setDueRpc(orgId, links.map((l) => ({ planAssetId: l.id, due: initialDue })), null);
+    },
+    async setDue(orgId: string, changes: DueChange[], reason: string | null) {
+      return setDueRpc(orgId, changes, reason);
     },
     async removeAsset(orgId: string, planId: string, assignmentId: string) {
       await assertPlan(orgId, planId);
