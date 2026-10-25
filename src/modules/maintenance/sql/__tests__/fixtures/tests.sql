@@ -373,7 +373,8 @@ SELECT t.fails('2B: no reparado exige explicacion', format('SELECT public.mnt_cl
 SELECT t.fails('2B: no reparado no reactiva', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''not_repaired'', ''falta pieza'', NULL, NULL, true)', :orgA, :'r2'), '23514');
 SELECT t.fails('2B: reactivar exige gestionar activos', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''repaired'', NULL, NULL, NULL, true)', :orgA, :'r1'), '42501');
 SELECT t.login(:adminA);
-SELECT t.ok('2B: reparado con reactivacion explicita', (public.mnt_close_corrective(:orgA, :'r1', current_date - 1, 'repaired', 'Recarga', 'Proveedor TEST', 'P-1', true)->>'reactivated')::boolean
+SELECT (public.mnt_close_corrective(:orgA, :'r1', current_date - 1, 'repaired', 'Recarga', 'Proveedor TEST', 'P-1', true)->>'reactivated') AS react \gset
+SELECT t.ok('2B: reparado con reactivacion explicita', :'react'::boolean
   AND (SELECT status FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e21') = 'active'
   AND (SELECT completed_at::date FROM mnt_session_items WHERE session_id = :'r1') = current_date - 1
   AND (SELECT detected_on FROM mnt_sessions WHERE id = :'r1') = current_date - 3
