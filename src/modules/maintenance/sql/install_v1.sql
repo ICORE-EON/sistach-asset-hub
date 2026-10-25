@@ -224,16 +224,25 @@ CREATE TABLE IF NOT EXISTS public.mnt_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id uuid NOT NULL REFERENCES public.mnt_orgs(org_id),
   code text NOT NULL, request_id uuid NOT NULL,
-  plan_id uuid NOT NULL, site_ref uuid, scheduled_for date,
+  plan_id uuid, site_ref uuid, scheduled_for date,
   technician_ref uuid, technician_snapshot jsonb,
   is_external boolean NOT NULL DEFAULT false, external_provider text,
   status text NOT NULL DEFAULT 'in_progress' CHECK (status IN ('draft','in_progress','closed','reopened','cancelled')),
-  outcome text CHECK (outcome IN ('ok','with_incidents','partial','not_performed')),
+  -- 2B: preventive = con plan; corrective = reparación sin plan (resultados propios)
+  kind text NOT NULL DEFAULT 'preventive' CHECK (kind IN ('preventive','corrective')),
+  detected_on date, priority text CHECK (priority IS NULL OR priority IN ('low','normal','high')),
+  fault_description text, incident_id uuid, external_reference text,
+  outcome text CHECK (outcome IS NULL
+    OR (kind = 'preventive' AND outcome IN ('ok','with_incidents','partial','not_performed'))
+    OR (kind = 'corrective' AND outcome IN ('repaired','not_repaired','replaced'))),
   started_at timestamptz NOT NULL DEFAULT now(), closed_at timestamptz,
   closed_by_ref uuid, closed_by_snapshot jsonb, reopen_reason text, notes text,
   metadata jsonb NOT NULL DEFAULT '{}', created_by_ref uuid,
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (org_id, id), UNIQUE (org_id, code), UNIQUE (org_id, request_id),
+  CONSTRAINT mnt_sessions_kind_plan CHECK ((kind = 'preventive') = (plan_id IS NOT NULL)),
+  CONSTRAINT mnt_sessions_corrective_fields CHECK (kind <> 'corrective' OR (detected_on IS NOT NULL AND priority IS NOT NULL
+    AND nullif(btrim(coalesce(fault_description, '')), '') IS NOT NULL)),
   FOREIGN KEY (org_id, plan_id) REFERENCES public.mnt_plans(org_id, id));
 CREATE INDEX IF NOT EXISTS mnt_sessions_status_idx ON public.mnt_sessions(org_id, status);
 
