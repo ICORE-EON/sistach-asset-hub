@@ -893,6 +893,9 @@ BEGIN
   SELECT status INTO st FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
   IF st IS NULL THEN RAISE EXCEPTION 'mnt: sesión no encontrada' USING ERRCODE = 'P0002'; END IF;
   IF st <> 'closed' THEN RAISE EXCEPTION 'mnt: solo se reabren sesiones cerradas' USING ERRCODE = '55000'; END IF;
+  IF (SELECT kind FROM public.mnt_sessions WHERE id = p_session) = 'corrective' THEN
+    RAISE EXCEPTION 'mnt: una reparación finalizada no se reabre; registra una nueva' USING ERRCODE = '23514';
+  END IF;
   UPDATE public.mnt_sessions SET status = 'reopened', reopen_reason = p_reason WHERE id = p_session;
   INSERT INTO public.mnt_session_history(org_id, session_id, event, actor_ref, actor_snapshot, reason)
   VALUES (p_org, p_session, 'reopened', me, snap, p_reason);
@@ -1166,6 +1169,139 @@ BEGIN
   RETURN jsonb_build_object('deleted', true, 'eligible', true, 'blockers', '[]'::jsonb, 'code', v_code, 'removed_drafts', to_jsonb(v_drafts));
 END $$;
 
+-- ---------------------------------------------------------------------------------------------
+-- Bloque 2B — reparaciones (correctivo sencillo). Nunca tocan vencimientos, mnt_due_changes,
+-- certificados ni incidencias. La incidencia del host/módulo es un vínculo opcional.
+-- ---------------------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.mnt_tg_reject_corrective() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NEW.session_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.mnt_sessions s WHERE s.id = NEW.session_id AND s.kind = 'corrective') THEN
+    RAISE EXCEPTION 'mnt: las reparaciones no emiten certificados ni modifican fechas preventivas' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS mnt_no_corrective ON public.mnt_certificates;
+CREATE TRIGGER mnt_no_corrective BEFORE INSERT OR UPDATE ON public.mnt_certificates FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_reject_corrective();
+DROP TRIGGER IF EXISTS mnt_no_corrective ON public.mnt_due_changes;
+CREATE TRIGGER mnt_no_corrective BEFORE INSERT ON public.mnt_due_changes FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_reject_corrective();
+
+CREATE OR REPLACE FUNCTION public.mnt_org_today(p_org uuid) RETURNS date
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT (now() AT TIME ZONE coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC'))::date
+$$;
+
+CREATE OR REPLACE FUNCTION public.mnt_create_corrective(p_org uuid, p_asset uuid, p_detected_on date, p_priority text,
+  p_description text, p_incident uuid DEFAULT NULL, p_external boolean DEFAULT false, p_provider text DEFAULT NULL,
+  p_mark_inactive boolean DEFAULT false, p_request_id uuid DEFAULT NULL) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE a record; x record; v_id uuid; v_code text; v_req uuid := coalesce(p_request_id, gen_random_uuid());
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT id, code INTO v_id, v_code FROM public.mnt_sessions WHERE org_id = p_org AND request_id = v_req;
+  IF FOUND THEN RETURN jsonb_build_object('id', v_id, 'code', v_code, 'created_now', false); END IF;
+  SELECT id, status, site_ref INTO a FROM public.mnt_assets WHERE org_id = p_org AND id = p_asset AND deleted_at IS NULL FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: equipo no encontrado' USING ERRCODE = 'P0002'; END IF;
+  IF a.status = 'retired' THEN RAISE EXCEPTION 'mnt: el equipo está retirado' USING ERRCODE = '23514'; END IF;
+  IF p_detected_on IS NULL OR p_detected_on > public.mnt_org_today(p_org) THEN RAISE EXCEPTION 'mnt: fecha de detección no válida' USING ERRCODE = '23514'; END IF;
+  IF coalesce(p_priority, '') NOT IN ('low','normal','high') THEN RAISE EXCEPTION 'mnt: prioridad no válida' USING ERRCODE = '22023'; END IF;
+  IF nullif(btrim(coalesce(p_description, '')), '') IS NULL THEN RAISE EXCEPTION 'mnt: describe la avería' USING ERRCODE = '23514'; END IF;
+  IF p_external AND nullif(btrim(coalesce(p_provider, '')), '') IS NULL THEN RAISE EXCEPTION 'mnt: indica la empresa externa' USING ERRCODE = '23514'; END IF;
+  IF p_incident IS NOT NULL THEN
+    SELECT id, asset_id INTO x FROM public.mnt_incidents WHERE org_id = p_org AND id = p_incident;
+    IF NOT FOUND THEN RAISE EXCEPTION 'mnt: la incidencia no pertenece a la organización' USING ERRCODE = '42501'; END IF;
+    IF x.asset_id IS NOT NULL AND x.asset_id <> p_asset THEN RAISE EXCEPTION 'mnt: la incidencia corresponde a otro equipo' USING ERRCODE = '23514'; END IF;
+  END IF;
+  IF p_mark_inactive THEN
+    PERFORM public.mnt_assert_perm(p_org, 'mnt.manage_assets');
+    IF a.status = 'active' THEN UPDATE public.mnt_assets SET status = 'inactive' WHERE id = p_asset; END IF;
+  END IF;
+  v_code := public.mnt_next_code(p_org, 'corrective', 'REP');
+  INSERT INTO public.mnt_sessions(org_id, code, request_id, plan_id, site_ref, is_external, external_provider, status, kind,
+         detected_on, priority, fault_description, incident_id, created_by_ref)
+  VALUES (p_org, v_code, v_req, NULL, a.site_ref, coalesce(p_external, false), nullif(btrim(coalesce(p_provider, '')), ''), 'in_progress', 'corrective',
+         p_detected_on, p_priority, btrim(p_description), p_incident, public.host_person_ref())
+  RETURNING id INTO v_id;
+  INSERT INTO public.mnt_session_items(org_id, session_id, asset_id, checklist_version_id) VALUES (p_org, v_id, p_asset, NULL);
+  PERFORM public.mnt_emit(p_org, 'corrective.opened', 'session', v_id, jsonb_build_object('code', v_code, 'asset_id', p_asset, 'incident_id', p_incident));
+  RETURN jsonb_build_object('id', v_id, 'code', v_code, 'created_now', true);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_add_entry(p_org uuid, p_session uuid, p_performed_on date, p_text text) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE s record; v_id uuid;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT kind, status, detected_on INTO s FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: reparación no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF s.kind <> 'corrective' OR s.status NOT IN ('draft','in_progress') THEN RAISE EXCEPTION 'mnt: solo en reparaciones abiertas' USING ERRCODE = '23514'; END IF;
+  IF p_performed_on IS NULL OR p_performed_on > public.mnt_org_today(p_org) OR p_performed_on < s.detected_on THEN
+    RAISE EXCEPTION 'mnt: fecha de actuación no válida' USING ERRCODE = '23514';
+  END IF;
+  IF nullif(btrim(coalesce(p_text, '')), '') IS NULL THEN RAISE EXCEPTION 'mnt: describe la actuación' USING ERRCODE = '23514'; END IF;
+  INSERT INTO public.mnt_session_entries(org_id, session_id, performed_on, body, author_ref, author_snapshot)
+  VALUES (p_org, p_session, p_performed_on, btrim(p_text), public.host_person_ref(), public.mnt_actor_snapshot()) RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_link_incident(p_org uuid, p_session uuid, p_incident uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE s record; x record; v_asset uuid;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT kind, status INTO s FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: reparación no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF s.kind <> 'corrective' OR s.status NOT IN ('draft','in_progress') THEN RAISE EXCEPTION 'mnt: solo en reparaciones abiertas' USING ERRCODE = '23514'; END IF;
+  IF p_incident IS NOT NULL THEN
+    SELECT id, asset_id INTO x FROM public.mnt_incidents WHERE org_id = p_org AND id = p_incident;
+    IF NOT FOUND THEN RAISE EXCEPTION 'mnt: la incidencia no pertenece a la organización' USING ERRCODE = '42501'; END IF;
+    SELECT asset_id INTO v_asset FROM public.mnt_session_items WHERE session_id = p_session LIMIT 1;
+    IF x.asset_id IS NOT NULL AND x.asset_id <> v_asset THEN RAISE EXCEPTION 'mnt: la incidencia corresponde a otro equipo' USING ERRCODE = '23514'; END IF;
+  END IF;
+  UPDATE public.mnt_sessions SET incident_id = p_incident WHERE id = p_session;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_close_corrective(p_org uuid, p_session uuid, p_performed_on date, p_outcome text,
+  p_observations text DEFAULT NULL, p_provider text DEFAULT NULL, p_reference text DEFAULT NULL, p_reactivate boolean DEFAULT false) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE s public.mnt_sessions%ROWTYPE; v_asset uuid; v_status text; v_react boolean := false; v_tz text;
+  me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot();
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT * INTO s FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: reparación no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF s.kind <> 'corrective' THEN RAISE EXCEPTION 'mnt: esta acción solo finaliza reparaciones' USING ERRCODE = '23514'; END IF;
+  IF s.status = 'closed' THEN RETURN jsonb_build_object('closed_now', false, 'outcome', s.outcome); END IF;
+  IF s.status NOT IN ('draft','in_progress') THEN RAISE EXCEPTION 'mnt: la reparación está cancelada' USING ERRCODE = '55000'; END IF;
+  IF coalesce(p_outcome, '') NOT IN ('repaired','not_repaired','replaced') THEN RAISE EXCEPTION 'mnt: resultado no válido' USING ERRCODE = '22023'; END IF;
+  IF p_performed_on IS NULL OR p_performed_on > public.mnt_org_today(p_org) OR p_performed_on < s.detected_on THEN
+    RAISE EXCEPTION 'mnt: fecha de finalización no válida' USING ERRCODE = '23514';
+  END IF;
+  IF p_outcome = 'not_repaired' AND nullif(btrim(coalesce(p_observations, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'mnt: explica por qué no se ha reparado' USING ERRCODE = '23514';
+  END IF;
+  SELECT i.asset_id, a.status INTO v_asset, v_status FROM public.mnt_session_items i JOIN public.mnt_assets a ON a.id = i.asset_id WHERE i.session_id = p_session LIMIT 1;
+  IF coalesce(p_reactivate, false) THEN
+    IF p_outcome <> 'repaired' THEN RAISE EXCEPTION 'mnt: solo un equipo reparado vuelve a activo' USING ERRCODE = '23514'; END IF;
+    PERFORM public.mnt_assert_perm(p_org, 'mnt.manage_assets');
+    IF v_status = 'inactive' THEN UPDATE public.mnt_assets SET status = 'active' WHERE id = v_asset; v_react := true; END IF;
+  END IF;
+  v_tz := coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC');
+  UPDATE public.mnt_session_items SET result = CASE WHEN p_outcome = 'not_repaired' THEN 'failed' ELSE 'ok' END,
+         completed_at = (p_performed_on::timestamp + time '12:00') AT TIME ZONE v_tz, completed_by_ref = me, completed_by_snapshot = snap,
+         observations = nullif(btrim(coalesce(p_observations, '')), '')
+   WHERE session_id = p_session;
+  UPDATE public.mnt_sessions SET status = 'closed', closed_at = now(), outcome = p_outcome, closed_by_ref = me, closed_by_snapshot = snap,
+         external_provider = coalesce(nullif(btrim(coalesce(p_provider, '')), ''), external_provider),
+         external_reference = coalesce(nullif(btrim(coalesce(p_reference, '')), ''), external_reference),
+         metadata = metadata || jsonb_build_object('corrective_close', jsonb_build_object('performed_on', p_performed_on, 'reactivated', v_react))
+   WHERE id = p_session;
+  INSERT INTO public.mnt_session_history(org_id, session_id, event, actor_ref, actor_snapshot, reason)
+  VALUES (p_org, p_session, 'closed', me, snap, p_outcome);
+  PERFORM public.mnt_emit(p_org, 'corrective.closed', 'session', p_session, jsonb_build_object('outcome', p_outcome, 'performed_on', p_performed_on, 'reactivated', v_react));
+  RETURN jsonb_build_object('closed_now', true, 'outcome', p_outcome, 'reactivated', v_react);
+END $$;
+
 DO $security$
 DECLARE
   t text; p text; f regprocedure;
@@ -1238,7 +1374,9 @@ BEGIN
     'mnt_revoke_certificate(uuid,uuid,text)','mnt_publish_checklist_version(uuid,uuid)',
     'mnt_register_external_certificate(uuid,text,date,date,text,text,uuid,uuid,text)',
     'mnt_cancel_session(uuid,uuid,text)','mnt_delete_draft_session(uuid,uuid)','mnt_unlink_plan_asset(uuid,uuid,uuid,text)',
-    'mnt_delete_asset(uuid,uuid,boolean)','mnt_delete_plan(uuid,uuid,boolean)'] LOOP
+    'mnt_delete_asset(uuid,uuid,boolean)','mnt_delete_plan(uuid,uuid,boolean)',
+    'mnt_create_corrective(uuid,uuid,date,text,text,uuid,boolean,text,boolean,uuid)','mnt_add_entry(uuid,uuid,date,text)',
+    'mnt_link_incident(uuid,uuid,uuid)','mnt_close_corrective(uuid,uuid,date,text,text,text,text,boolean)'] LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO authenticated', p);
   END LOOP;
   EXECUTE 'GRANT EXECUTE ON FUNCTION public.mnt_register_org(uuid) TO service_role';
