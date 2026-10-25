@@ -2179,6 +2179,7 @@ export type Database = {
           created_at: string
           end_on: string | null
           id: string
+          next_due_on: string | null
           plan_id: string
           start_on: string
         }
@@ -2188,6 +2189,7 @@ export type Database = {
           created_at?: string
           end_on?: string | null
           id?: string
+          next_due_on?: string | null
           plan_id: string
           start_on?: string
         }
@@ -2197,6 +2199,7 @@ export type Database = {
           created_at?: string
           end_on?: string | null
           id?: string
+          next_due_on?: string | null
           plan_id?: string
           start_on?: string
         }
@@ -2670,6 +2673,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "checklist_templates"
             referencedColumns: ["company_id", "id"]
+          },
+        ]
+      }
+      mnt_due_changes: {
+        Row: {
+          asset_id: string
+          changed_at: string
+          changed_by: string
+          company_id: string
+          id: string
+          item_id: string | null
+          kind: string
+          new_due: string | null
+          old_due: string | null
+          plan_asset_id: string
+          plan_id: string
+          reason: string | null
+          session_id: string | null
+        }
+        Insert: {
+          asset_id: string
+          changed_at?: string
+          changed_by: string
+          company_id: string
+          id?: string
+          item_id?: string | null
+          kind: string
+          new_due?: string | null
+          old_due?: string | null
+          plan_asset_id: string
+          plan_id: string
+          reason?: string | null
+          session_id?: string | null
+        }
+        Update: {
+          asset_id?: string
+          changed_at?: string
+          changed_by?: string
+          company_id?: string
+          id?: string
+          item_id?: string | null
+          kind?: string
+          new_due?: string | null
+          old_due?: string | null
+          plan_asset_id?: string
+          plan_id?: string
+          reason?: string | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_due_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_due_changes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -4208,6 +4274,52 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      mnt_sa_apply_due: {
+        Args: {
+          p_company: string
+          p_decisions: Json
+          p_external_on: string
+          p_plan: string
+          p_session: string
+        }
+        Returns: undefined
+      }
+      mnt_sa_close_session: {
+        Args: {
+          p_company: string
+          p_decisions?: Json
+          p_session: string
+          p_signature: string
+          p_signer_name: string
+          p_signer_role: string
+        }
+        Returns: Json
+      }
+      mnt_sa_close_snapshot: {
+        Args: { p_at: string; p_session: string }
+        Returns: Json
+      }
+      mnt_sa_org_tz: { Args: { p_company: string }; Returns: string }
+      mnt_sa_outcome: { Args: { p_session: string }; Returns: string }
+      mnt_sa_plan_months: { Args: { p_plan: string }; Returns: number }
+      mnt_sa_record_external: {
+        Args: {
+          p_company: string
+          p_decisions?: Json
+          p_description: string
+          p_exceptions?: Json
+          p_performed_on: string
+          p_provider: string
+          p_reference: string
+          p_result: string
+          p_session: string
+        }
+        Returns: Json
+      }
+      mnt_sa_set_due: {
+        Args: { p_company: string; p_items: Json; p_reason?: string }
+        Returns: number
       }
       mtr_calc_next_due: {
         Args: { p_from: string; p_unit: string; p_value: number }
