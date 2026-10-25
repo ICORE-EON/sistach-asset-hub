@@ -180,7 +180,7 @@ export function SessionDetailPage() {
           orgId={orgId}
           sessionId={id}
           session={session}
-          assetCount={items.length}
+          items={items}
           editable={editable}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: sessionKeys.detail(orgId, id), exact: true });
