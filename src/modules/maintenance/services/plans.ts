@@ -3,7 +3,7 @@
  * Validation messages and order are identical to the previous inline dialogs.
  */
 import { getRepositories } from "../contracts/registry";
-import type { ScopeQuery } from "../contracts/repositories";
+import type { PlanEdit, ScopeQuery } from "../contracts/repositories";
 import { addMonthsClamped, isCalendarDate } from "../domain/due-date";
 
 /** Resolved per call from the registered host adapter (no org/user state is kept). */
