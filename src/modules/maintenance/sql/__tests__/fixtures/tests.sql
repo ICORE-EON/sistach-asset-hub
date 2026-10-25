@@ -318,5 +318,28 @@ SELECT t.login(:viewA);
 SELECT t.fails('2A: lector no cancela', format('SELECT public.mnt_cancel_session(%L, %L, ''x'')', :orgA, :'s2'), '42501');
 SELECT t.fails('2A: lector no elimina borrador', format('SELECT public.mnt_delete_draft_session(%L, %L)', :orgA, :'s2'), '42501');
 SELECT t.fails('2A: lector no desvincula', format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''x'')', :orgA), '42501');
+SELECT t.login(:adminA);
+UPDATE mnt_plan_assets SET start_on = current_date - 10 WHERE plan_id = 'a0000000-0000-4000-8000-000000009101' AND asset_id = 'a0000000-0000-4000-8000-0000000a5e02';
+SELECT t.ok('2A: desvincular usado conserva vinculo y registra motivo',
+  public.mnt_unlink_plan_asset(:orgA, 'a0000000-0000-4000-8000-000000009101', 'a0000000-0000-4000-8000-0000000a5e02', 'TEST traslado')->>'action' = 'unlink'
+  AND EXISTS (SELECT 1 FROM mnt_plan_assets WHERE plan_id = 'a0000000-0000-4000-8000-000000009101' AND asset_id = 'a0000000-0000-4000-8000-0000000a5e02'));
+SELECT t.ok('2A: fin inclusivo excluye hoy y conserva evidencia',
+  (SELECT end_on FROM mnt_plan_assets WHERE plan_id = 'a0000000-0000-4000-8000-000000009101' AND asset_id = 'a0000000-0000-4000-8000-0000000a5e02') = current_date - 1
+  AND EXISTS (SELECT 1 FROM mnt_due_changes WHERE kind = 'unlink' AND reason = 'TEST traslado' AND changed_by_ref = :adminA));
+UPDATE mnt_plans SET status = 'archived' WHERE id = 'a0000000-0000-4000-8000-000000009101';
+SELECT t.ok('2A: archivar conserva sesiones', EXISTS (SELECT 1 FROM mnt_sessions WHERE id = :'s1') AND (SELECT status FROM mnt_plans WHERE id = 'a0000000-0000-4000-8000-000000009101') = 'archived');
+UPDATE mnt_plans SET status = 'active' WHERE id = 'a0000000-0000-4000-8000-000000009101';
+SELECT t.login(:viewA);
+UPDATE mnt_plans SET status = 'archived' WHERE id = 'a0000000-0000-4000-8000-000000009101';
+SELECT t.ok('2A: lector no modifica archivo del plan', (SELECT status FROM mnt_plans WHERE id = 'a0000000-0000-4000-8000-000000009101') = 'active');
+RESET ROLE;
+INSERT INTO mnt_sessions(id, org_id, code, request_id, plan_id, status, notes) VALUES
+  ('a0000000-0000-4000-8000-00000000d201', :orgA, 'TEST-DRAFT', gen_random_uuid(), 'a0000000-0000-4000-8000-000000009101', 'draft', NULL),
+  ('a0000000-0000-4000-8000-00000000d202', :orgA, 'TEST-NOTES', gen_random_uuid(), 'a0000000-0000-4000-8000-000000009101', 'draft', 'Trabajo anotado');
+SET ROLE authenticated;
+SELECT t.login(:adminA);
+SELECT t.fails('2A: borrador con observaciones no se elimina', format('SELECT mnt_delete_draft_session(%L, ''a0000000-0000-4000-8000-00000000d202'')', :orgA), '23514');
+SELECT t.ok('2A: borrador genuinamente vacio se elimina', (mnt_delete_draft_session(:orgA, 'a0000000-0000-4000-8000-00000000d201')->>'deleted')::boolean
+  AND EXISTS (SELECT 1 FROM mnt_sessions WHERE id = 'a0000000-0000-4000-8000-00000000d202'));
 RESET ROLE;
 \echo TESTS_DONE
