@@ -276,14 +276,15 @@ INSERT INTO mnt_plans(id, org_id, code, name, asset_family_id, frequency)
 INSERT INTO mnt_plan_assets(org_id, plan_id, asset_id) VALUES (:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09');
 SELECT t.fails('2A: el cliente no borra activos directamente', 'DELETE FROM mnt_assets WHERE id = ''a0000000-0000-4000-8000-0000000a5e09''', '42501');
 SELECT t.fails('2A: el cliente no borra vinculos directamente', 'DELETE FROM mnt_plan_assets WHERE plan_id = ''a0000000-0000-4000-8000-000000009109''', '42501');
-SELECT t.ok('2A: vinculo nunca usado se quita como correccion de alta',
-  public.mnt_unlink_plan_asset(:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09', NULL)->>'action' = 'removed'
+SELECT public.mnt_unlink_plan_asset(:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09', NULL)->>'action' AS unl \gset
+SELECT t.ok('2A: vinculo nunca usado se quita como correccion de alta', :'unl' = 'removed'
   AND (SELECT count(*) FROM mnt_due_changes WHERE plan_id = 'a0000000-0000-4000-8000-000000009109' AND kind = 'link_removed') = 1);
 SELECT t.fails('2A: desvincular equipo usado sin motivo',
   format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', NULL)', :orgA), '23514');
 SELECT t.fails('2A: equipo usado y vinculado hoy no recibe fin anterior al inicio',
   format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''Traslado'')', :orgA), '23514');
-SELECT t.ok('2A: activo sin actividad se elimina', (public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e09', true)->>'deleted')::boolean
+SELECT public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e09', true)->>'deleted' AS del \gset
+SELECT t.ok('2A: activo sin actividad se elimina', :'del' = 'true'
   AND NOT EXISTS (SELECT 1 FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e09'));
 SELECT t.ok('2A: activo con sesiones no se elimina', NOT (public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e01', true)->>'eligible')::boolean
   AND EXISTS (SELECT 1 FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e01'));
