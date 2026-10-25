@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowLeft, Printer, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Archive, Printer, RotateCcw, Trash2, Save } from "lucide-react";
 import { assetService, assetKeys } from "../../services/assets";
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
 import { FirstAidKitPanel } from "../components/first-aid-kit-panel";
 import { AssetHistoryPanel } from "../components/asset-history-panel";
+import { SafeDeleteDialog } from "../components/safe-actions";
 
 
 export function AssetDetailPage() {
@@ -102,17 +103,18 @@ export function AssetDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const remove = useMutation({
-    mutationFn: async () => {
-      await assetService.deleteAsset(activeCompanyId, id);
-    },
-    onSuccess: () => {
-      toast.success("Activo eliminado");
+  const setStatus = useMutation({
+    mutationFn: (status: string) => assetService.updateAsset(activeCompanyId, id, { status }),
+    onSuccess: (_d, status) => {
+      toast.success(status === "retired" ? "Activo retirado: deja de aparecer en Próximos y conserva su historial" : "Activo reactivado");
+      setForm((f) => (f ? { ...f, status } : f));
+      qc.invalidateQueries({ queryKey: assetKeys.detail(activeCompanyId, id) });
       qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
-      navigate({ to: "/assets" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const checkDelete = useCallback(() => assetService.deleteAssetPermanently(activeCompanyId, id, false), [activeCompanyId, id]);
 
   if (isLoading || !asset) {
     return <div className="p-6 text-sm text-muted-foreground">Cargando…</div>;
@@ -137,28 +139,56 @@ export function AssetDetailPage() {
             <p className="font-mono text-xs text-muted-foreground">{asset.code}</p>
           </div>
         </div>
-        {canDelete && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar este activo?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Se marcará como eliminado (soft delete). El historial se conserva.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => remove.mutate()}>Eliminar</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {canManage && (asset.status === "retired" ? (
+            <Button variant="outline" size="sm" disabled={setStatus.isPending} onClick={() => setStatus.mutate("active")}>
+              <RotateCcw className="mr-2 h-4 w-4" />Reactivar
+            </Button>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm"><Archive className="mr-2 h-4 w-4" />Retirar</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Retirar este activo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Dejará de aparecer en Próximos y en nuevas revisiones. Su historial, documentos y certificados se conservan y podrás reactivarlo.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Volver</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => setStatus.mutate("retired")}>Retirar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ))}
+          {canDelete && (
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />Eliminar
+            </Button>
+          )}
+        </div>
+        <SafeDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={`Eliminar ${asset.code}`}
+          check={checkDelete}
+          confirm={() => assetService.deleteAssetPermanently(activeCompanyId, id, true)}
+          blockedHint="Si ya no se usa, retíralo: saldrá de Próximos y conservará su historial."
+          impact={(c) => (
+            <>
+              <p>Es un alta sin actividad: se puede eliminar.</p>
+              {!!c.remove?.plan_links && <p>Se quitará de {c.remove.plan_links} plan(es) (queda constancia en el registro de fechas).</p>}
+              {!!c.remove?.kit_items && <p>Se borrará su contenido de botiquín ({c.remove.kit_items}).</p>}
+            </>
+          )}
+          onDeleted={() => {
+            toast.success("Activo eliminado");
+            qc.invalidateQueries({ queryKey: assetKeys.list(activeCompanyId) });
+            navigate({ to: "/assets" });
+          }}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
