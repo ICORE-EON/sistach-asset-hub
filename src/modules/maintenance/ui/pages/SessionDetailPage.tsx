@@ -749,7 +749,10 @@ function ExternalRecordCard({ orgId, sessionId, session, items, editable, onSave
       calendar_on: calendar && calendar !== proposed ? calendar : null };
   });
   const setException = (itemId: string, patch: Partial<ExtException>) =>
-    setExceptions((p) => ({ ...p, [itemId]: { result: "ok", note: "", ...p[itemId], ...patch } }));
+    setExceptions((p) => {
+      const cur = p[itemId] ?? { result: "ok" as const, note: "" };
+      return { ...p, [itemId]: { result: patch.result ?? cur.result, note: patch.note ?? cur.note } };
+    });
 
   const save = useMutation({
     mutationFn: () => {
