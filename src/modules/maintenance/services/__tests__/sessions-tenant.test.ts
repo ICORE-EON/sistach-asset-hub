@@ -47,6 +47,7 @@ const seed = () => {
 };
 
 const gates: Record<string, Promise<void> | undefined> = {};
+const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
 const writes: Array<{ table: string; op: string; filters: Array<[string, unknown]>; payload?: unknown }> = [];
 let codeSeq = 0;
 
@@ -97,7 +98,24 @@ function fakeClient() {
     });
     return b;
   };
-  const rpc = async (_fn: string, args: { p_prefix: string }) => ({ data: `${args.p_prefix}-${++codeSeq}`, error: null });
+  // The close itself is a database transaction (mnt_sa_close_session, covered by tests/sql/mnt_b1b_due_checks.sql).
+  // This fake only mirrors its idempotency contract so the service flow (certificate after close) can be tested.
+  const rpc = async (fn: string, args: Record<string, unknown>) => {
+    rpcCalls.push({ fn, args });
+    if (fn === "mnt_sa_org_tz") return { data: "Europe/Madrid", error: null };
+    if (fn === "mnt_sa_close_session") {
+      const sess = DB.maintenance_sessions.find((x) => x.id === args.p_session && x.company_id === args.p_company);
+      if (!sess) return { data: null, error: new Error("Sesión no encontrada en la organización activa") };
+      if (sess.status === "closed") return { data: { closed_now: false, pending_count: (sess.metadata as Row).skipped_count ?? 0 }, error: null };
+      const its = DB.maintenance_items.filter((i) => i.session_id === sess.id);
+      const pending = its.filter((i) => i.result === "pending");
+      for (const i of pending) i.result = "skipped";
+      Object.assign(sess, { status: "closed", signer_name: String(args.p_signer_name).trim(), signer_role: String(args.p_signer_role ?? "").trim() || null,
+        signature_image_url: args.p_signature, metadata: { ...(sess.metadata as Row), skipped_count: pending.length } });
+      return { data: { closed_now: true, pending_count: pending.length }, error: null };
+    }
+    return { data: `${args.p_prefix}-${++codeSeq}`, error: null };
+  };
   return { from, rpc };
 }
 
@@ -118,7 +136,7 @@ vi.mock("../certificates", () => ({
 }));
 const { sessionKeys, sessionService } = await import("../sessions");
 
-beforeEach(() => { seed(); writes.length = 0; vi.clearAllMocks(); });
+beforeEach(() => { seed(); writes.length = 0; rpcCalls.length = 0; vi.clearAllMocks(); });
 
 const sig = { signerName: " Ana ", signerRole: "", signature: "data:image/png;base64,x" };
 
@@ -145,7 +163,7 @@ describe("session rules (unchanged)", () => {
 describe("session query keys and screens", () => {
   it("every factory embeds orgId at position 1 and differs between tenants", () => {
     const f = Object.entries(sessionKeys) as Array<[string, (o: string, x?: string) => readonly unknown[]]>;
-    expect(f.length).toBe(10);
+    expect(f.length).toBe(11);
     for (const [name, k] of f) {
       expect(k(A, "x")[1], name).toBe(A);
       expect(JSON.stringify(k(A, "x"))).not.toBe(JSON.stringify(k(B, "x")));
@@ -280,14 +298,14 @@ describe("cross-org guards, transitions and idempotency", () => {
     expect(first).toEqual({ cert: null, pdfFailed: false });
     const s = DB.maintenance_sessions.find((x) => x.id === "sB2")!;
     expect(s).toMatchObject({ status: "closed", signer_name: "Ana", signer_role: null });
-    expect(s.metadata).toMatchObject({ outcome: "incomplete", skipped_count: 1 });
-    expect((s.metadata as { close_snapshot: { items: Row[] } }).close_snapshot.items).toEqual([
-      { item_id: "iB1", asset_id: "aB", result: "ok", asset: { code: "AST-B" } },
-      { item_id: "iB2", asset_id: "aB2", result: "skipped", asset: null },
-    ]);
+    // outcome, close_snapshot and due dates are written by the database function (see tests/sql/mnt_b1b_due_checks.sql)
+    const close = rpcCalls.filter((x) => x.fn === "mnt_sa_close_session");
+    expect(close).toHaveLength(1);
+    expect(close[0].args).toMatchObject({ p_company: B, p_session: "sB2", p_signer_name: "Ana", p_decisions: [] });
     const n = writes.length;
     await sessionService.closeSession(B, "sB2", sig);
     expect(writes.length).toBe(n);
+    expect(DB.maintenance_items.find((i) => i.id === "iB2")!.result).toBe("skipped");
   });
 
   it("close with certificate: emitted once; retry after close resumes only a missing certificate", async () => {
