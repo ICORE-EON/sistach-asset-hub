@@ -5,6 +5,7 @@
 import { getRepositories } from "../contracts/registry";
 import { certificateService } from "./certificates";
 import { itemResultFor } from "../domain/session-rules";
+import type { DueDecision } from "../contracts/repositories";
 
 /** Resolved per call from the registered host adapter (no org/user state is kept). */
 const repo = () => getRepositories().sessions;
@@ -14,6 +15,7 @@ export const sessionKeys = {
   lists: (orgId: string | null) => ["maintenance-sessions", orgId] as const,
   interventions: (orgId: string | null, offset: number, limit: number) => ["maintenance-sessions", orgId, "interventions", offset, limit] as const,
   upcoming: (orgId: string | null) => ["maintenance-sessions", orgId, "upcoming"] as const,
+  duePreview: (orgId: string | null, id: string) => ["session-due-preview", orgId, id] as const,
   detail: (orgId: string | null, id: string) => ["session", orgId, id] as const,
   items: (orgId: string | null, id: string) => ["session-items", orgId, id] as const,
   certificate: (orgId: string | null, id: string) => ["session-cert", orgId, id] as const,
@@ -51,6 +53,7 @@ export const sessionService = {
   },
   startSession: (orgId: string | null, id: string) => repo().startSession(need(orgId), id),
   listUpcoming: (orgId: string | null) => repo().listUpcoming(need(orgId)),
+  listDuePreview: (orgId: string | null, id: string) => repo().listDuePreview(need(orgId), id),
   listInterventions: (orgId: string | null, offset: number, limit: number) => repo().listInterventions(need(orgId), { offset, limit }),
   recordExternal: (orgId: string | null, id: string, v: import("../contracts/repositories").ExternalRecord) => {
     if (!v.performedOn) throw new Error("Indica la fecha de realización");
@@ -96,12 +99,12 @@ export const sessionService = {
    * Close and sign. Idempotent: a repeated close does not re-close; it only emits the certificate if
    * the first attempt closed the session but failed before the certificate existed.
    */
-  closeSession: async (orgId: string | null, sessionId: string, v: { signerName: string; signerRole: string; signature: string | null }) => {
+  closeSession: async (orgId: string | null, sessionId: string, v: { signerName: string; signerRole: string; signature: string | null; decisions?: DueDecision[] }) => {
     if (!v.signerName.trim()) throw new Error("Indica el nombre del firmante");
     if (!v.signature) throw new Error("Firma para continuar");
     const org = need(orgId);
     const signer = { signerName: v.signerName.trim(), signerRole: v.signerRole.trim() || null, signature: v.signature };
-    const r = await repo().closeSession(org, sessionId, signer);
+    const r = await repo().closeSession(org, sessionId, v.decisions?.length ? { ...signer, decisions: v.decisions } : signer);
     const plan = r.session.maintenance_plans as { name: string; interval_months: number | null; asset_families: { requires_certificate: boolean } | null } | null;
     if (plan?.asset_families?.requires_certificate === false) return { cert: null, pdfFailed: false };
     if (!r.closedNow) {
