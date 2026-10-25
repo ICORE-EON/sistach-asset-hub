@@ -180,8 +180,9 @@ SELECT t.fails('vencimientos: la fecha no se cambia directamente',
   'UPDATE mnt_plan_assets SET next_due_on = ''2030-01-01''', '42501');
 SELECT t.fails('vencimientos: reprogramar sin motivo una fecha existente',
   format('SELECT public.mnt_set_due(%L, ''[{"plan_id":"a0000000-0000-4000-8000-000000009101","asset_id":"a0000000-0000-4000-8000-0000000a5e01","due":"2030-01-31"}]'')', :orgA), '23514');
+SELECT public.mnt_set_due(:orgA, '[{"plan_id":"a0000000-0000-4000-8000-000000009101","asset_id":"a0000000-0000-4000-8000-0000000a5e01","due":"2030-01-31"}]', 'Coordinacion') AS n_due \gset
 SELECT t.ok('vencimientos: reprogramar con motivo queda en la bitacora con autor',
-  public.mnt_set_due(:orgA, '[{"plan_id":"a0000000-0000-4000-8000-000000009101","asset_id":"a0000000-0000-4000-8000-0000000a5e01","due":"2030-01-31"}]', 'Coordinacion') = 1
+  :n_due = 1
   AND (SELECT count(*) FROM mnt_due_changes WHERE kind = 'reschedule' AND new_due = '2030-01-31' AND reason = 'Coordinacion'
          AND changed_by_ref = 'a0000000-0000-4000-8000-0000000000a1') = 1);
 SELECT t.fails('vencimientos: la bitacora no se modifica', 'UPDATE mnt_due_changes SET reason = ''x''', '42501');
