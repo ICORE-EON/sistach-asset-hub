@@ -1,119 +1,106 @@
-# Bloque 1B — Motor de vencimientos: auditoría y propuesta (solo análisis)
+# Bloque 1B (revisado) — Vencimientos con control del usuario
 
-Alcance: `sessions.repo.ts` (`listUpcoming`, `closeSession`, `recordExternal`, `setItemResult`, `createSession`), `maintenance_plan_assets`, `maintenance_items`, Bloque 1A (Próximos / Histórico / Planes). Nada se implementa en este encargo.
+Solo planificación. El diagnóstico anterior sigue siendo válido (skipped y "no aplica" reinician el ciclo usando `closed_at`; `start_on + intervalo` como primera fecha; desbordes de fin de mes con `setMonth`; mezcla UTC/local; activos retirados sin excluir; truncado silencioso a partir de 1000 filas; `createSession` sin filtrar vínculos ni activos). Esta revisión cambia la solución: **la próxima fecha pasa a ser un dato guardado por equipo y plan**, que el sistema propone y el usuario puede corregir, en lugar de recalcularse cada vez.
 
-## (a) Diagnóstico
+## 1. Reglas de negocio
 
-Leyenda: C = confirmado por código o datos; H = hipótesis por verificar.
+Tres conceptos separados, **por equipo** (nunca solo por sesión):
+- **Ejecución**: si se hizo o no la revisión del equipo.
+- **Resultado**: conforme o con incidencias.
+- **Seguimiento**: las incidencias siguen su circuito actual. No hay motor nuevo.
 
-| # | Problema | Evidencia | Estado | Riesgo | Prioridad |
-|---|---|---|---|---|---|
-| 1 | Los equipos `skipped` (y cualquier resultado) cuentan como "realizado": `d = it.completed_at ?? s.closed_at` no filtra por resultado. Un equipo omitido reinicia el ciclo con la fecha de cierre | `listUpcoming` l.185-187; `closeSession` l.288-291 marca pending→skipped sin `completed_at` | C (código). En los datos de prueba hoy hay 0 casos | Alto: un equipo no revisado aparece "al día" | P1 |
-| 2 | `not_applicable` también reinicia el ciclo (tiene `completed_at` = ahora) | `setItemResult` l.263-266 | C | Medio | P1 |
-| 3 | Resultado desfavorable (`with_incident`, `failed` externo) reinicia el ciclo. Es correcto si se acepta que "realizada ≠ conforme", pero hoy no es una decisión explícita y Próximos no muestra que el último resultado fue desfavorable | l.185-187; `recordExternal` l.234 | C | Medio (falta de visibilidad) | P2 |
-| 4 | La base es siempre la fecha real (última finalización). No hay opción "desde fecha prevista" | l.197-199 | C | Bajo/decisión | P2 |
-| 5 | Primera fecha con `start_on`: calcula `start_on + intervalo` cuando debería vencer **en** `start_on` | l.197-199 | C | Alto: el primer ciclo se retrasa un periodo entero | P1 |
-| 6 | Sin `start_on` ni historial: próxima = hoy, se recalcula cada día (nunca vencido, siempre "hoy") | l.199 `new Date()` | C (hoy los 8 vínculos tienen `start_on`) | Medio | P1 |
-| 7 | Vínculos con `start_on` futuro se tratan igual (próxima = futuro + intervalo) | l.194-199 | C | Medio | P1 |
-| 8 | Fin de mes: `setMonth` desborda (31-ene + 1 mes = 3-mar; 29-feb + 12 = 1-mar) | l.199 | C | Medio | P1 |
-| 9 | Zona horaria: se mezcla `closed_at` UTC con `setMonth` en hora local y `toISOString().slice(0,10)`; "hoy" se calcula en UTC. Puede desplazar un día cerca de medianoche | l.193, l.199; `recordExternal` l.235 (`T12:00` local) | C mecanismo / H impacto real | Bajo-Medio | P2 |
-| 10 | No se excluyen activos retirados/inactivos ni borrados | `listUpcoming` no consulta `assets` | C (hoy todos `active`) | Medio | P1 |
-| 11 | `createSession` no filtra activos inactivos ni vínculos caducados/futuros (`end_on`, `start_on`) | l.99-104 | C | Medio | P2 |
-| 12 | Planes pausados: ya se excluyen (`active=true`, `deleted_at is null`) | l.173-174 | C (correcto) | — | — |
-| 13 | Sesiones abiertas: se marca la sesión abierta, correcto. Canceladas: no cuentan, correcto. Una sesión parcial cerrada actualiza solo los hechos… salvo el fallo #1 | l.180-190 | C | — | vía #1 |
-| 14 | Múltiples ejecuciones: se toma la máxima fecha, correcto. Externa: usa `performed_on` (vía `completed_at`), correcto | l.187, l.235 | C | — | — |
-| 15 | Escalabilidad: tres consultas sin paginar; PostgREST limita a 1000 filas → con >1000 vínculos o ítems cerrados los resultados se truncan **en silencio**; además se traen todas las sesiones cerradas históricas | l.177-183 | C (límite) / H (umbral real) | Alto a escala | P1 |
-| 16 | Errores: `ok()` lanza error, pero `links/done/open` sin error se tratan como vacío; aislamiento por `company_id` en sesiones, vínculos acotados por `plan_id` de la org (correcto vía RLS) | l.177-185 | C | Bajo | P3 |
-| 17 | Histórico ordena por `closed_at` (fecha administrativa), no por fecha efectiva | `listInterventions` l.211 | C | Bajo | P3 |
+| Situación del equipo al cerrar | Ejecución | ¿Avanza el ciclo? | Interacción |
+|---|---|---|---|
+| Conforme (`ok`) | Realizada | Sí, con la fecha propuesta | Ninguna |
+| Con incidencias (`with_incident`, `failed` externo) | Realizada | Sí por defecto | Ninguna; el usuario puede pulsar "No avanzar" y debe dar un motivo |
+| Omitido (`skipped` o pendiente al cerrar) | No realizada | No. Sigue con su fecha prevista (y saldrá vencido) | Ninguna. Nunca cuenta como hecho |
+| "No aplica" global del equipo (`not_applicable`) | No realizada | **Solo si el usuario lo decide** | Pregunta obligatoria "¿Programar el siguiente mantenimiento?" con motivo. Si dice sí, es una **exención justificada** del ciclo |
+| Puntos del checklist marcados "no aplica" | No afecta | Según el resultado del equipo | Ninguna |
+| Sesión cancelada | — | No | Ninguna |
 
-## (b) Reglas de negocio propuestas
+Pregunta "¿Programar el siguiente mantenimiento?": aparece solo en casos excepcionales: equipos con "No aplica" global o cuando el usuario elige "No avanzar" o "Cambiar fecha". El cierre normal conforme no añade pasos.
 
-Principio: separar tres conceptos por equipo y ejecución.
-- **Realización**: el equipo se revisó (resultado `ok`, `with_incident`, `failed`). Avanza el ciclo.
-- **Resultado**: conforme / no conforme. Se muestra en Próximos ("Último: con incidencias") pero no bloquea el avance.
-- **Seguimiento**: las incidencias siguen su propio circuito (módulo Incidencias existente). Sin motor nuevo.
+Exención de un omitido (no toca hacerlo este ciclo): se hace desde Próximos con la acción "Reprogramar" sobre ese equipo (con motivo obligatorio). Así queda constancia sin fingir una revisión.
 
-Reglas:
-1. `skipped` (o `pending` al cerrar): **no** es realización. No avanza el ciclo; el equipo sigue vencido/pendiente.
-2. `not_applicable`: **DECISIÓN DE PRODUCTO**. Opción A (recomendada): no avanza el ciclo (no se hizo). Opción B: avanza (el equipo "no requería" esa revisión este periodo).
-3. Desfavorable: avanza el ciclo (sí se ejecutó). Opcional, **DECISIÓN**: marcar "Último resultado: con incidencias" en Próximos.
-4. Base del cálculo — **DECISIÓN** a nivel de plan (sin columna nueva en MVP: opción global):
-   - "Desde fecha real" (actual; recomendada por defecto, simple).
-   - "Desde fecha prevista": próxima = prevista + intervalo, aunque se haga tarde (mantiene calendario fijo; útil para reglamentarias). Requiere guardar la fecha prevista en la ejecución (en `metadata` de la sesión, sin tabla nueva).
-5. Primera fecha: sin historial → vence en `start_on`. Sin `start_on` → **DECISIÓN**: A) vence en la fecha de alta del vínculo (`created_at`), B) "Sin programar" (recomendada: no inventa fecha).
-6. Vínculo con `start_on` futuro: aparece en Próximos con esa fecha; no entra en sesiones hasta su inicio.
-7. Fin de mes: aritmética de fecha calendario con recorte al último día (31-ene +1 = 28/29-feb; 29-feb +12 = 28-feb).
-8. Zona horaria: todo en fechas calendario (`YYYY-MM-DD`). Fecha de realización interna = día local de la organización (Europa/Madrid en standalone; en ICORE, zona de la org vía host). "Hoy" en la misma zona.
-9. Exclusiones en Próximos y en nuevas sesiones: activos no `active` o borrados, vínculos con `end_on < hoy`, planes inactivos. El histórico no se toca.
+## 2. Regla de propuesta (determinista, sin dos motores)
 
-## (c) Enfoque técnico mínimo viable
+Datos: `P` = fecha prevista del ciclo, `E` = fecha efectiva de la revisión (día calendario), `I` = intervalo en meses, `T` = margen = mín(30 días, I × 30 / 6), es decir, una sexta parte del intervalo, con un máximo de 30 días.
 
-Recomendado: **función pura de dominio + consulta acotada, sin tablas nuevas**.
-- `domain/due-date.ts` (puro, probado): `addMonthsClamped`, `isExecution(result, naRule)`, `nextDue({ lastExecution, lastPlanned, startOn, intervalMonths, basis })`, `toOrgDate(iso, tz)`.
-- `listUpcoming` usa esa función, filtra estados y pagina la carga.
+- Si `|E − P| ≤ T` → propuesta = `P + I` (se respeta el calendario y no hay deriva por adelantarse o retrasarse unos días).
+- Si no, o si no hay `P` → propuesta = `E + I` (se adopta el nuevo ritmo real tras un retraso o adelanto grande).
 
-Alternativas valoradas:
-- Vista/función SQL `mnt_upcoming` (calcular en BD): mejor escala, pero duplica reglas en SQL y TS y añade migración. Coste medio-alto. Recomendado solo si se superan ~5–10k vínculos.
-- Columna `next_due_on` materializada en `maintenance_plan_assets` actualizada al cerrar: rápida, pero requiere migración, triggers y recálculo. Coste alto; descartado para MVP.
+Por qué: con una única regla se evita que el calendario se desplace un poco en cada ciclo (deriva) y, a la vez, no se encadenan vencimientos imposibles tras un retraso grande. El usuario puede corregir siempre la fecha.
 
-Escalabilidad en el MVP: consultar solo la **última** ejecución válida por plan+equipo (filtrando `result in (...)` y `completed_at not null`, orden desc) con paginación por bloques de 1000 (`range`) hasta agotar; error explícito si una página falla.
+Aritmética: fechas calendario `YYYY-MM-DD`; sumar meses recortando al último día del mes (31-ene + 1 = 28/29-feb; 29-feb + 12 = 28-feb). La fecha efectiva de un cierre interno se convierte al día local de la organización (Europe/Madrid en esta app; en ICORE, la zona horaria de la organización la aporta el host).
 
-## (d) Cambios precisos
+## 3. Primer vencimiento
 
-- Dominio: nuevo `domain/due-date.ts` + tests.
-- Contrato `UpcomingRow` (aditivo): `last_result` (`ok|with_incident|failed|null`), `due_basis` (`actual|planned`), `scheduled: boolean` (false = "Sin programar"). Documentar en `spec/DTO_MAPPING.md` e `ICORE_ADAPTER_SPEC.md`.
-- Adaptador `sessions.repo.ts`:
-  - `listUpcoming`: excluir `skipped`/`pending` (y `not_applicable` según decisión), no usar `closed_at` como fallback, filtrar activos (`assets.status='active'`, `deleted_at is null`), primera fecha = `start_on`, paginación, cálculo vía dominio.
-  - `setItemResult`/`closeSession`: sin cambio de datos; solo, si se elige "desde prevista", guardar `metadata.planned_on` al crear la sesión.
-  - `createSession`: excluir activos inactivos y vínculos fuera de `start_on..end_on`.
-  - `listInterventions`: sin cambio (ver 9).
-- UI (Bloque 1A): Próximos muestra estado "Sin programar" y, opcional, marca de último resultado desfavorable. Columnas y agrupación plan+fecha se mantienen; los equipos omitidos pasan a una fila "Vencido" separada (comportamiento esperado).
-- Servicio `sessions.ts`: sin cambios de firma.
+Al asignar equipos a un plan (crear plan, "Añadir equipos" y, más adelante, desde el alta del activo), se elige una opción en un único selector para todo el lote, editable por equipo:
+1. **Próxima fecha prevista**: se indica directamente.
+2. **Última revisión**: se indica la fecha y se propone `última + I` (editable).
+3. **Sin programar**: aparece en Próximos como "Sin programar" y no se marca como vencido.
 
-## (e) Pruebas de aceptación
+`start_on` mantiene su significado (inicio del vínculo) y **no** se usa como vencimiento. Ejemplo del extintor trasladado: última revisión en enero → propuesta en abril → el responsable la cambia a mayo indicando el motivo → queda registrado.
 
-Dominio (unitarias):
-- 31-ene +1 mes = 28-feb (2027) / 29-feb (2028); 29-feb-2028 +12 = 28-feb-2029; 30-nov +3 = 28/29-feb; +24 meses; intervalo custom 60 meses.
-- Cierre a las 23:30 Madrid (22:30 UTC) cuenta como ese día local; 00:30 Madrid como el siguiente.
-- Sin historial con `start_on` = vence en `start_on`; `start_on` futuro; sin `start_on` = sin programar.
-- Ejecución tardía: base real vs prevista dan fechas distintas y correctas.
+## 4. Almacenamiento mínimo necesario
 
-Adaptador (integración, org de prueba):
-- Sesión parcial: 3 equipos, 2 ok + 1 omitido → el omitido sigue vencido, los otros avanzan.
-- `with_incident` avanza y expone `last_result`.
-- `not_applicable` según regla elegida.
-- Externa con `performed_on` anterior al registro usa `performed_on`.
-- Activo retirado y vínculo con `end_on` pasado desaparecen de Próximos y siguen en Histórico.
-- Plan pausado excluido. Sesión abierta marcada; cancelada ignorada.
-- 1500 vínculos sintéticos: sin truncado (en BD desechable o con adaptador de prueba, no en datos reales).
-- Aislamiento: otra org no ve filas.
+Comprobado: `audit_logs` existe, pero ninguna tabla de mantenimiento tiene el disparador de auditoría y tiene purga por antigüedad (`audit_logs_purge_old`). Por eso no sirve como evidencia permanente de cambios de fecha. `maintenance_plan_assets` no tiene campo de vencimiento. `maintenance_items.metadata` ya guarda instantáneas.
 
-## (f) Portabilidad e ICORE
+Propuesta (una migración aditiva, sin tocar datos):
+- `maintenance_plan_assets`: añadir `next_due_on date null` (null = sin programar), `last_done_on date null` y `due_updated_at timestamptz null`. Es el **estado actual** y se lee rápido.
+- Nueva tabla `mnt_due_changes` (solo inserción, RLS por `company_id`, sin FK a auth.users, `person_ref uuid`): `plan_asset_id`, `item_id null`, `old_due date null`, `new_due date null`, `source` (`initial | proposal | manual | exemption | no_advance`), `reason text null` (obligatorio en manual, exención y no avanzar), `created_at`. Es la **bitácora**.
+- `maintenance_items.metadata.due` (sin columna nueva): `{ planned_on, effective_on, proposed_on, applied_on, advanced }`, congelado al cerrar junto al `close_snapshot` actual. Esto conserva la fecha prevista y la efectiva de cada ejecución sin sobrescribir el historial.
+- Una función `mnt_apply_due_changes(session, decisiones)` con `SECURITY DEFINER`, en una sola transacción: actualiza `next_due_on` solo si sigue siendo la fecha leída (control de concurrencia) e inserta en la bitácora. Se ejecuta al cerrar (interno y externo) y al reprogramar.
 
-Reglas en `domain/` (puras, exportables). El adaptador ICORE implementa la misma consulta; la zona horaria la aporta el host (TenantPort, dato nuevo opcional `timezone`, por defecto Europe/Madrid). Sin dependencias standalone en capas exportables; `module-boundary.test.ts` lo vigila.
+Alternativas descartadas: solo metadata (la bitácora quedaría dispersa y no se puede consultar), `audit_logs` (purga y semántica genérica) o seguir calculando al vuelo (no permite corregir la fecha).
 
-## (g) Riesgos sobre datos existentes
+Datos existentes (de prueba): un relleno inicial en la misma migración rellena `next_due_on` con la regla nueva a partir de la última ejecución realizada; los vínculos sin historial quedan sin programar. Se registra con `source='initial'`.
 
-- Datos de prueba: sin migración. Al aplicar la regla, algunos equipos cambiarán de "al día" a "vencido" (efecto deseado).
-- Histórico y certificados no se alteran: solo cambia el cálculo de lectura.
-- "Desde prevista" solo aplica a ejecuciones nuevas (las antiguas no tienen `planned_on`; se usa la real).
+## 5. Flujo con 50 extintores (47 realizados y 3 omitidos)
 
-## (h) Preguntas imprescindibles antes de autorizar
+Al pulsar "Cerrar y firmar" no hay preguntas: los 47 avanzan con la propuesta y los 3 omitidos mantienen su fecha (saldrán vencidos en Próximos). Solo si hay equipos con "No aplica" global aparece un paso "Revisar programación" que lista **solo esos equipos**. Ese paso permite marcar todos a la vez y escribir un motivo común. Para corregir fechas de forma excepcional, en ese mismo paso hay un enlace opcional "Ajustar fechas" que permite cambiarlas por equipo o en bloque.
 
-1. `not_applicable`: ¿avanza el ciclo (B) o no (A, recomendado)?
-2. Base del cálculo: ¿solo "desde real" (recomendado MVP) o también "desde prevista" por plan (requiere un ajuste por plan, guardado sin tabla nueva)?
-3. Equipo sin `start_on` ni historial: ¿"Sin programar" (recomendado) o vence en su fecha de alta?
-4. ¿Mostrar en Próximos "Último resultado con incidencias"? (sí/no)
-5. Zona horaria fija Europe/Madrid para standalone: ¿confirmado?
+Registro externo: igual, con un único resultado para todos y avance de todos por defecto.
 
-## (i) Complejidad y entregas
+## 6. Componentes afectados
+
+- Dominio (portable): `domain/due-date.ts` con `addMonthsClamped`, `toOrgDate`, `proposeNextDue(P, E, I)`, `isExecution(result)` y `defaultAdvance(result)`, más pruebas.
+- Contratos: `UpcomingRow` añade `scheduled`, `last_result` y `plan_asset_id`. Nuevas operaciones `sessions.applyDueDecisions` y `plans.rescheduleAsset({planAssetId, newDue, reason})`, y la opción de primer vencimiento en `createPlan`/`addAssets`. Todo con `orgId` explícito; se documenta en `spec/` (ICORE_ADAPTER_SPEC, DTO_MAPPING, operations).
+- Adaptador standalone: `listUpcoming` lee `next_due_on` (sin recalcular), excluye activos retirados o borrados (no los averiados ni los que están en mantenimiento) y vínculos con `end_on` pasado, y pagina por bloques. `closeSession`/`recordExternal` llaman a la función atómica. `createSession` filtra vínculos vigentes y activos no retirados. `plans.repo` acepta el primer vencimiento.
+- UI: Próximos del Bloque 1A añade la acción "Reprogramar" por equipo en el diálogo "Ver equipos", el estado "Sin programar" y una marca discreta de "última con incidencias". La agrupación plan + fecha funciona igual y es más estable porque las fechas ya están guardadas. Planes: selector de primer vencimiento en crear y añadir equipos. Sesión: paso "Revisar programación" condicional.
+- Histórico: sin cambios (sigue ordenado por fecha administrativa y paginado en servidor).
+
+## 7. Casos límite y pruebas de aceptación
+
+- 31-ene + 1 mes, 29-feb + 12 meses, 30-nov + 3 meses, intervalo de 60 meses.
+- Cierre a las 23:30 de Madrid = ese mismo día; a las 00:30 = el día siguiente.
+- Regla de propuesta: revisión 10 días tarde dentro del margen → `P + I`; 4 meses tarde → `E + I`; sin `P` → `E + I`.
+- 50 equipos: 47 conformes y 3 omitidos → 47 avanzan, 3 conservan la fecha, 0 preguntas y 47 entradas en la bitácora con `source='proposal'`.
+- Con incidencias: avanza por defecto; "No avanzar" sin motivo se rechaza.
+- "No aplica" global: sin decisión no se puede cerrar; si se avanza, queda como `exemption` con motivo.
+- Reprogramación manual: exige motivo; guarda la fecha anterior y la nueva; el historial de la ejecución no cambia.
+- Dos cierres simultáneos de la misma fecha: solo uno aplica y el otro no la sobrescribe.
+- Primer vencimiento: fecha directa, desde última revisión o sin programar; `start_on` futuro no altera la fecha.
+- Activo retirado: desaparece de Próximos y sigue en Histórico. Activo averiado: sigue apareciendo.
+- Más de 1500 vínculos (en base desechable): sin truncado.
+- Otra organización no ve ni modifica fechas ni bitácora (RLS y función).
+
+## 8. Portabilidad e ICORE
+
+Reglas en `domain/`; persistencia con tablas `mnt_` y columnas en tablas propias del módulo; la zona horaria la aporta el host (TenantPort `timezone`, opcional). Se añade al instalador limpio `install_v1.sql` y a sus pruebas en PostgreSQL desechable. Sin dependencias standalone en las capas exportables.
+
+## 9. Secuencia y complejidad
 
 | Entrega | Contenido | Complejidad |
 |---|---|---|
-| 1B-1 | Dominio de fechas (fin de mes, zona horaria, primera fecha) + tests | Baja |
-| 1B-2 | `listUpcoming`: reglas de realización, exclusiones, paginación; contrato aditivo; specs | Media |
-| 1B-3 | `createSession` filtra activos/vínculos; UI "Sin programar" y marca de resultado | Baja |
-| 1B-4 (opcional) | Base "desde prevista" por plan | Media |
-| 1B-5 (opcional) | Histórico por fecha efectiva: no recomendado ahora; ordenar por un valor calculado rompe la paginación del servidor sin columna o vista nueva | Media-alta |
+| 1B-1 | Dominio de fechas y propuesta, con pruebas | Baja |
+| 1B-2 | Migración aditiva, función atómica, relleno inicial, instalador limpio y pruebas SQL | Media |
+| 1B-3 | Adaptador: `listUpcoming` sobre `next_due_on`, exclusiones, paginación, `createSession` filtrado | Media |
+| 1B-4 | Cierre interno y externo con avance por equipo y paso condicional | Media |
+| 1B-5 | Reprogramar desde Próximos y primer vencimiento en Planes | Baja-Media |
 
-Propuesta: autorizar 1B-1 a 1B-3 tras responder (h); 1B-4 y 1B-5 quedan aparte.
+## 10. Decisiones imprescindibles antes de aprobar
+
+1. Margen anti-deriva: ¿aceptáis 1/6 del intervalo con un máximo de 30 días?
+2. ¿Quién puede reprogramar? Propuesta: los mismos que pueden gestionar planes (`can_manage_assets`).
+3. ¿El relleno inicial de los datos de prueba se aplica así o preferís dejar todos los vínculos sin programar?
