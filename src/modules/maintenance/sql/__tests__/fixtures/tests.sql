@@ -276,6 +276,10 @@ INSERT INTO mnt_plans(id, org_id, code, name, asset_family_id, frequency)
 INSERT INTO mnt_plan_assets(org_id, plan_id, asset_id) VALUES (:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09');
 SELECT t.fails('2A: el cliente no borra activos directamente', 'DELETE FROM mnt_assets WHERE id = ''a0000000-0000-4000-8000-0000000a5e09''', '42501');
 SELECT t.fails('2A: el cliente no borra vinculos directamente', 'DELETE FROM mnt_plan_assets WHERE plan_id = ''a0000000-0000-4000-8000-000000009109''', '42501');
+SELECT set_config('mnt.safe_delete', 'on', true);
+SELECT t.fails('2A: una bandera del cliente no autoriza borrar activos', 'DELETE FROM mnt_assets WHERE id = ''a0000000-0000-4000-8000-0000000a5e09''', '42501');
+SELECT t.fails('2A: una bandera del cliente no autoriza borrar vinculos', 'DELETE FROM mnt_plan_assets WHERE plan_id = ''a0000000-0000-4000-8000-000000009109''', '42501');
+SELECT set_config('mnt.safe_delete', 'off', true);
 SELECT public.mnt_unlink_plan_asset(:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09', NULL)->>'action' AS unl \gset
 SELECT t.ok('2A: vinculo nunca usado se quita como correccion de alta', :'unl' = 'removed'
   AND (SELECT count(*) FROM mnt_due_changes WHERE plan_id = 'a0000000-0000-4000-8000-000000009109' AND kind = 'link_removed') = 1);
@@ -283,6 +287,10 @@ SELECT t.fails('2A: desvincular equipo usado sin motivo',
   format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', NULL)', :orgA), '23514');
 SELECT t.fails('2A: equipo usado y vinculado hoy no recibe fin anterior al inicio',
   format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''Traslado'')', :orgA), '23514');
+INSERT INTO mnt_kit_items(org_id, asset_id, product_name) VALUES (:orgA, 'a0000000-0000-4000-8000-0000000a5e09', 'TEST contenido corregible');
+SELECT t.ok('2A: vista previa enumera contenido de botiquin sin eliminarlo',
+  (public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e09')->'remove'->>'kit_items')::int = 1
+  AND EXISTS (SELECT 1 FROM mnt_kit_items WHERE asset_id = 'a0000000-0000-4000-8000-0000000a5e09'));
 SELECT public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e09', true)->>'deleted' AS del \gset
 SELECT t.ok('2A: activo sin actividad se elimina', :'del' = 'true'
   AND NOT EXISTS (SELECT 1 FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e09'));
@@ -304,5 +312,11 @@ SELECT t.fails('2A: un lector no elimina planes', format('SELECT public.mnt_dele
 SELECT t.login(:adminB);
 SELECT t.fails('2A: otra organizacion no elimina activos', format('SELECT public.mnt_delete_asset(%L, ''a0000000-0000-4000-8000-0000000a5e01'')', :orgA), '42501');
 SELECT t.fails('2A: otra organizacion no cancela', format('SELECT public.mnt_cancel_session(%L, %L, ''x'')', :orgA, :'s2'), '42501');
+SELECT t.fails('2A: otra organizacion no desvincula', format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''x'')', :orgA), '42501');
+SELECT t.fails('2A: otra organizacion no elimina borrador', format('SELECT public.mnt_delete_draft_session(%L, %L)', :orgA, :'s2'), '42501');
+SELECT t.login(:viewA);
+SELECT t.fails('2A: lector no cancela', format('SELECT public.mnt_cancel_session(%L, %L, ''x'')', :orgA, :'s2'), '42501');
+SELECT t.fails('2A: lector no elimina borrador', format('SELECT public.mnt_delete_draft_session(%L, %L)', :orgA, :'s2'), '42501');
+SELECT t.fails('2A: lector no desvincula', format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''x'')', :orgA), '42501');
 RESET ROLE;
 \echo TESTS_DONE
