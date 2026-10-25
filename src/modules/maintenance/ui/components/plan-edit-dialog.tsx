@@ -31,7 +31,7 @@ export function PlanEditDialog(props: {
   const save = async () => {
     setBusy(true); setError(null);
     try { await props.onSave(v); props.onOpenChange(false); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    catch (e) { setError(e instanceof Error ? e.message : (e as { message?: string })?.message ?? String(e)); }
     finally { setBusy(false); }
   };
   return (

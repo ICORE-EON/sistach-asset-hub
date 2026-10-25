@@ -14,7 +14,7 @@ export type { ScopeQuery };
 export const FREQUENCIES = [
   { value: "monthly", label: "Mensual", months: 1 },
   { value: "quarterly", label: "Trimestral", months: 3 },
-  { value: "biannual", label: "Semestral", months: 6 },
+  { value: "semiannual", label: "Semestral", months: 6 },
   { value: "annual", label: "Anual", months: 12 },
   { value: "custom", label: "Cada X años", months: null },
 ];
