@@ -492,7 +492,8 @@ BEGIN
      OR NEW.closed_by_ref IS DISTINCT FROM OLD.closed_by_ref OR NEW.closed_by_snapshot IS DISTINCT FROM OLD.closed_by_snapshot
      OR NEW.outcome IS DISTINCT FROM OLD.outcome OR NEW.code IS DISTINCT FROM OLD.code
      OR NEW.org_id IS DISTINCT FROM OLD.org_id OR NEW.plan_id IS DISTINCT FROM OLD.plan_id
-     OR NEW.request_id IS DISTINCT FROM OLD.request_id OR NEW.reopen_reason IS DISTINCT FROM OLD.reopen_reason THEN
+     OR NEW.request_id IS DISTINCT FROM OLD.request_id OR NEW.reopen_reason IS DISTINCT FROM OLD.reopen_reason
+     OR NEW.kind IS DISTINCT FROM OLD.kind OR NEW.detected_on IS DISTINCT FROM OLD.detected_on OR NEW.incident_id IS DISTINCT FROM OLD.incident_id THEN
     RAISE EXCEPTION 'mnt: campos de estado solo modificables por RPC' USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
@@ -519,6 +520,9 @@ BEGIN
     SELECT status INTO st FROM public.mnt_sessions WHERE id = sess;
     IF st IS NULL OR st IN ('closed','cancelled') THEN
       RAISE EXCEPTION 'mnt: sesión cerrada, datos inmutables' USING ERRCODE = '55000';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.mnt_sessions WHERE id = sess AND kind = 'corrective') THEN
+      RAISE EXCEPTION 'mnt: el equipo de una reparación solo cambia con sus acciones' USING ERRCODE = '42501';
     END IF;
     IF TG_TABLE_NAME = 'mnt_session_items' AND TG_OP = 'UPDATE' THEN
       IF NEW.session_id <> OLD.session_id OR NEW.asset_id <> OLD.asset_id
