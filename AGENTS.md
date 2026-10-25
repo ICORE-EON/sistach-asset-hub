@@ -4,3 +4,4 @@
 - Module UI reads org/user/role and the attachments slot from `ui/host.tsx` (`MaintenanceUiProvider`), never from app contexts — keeps request context explicit per tree (SSR-safe).
 - `adapters/standalone/` is this app's host and is excluded from the ICORE export; enforced by `ui/__tests__/module-boundary.test.ts`.
 - Physical deletes of maintenance assets/plans/links/sessions/items go only through `mnt_sa_delete_*` / `mnt_sa_unlink_plan_asset` RPCs (standalone) and `mnt_delete_*` / `mnt_unlink_plan_asset` (ICORE installer); BEFORE DELETE guards block direct deletes — keeps evidence and the due-date log intact.
+- Safe-delete trigger authority must include the effective database role, never a client-set custom GUC alone — prevents bypassing the approved RPC checks.

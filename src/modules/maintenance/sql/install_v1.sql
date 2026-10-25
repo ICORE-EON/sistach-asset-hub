@@ -974,7 +974,8 @@ END $$;
 CREATE OR REPLACE FUNCTION public.mnt_tg_delete_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
-  IF public.mnt_is_client() AND coalesce(current_setting('mnt.safe_delete', true), '') <> 'on' THEN
+  -- SECURITY DEFINER RPCs run as their owner; a client-set GUC is not authority.
+  IF public.mnt_is_client() THEN
     RAISE EXCEPTION 'mnt: solo se elimina con la acción segura de la aplicación' USING ERRCODE = '42501';
   END IF;
   RETURN OLD;
@@ -1078,7 +1079,7 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.mnt_delete_asset(p_org uuid, p_asset uuid, p_confirm boolean DEFAULT false) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); b text[] := ARRAY[]::text[]; n int; v_links int; v_code text;
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); b text[] := ARRAY[]::text[]; n int; v_links int; v_kit int; v_code text;
 BEGIN
   PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
   SELECT code INTO v_code FROM public.mnt_assets WHERE org_id = p_org AND id = p_asset FOR UPDATE;
@@ -1090,9 +1091,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.mnt_due_changes WHERE org_id = p_org AND asset_id = p_asset AND kind NOT IN ('initial','link_removed'))
     THEN b := b || 'tiene historial de fechas'::text; END IF;
   SELECT count(*) INTO v_links FROM public.mnt_plan_assets WHERE org_id = p_org AND asset_id = p_asset;
+  SELECT count(*) INTO v_kit FROM public.mnt_kit_items WHERE org_id = p_org AND asset_id = p_asset;
   IF cardinality(b) > 0 OR NOT coalesce(p_confirm, false) THEN
     RETURN jsonb_build_object('deleted', false, 'eligible', cardinality(b) = 0, 'blockers', to_jsonb(b), 'code', v_code,
-      'remove', jsonb_build_object('plan_links', v_links));
+      'remove', jsonb_build_object('plan_links', v_links, 'kit_items', v_kit));
   END IF;
   IF me IS NULL THEN RAISE EXCEPTION 'mnt: sin identidad' USING ERRCODE = '42501'; END IF;
   INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)

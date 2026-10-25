@@ -29,3 +29,6 @@
 - Cierre de sesión, incidencias, publicación de checklist y certificados solo vía RPC; transiciones inválidas rechazadas por la base.
 - Certificado con `document_version_ref` cuyo SHA-256 coincide con el del sistema documental.
 - Eventos de `mnt_outbox` consumidos y marcados; recorrido manual por las pantallas de Activos, Planes, Sesiones, Incidencias y Certificados.
+- Bloque 2A: probar las cinco RPC (`mnt_delete_asset`, `mnt_delete_plan`, `mnt_unlink_plan_asset`, `mnt_cancel_session`, `mnt_delete_draft_session`) y sus permisos; `mnt.admin` para borrado definitivo debe corresponder exclusivamente a administradores.
+- El host debe bloquear, en su autoridad SQL y dentro de la operación de borrado, dependencias documentales directas/indirectas y borradores con evidencia; proteger filas y objetos de documentos de cierres/certificados y sus incidencias. No añadir tablas documentales duplicadas al módulo. Ver `sql/INTEGRATION.md`.
+- Instalación local comprobada el 2026-10-25: 107 PASS (32 de 2A), `ALL_DONE`; no equivale a aceptación en el ICORE real.

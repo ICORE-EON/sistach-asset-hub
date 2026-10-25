@@ -38,6 +38,9 @@
 - [x] Bloque 1B: vencimientos — next_due_on por vínculo, bitácora mnt_due_changes, cierre atómico (interno/externo), primera fecha en alta de plan y al añadir equipos, excepciones por equipo en revisión externa. Suites: vitest 195/15 omitidas, SQL app 49/49, SQL paquete ICORE OK.
 
 ## Bloque 2A (en curso)
+- [x] Cierre técnico 2026-10-25: SQL íntegro 51/51 tras autorización y guarda reforzada; regresión adicional PASS. ICORE limpio 107 PASS / 32 de 2A / ALL_DONE. Evidencias: `tests/sql/results/mnt_2a_2026-10-25.md`.
+- [x] Documentados los tres eventos TEST inmutables; sin borrado ni datos permanentes nuevos. Huellas de datos antes/después idénticas durante este cierre.
+- [ ] COMPLETADO global: pendiente aclarar discrepancia del resumen previo (8 vínculos/16 ítems/3 documentos) frente al inicio de este turno (7/6/2); no reconstruir ni modificar originales. Aceptación ICORE real depende del host, no del instalador simulado.
 - [x] Etapa 2: migraciones 0002–0005 (borrado seguro, evidencias, cancelar/desvincular, snapshot de frecuencia); SQL 2A 51/51; instalador ICORE ALL_DONE
 - [x] Activo: Retirar/Reactivar y Eliminar seguro (UI)
 - [x] UI plan: editar, archivar, eliminar, desvincular con motivo

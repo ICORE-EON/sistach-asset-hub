@@ -3,7 +3,7 @@
 -- Org B (Sistach): UB administrador; UA se añade como 'manager' solo dentro de la prueba. Registros T2A-*.
 DO $run$
 DECLARE
-  total int := 0; passed int := 0; fails text := '';
+  total int := 0; passed int := 0; fails text := ''; results text := '';
   r record; v text; c bigint; q text; k text; val text;
   UA constant uuid := '3b7de027-5b93-4336-a2a3-ececd12f7443';
   UB constant uuid := 'fbf169ac-47e9-4061-a3b2-c9e030e1f214';
@@ -38,6 +38,19 @@ BEGIN
     ('00000000-0000-4000-8000-0000000a0052', CB, 'asset_manual', 'T2A manual', 'documents', 'test-2a/manual.pdf', '00000000-0000-4000-8000-0000000a0015');
   INSERT INTO public.incidents(id, company_id, code, title, source_maintenance_item_id, asset_id) VALUES
     ('00000000-0000-4000-8000-0000000a0061', CB, 'T2A-X1', 'T2A incidencia', '00000000-0000-4000-8000-0000000a0045', '00000000-0000-4000-8000-0000000a0013');
+
+  -- Regression outside the original 51-case count: client GUC is not deletion authority.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', UB, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('mnt.safe_delete', 'on', true);
+  BEGIN
+    DELETE FROM public.assets WHERE id='00000000-0000-4000-8000-0000000a0015';
+    RAISE EXCEPTION 'FAIL bandera cliente autorizó borrado';
+  EXCEPTION WHEN insufficient_privilege THEN
+    results := results || E'\nPASS adicional: bandera cliente no autoriza borrado';
+  END;
+  PERFORM set_config('mnt.safe_delete', 'off', true);
+  RESET ROLE;
 
   FOR r IN SELECT * FROM (VALUES
   (1,'manager','A','authenticated','exec','rej:42501',$$SELECT public.mnt_sa_unlink_plan_asset(':CB', '00000000-0000-4000-8000-0000000a0024', 'x')$$),
@@ -112,8 +125,9 @@ BEGIN
     END;
     RESET ROLE;
     total := total + 1;
+    results := results || format(E'\n%s %s (%s): esperado %s, obtenido %s', CASE WHEN v = r.expected THEN 'PASS' ELSE 'FAIL' END, r.n, r.actor, r.expected, v);
     IF v = r.expected THEN passed := passed + 1; ELSE fails := fails || format(' [%s %s: esperado %s, obtenido %s]', r.n, r.actor, r.expected, v); END IF;
   END LOOP;
-  RAISE EXCEPTION 'MNT_2A RESULTADO %/% %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END;
+  RAISE EXCEPTION 'MNT_2A RESULTADO %/% % %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END, results;
 END
 $run$;
