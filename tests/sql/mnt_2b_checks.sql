@@ -75,7 +75,7 @@ BEGIN
   (36,'admin','B','authenticated','exec','rej:23514',$$SELECT public.mnt_sa_add_entry(':CB', ':S1', current_date, 'tarde')$$),
   (37,'admin','B','authenticated','exec','rej:42501',$$UPDATE public.maintenance_sessions SET notes='cambio' WHERE id=':S1'$$),
   (38,'propietario','-','-','exec','rej:23514',$$INSERT INTO public.certificate_items(certificate_id, maintenance_session_id, result) SELECT id, ':S1', 'ok' FROM public.certificates WHERE company_id=':CB' LIMIT 1$$),
-  (39,'propietario','-','-','exec','rej:23514',$$INSERT INTO public.mnt_due_changes(company_id, plan_asset_id, session_id, kind, new_due_on, reason) VALUES (':CB', '00000000-0000-4000-8000-0000000b0021', ':S1', 'due_change', '2030-01-01', 'x')$$),
+  (39,'propietario','-','-','exec','rej:23514',$$INSERT INTO public.mnt_due_changes(company_id, plan_asset_id, plan_id, asset_id, session_id, kind, new_due, reason, changed_by) VALUES (':CB', '00000000-0000-4000-8000-0000000b0021', '00000000-0000-4000-8000-0000000b0001', '00000000-0000-4000-8000-0000000b0011', ':S1', 'close', '2030-01-01', 'x', 'fbf169ac-47e9-4061-a3b2-c9e030e1f214')$$),
   (40,'empleado','A','authenticated','exec','ok',$$SELECT public.mnt_sa_cancel_session(':CB', ':S4', 'Era otro equipo')$$),
   (41,'propietario','-','-','count','rows:1',$$SELECT 1 FROM public.maintenance_sessions WHERE id=':S4' AND status='cancelled' AND metadata->'cancel'->>'reason'='Era otro equipo'$$),
   (42,'admin','B','authenticated','exec','rej:42501',$$UPDATE public.maintenance_sessions SET status='in_progress' WHERE id=':S4'$$),
