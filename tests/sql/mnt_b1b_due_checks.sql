@@ -1,5 +1,5 @@
 -- Bloque 1B — vencimientos: pruebas contra la base de la app dentro de una transacción que SIEMPRE se revierte
--- (el bloque termina con RAISE EXCEPTION). Ejecutar con: psql -f tests/sql/mnt_b1b_due_checks.sql
+-- (el bloque termina con RAISE EXCEPTION). Ejecutar en el ejecutor SQL con privilegios de propietario (necesita SET ROLE)
 -- Org B (Sistach) = organización de trabajo; UB administrador; UA se añade como 'manager' de B solo dentro de la prueba.
 DO $run$
 DECLARE
