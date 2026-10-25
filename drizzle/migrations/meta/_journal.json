@@ -15,6 +15,13 @@
       "when": 1792932165708,
       "tag": "0001_mnt_due_changes_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792956351074,
+      "tag": "0002_mnt_2a_safe_delete",
+      "breakpoints": true
     }
   ]
 }

@@ -2303,6 +2303,7 @@ export type Database = {
       maintenance_plans: {
         Row: {
           active: boolean
+          archived_at: string | null
           asset_family_id: string | null
           asset_type_id: string | null
           certificate_template_id: string | null
@@ -2325,6 +2326,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          archived_at?: string | null
           asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
@@ -2347,6 +2349,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          archived_at?: string | null
           asset_family_id?: string | null
           asset_type_id?: string | null
           certificate_template_id?: string | null
@@ -4285,6 +4288,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      mnt_sa_cancel_session: {
+        Args: { p_company: string; p_reason: string; p_session: string }
+        Returns: Json
+      }
       mnt_sa_close_session: {
         Args: {
           p_company: string
@@ -4299,6 +4306,26 @@ export type Database = {
       mnt_sa_close_snapshot: {
         Args: { p_at: string; p_session: string }
         Returns: Json
+      }
+      mnt_sa_delete_asset: {
+        Args: { p_asset: string; p_company: string; p_confirm?: boolean }
+        Returns: Json
+      }
+      mnt_sa_delete_draft_session: {
+        Args: { p_company: string; p_session: string }
+        Returns: Json
+      }
+      mnt_sa_delete_plan: {
+        Args: { p_company: string; p_confirm?: boolean; p_plan: string }
+        Returns: Json
+      }
+      mnt_sa_doc_is_evidence: {
+        Args: { p_cert: string; p_item: string; p_session: string }
+        Returns: boolean
+      }
+      mnt_sa_freq_months: {
+        Args: { p_frequency: string; p_interval: number }
+        Returns: number
       }
       mnt_sa_org_tz: { Args: { p_company: string }; Returns: string }
       mnt_sa_outcome: { Args: { p_session: string }; Returns: string }
@@ -4317,9 +4344,22 @@ export type Database = {
         }
         Returns: Json
       }
+      mnt_sa_session_activity: {
+        Args: { p_session: string }
+        Returns: string[]
+      }
+      mnt_sa_session_months: {
+        Args: { p_plan: string; p_session: string }
+        Returns: number
+      }
       mnt_sa_set_due: {
         Args: { p_company: string; p_items: Json; p_reason?: string }
         Returns: number
+      }
+      mnt_sa_storage_protected: { Args: { p_name: string }; Returns: boolean }
+      mnt_sa_unlink_plan_asset: {
+        Args: { p_company: string; p_link: string; p_reason: string }
+        Returns: Json
       }
       mtr_calc_next_due: {
         Args: { p_from: string; p_unit: string; p_value: number }
