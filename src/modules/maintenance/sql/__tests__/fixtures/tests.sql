@@ -264,4 +264,44 @@ SET ROLE authenticated;
 SELECT t.login(:adminA);
 SELECT t.fails('outbox: los usuarios no leen eventos', 'SELECT count(*) FROM mnt_outbox', '42501');
 RESET ROLE;
+
+-- ---- 2A: eliminación controlada, cancelación y desvinculación ----
+SET ROLE authenticated;
+SELECT t.login(:adminA);
+SELECT t.ok('2A: la sesion guarda la periodicidad con la que se creo', (SELECT metadata->'plan_frequency'->>'frequency' FROM mnt_sessions WHERE id = :'s2') = 'quarterly');
+INSERT INTO mnt_assets(id, org_id, asset_type_id, site_ref, name)
+  SELECT 'a0000000-0000-4000-8000-0000000a5e09', :orgA, id, :siteA, 'Alta erronea' FROM mnt_asset_types WHERE code = 'extinguisher_co2';
+INSERT INTO mnt_plans(id, org_id, code, name, asset_family_id, frequency)
+  SELECT 'a0000000-0000-4000-8000-000000009109', :orgA, 'P9', 'Plan erroneo', id, 'annual' FROM mnt_asset_families WHERE code = 'pci';
+INSERT INTO mnt_plan_assets(org_id, plan_id, asset_id) VALUES (:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09');
+SELECT t.fails('2A: el cliente no borra activos directamente', 'DELETE FROM mnt_assets WHERE id = ''a0000000-0000-4000-8000-0000000a5e09''', '42501');
+SELECT t.fails('2A: el cliente no borra vinculos directamente', 'DELETE FROM mnt_plan_assets WHERE plan_id = ''a0000000-0000-4000-8000-000000009109''', '42501');
+SELECT t.ok('2A: vinculo nunca usado se quita como correccion de alta',
+  public.mnt_unlink_plan_asset(:orgA, 'a0000000-0000-4000-8000-000000009109', 'a0000000-0000-4000-8000-0000000a5e09', NULL)->>'action' = 'removed'
+  AND (SELECT count(*) FROM mnt_due_changes WHERE plan_id = 'a0000000-0000-4000-8000-000000009109' AND kind = 'link_removed') = 1);
+SELECT t.fails('2A: desvincular equipo usado sin motivo',
+  format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', NULL)', :orgA), '23514');
+SELECT t.fails('2A: equipo usado y vinculado hoy no recibe fin anterior al inicio',
+  format('SELECT public.mnt_unlink_plan_asset(%L, ''a0000000-0000-4000-8000-000000009101'', ''a0000000-0000-4000-8000-0000000a5e02'', ''Traslado'')', :orgA), '23514');
+SELECT t.ok('2A: activo sin actividad se elimina', (public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e09', true)->>'deleted')::boolean
+  AND NOT EXISTS (SELECT 1 FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e09'));
+SELECT t.ok('2A: activo con sesiones no se elimina', NOT (public.mnt_delete_asset(:orgA, 'a0000000-0000-4000-8000-0000000a5e01', true)->>'eligible')::boolean
+  AND EXISTS (SELECT 1 FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e01'));
+SELECT t.ok('2A: plan con actividad no se elimina', NOT (public.mnt_delete_plan(:orgA, 'a0000000-0000-4000-8000-000000009101', true)->>'deleted')::boolean);
+SELECT t.ok('2A: plan sin actividad se elimina', (public.mnt_delete_plan(:orgA, 'a0000000-0000-4000-8000-000000009109', true)->>'deleted')::boolean);
+SELECT t.fails('2A: una sesion en curso no se borra como borrador', format('SELECT public.mnt_delete_draft_session(%L, %L)', :orgA, :'s2'), '23514');
+SELECT t.fails('2A: cancelar sin motivo', format('SELECT public.mnt_cancel_session(%L, %L, '' '')', :orgA, :'s2'), '23514');
+SELECT public.mnt_cancel_session(:orgA, :'s2', 'No se pudo acceder');
+SELECT t.ok('2A: cancelar deja historial y no mueve fechas',
+  (SELECT status FROM mnt_sessions WHERE id = :'s2') = 'cancelled'
+  AND (SELECT count(*) FROM mnt_session_history WHERE session_id = :'s2' AND event = 'cancelled' AND reason = 'No se pudo acceder') = 1
+  AND (SELECT count(*) FROM mnt_due_changes WHERE session_id = :'s2') = 0);
+SELECT t.ok('2A: cancelar dos veces no repite', NOT (public.mnt_cancel_session(:orgA, :'s2', 'otra')->>'cancelled_now')::boolean);
+SELECT t.fails('2A: no se cancela una sesion cerrada', format('SELECT public.mnt_cancel_session(%L, %L, ''x'')', :orgA, :'s1'), '55000');
+SELECT t.login(:viewA);
+SELECT t.fails('2A: un lector no elimina planes', format('SELECT public.mnt_delete_plan(%L, ''a0000000-0000-4000-8000-000000009101'')', :orgA), '42501');
+SELECT t.login(:adminB);
+SELECT t.fails('2A: otra organizacion no elimina activos', format('SELECT public.mnt_delete_asset(%L, ''a0000000-0000-4000-8000-0000000a5e01'')', :orgA), '42501');
+SELECT t.fails('2A: otra organizacion no cancela', format('SELECT public.mnt_cancel_session(%L, %L, ''x'')', :orgA, :'s2'), '42501');
+RESET ROLE;
 \echo TESTS_DONE
