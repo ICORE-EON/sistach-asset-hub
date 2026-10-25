@@ -30,3 +30,9 @@
 - [x] Paso 1: contratos estables + registro de adaptador + separación del host standalone (esperando revisión)
 - [x] Paso 2: esquema limpio, catálogo y pruebas en PostgreSQL desechable (esperando revisión)
 - [ ] Paso 3: adaptador ICORE, ficha de requisitos y lista de exportación — pendiente de aprobación
+
+## Mantenimientos — Bloque 1A (navegación y consultas)
+- [x] Próximos: sin agrupar por defecto, vencidos primero, filtros compactos
+- [x] Histórico por intervenciones paginado + vista por activo
+- [x] Planes: alcance vigente/vinculado y próximo vencimiento estimado
+- [ ] Bloque 1B: reglas de cálculo de próximos — pendiente de aprobación separada

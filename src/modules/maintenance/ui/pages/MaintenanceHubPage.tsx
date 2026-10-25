@@ -2,7 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, differenceInCalendarDays } from "date-fns";
-import { Search, Wrench, CalendarClock, History, ClipboardList, ChevronRight, PlayCircle } from "lucide-react";
+import { Search, Wrench, CalendarClock, History, ClipboardList, ChevronRight, PlayCircle, SlidersHorizontal } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useMaintenanceRequest } from "../host";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +70,7 @@ function useAssetFilters() {
   const [family, setFamily] = useState("all");
   const [type, setType] = useState("all");
   const [site, setSite] = useState("all");
-  const [grouped, setGrouped] = useState(true);
+  const [grouped, setGrouped] = useState(false);
   const { data: types = [] } = useQuery({ queryKey: assetKeys.types(orgId), enabled: !!orgId, queryFn: () => assetService.listTypes(orgId) });
   const { data: families = [] } = useQuery({ queryKey: assetKeys.families(orgId), enabled: !!orgId, queryFn: () => assetService.listFamilies(orgId) });
   const { data: sites = [] } = useQuery({ queryKey: assetKeys.sites(orgId), enabled: !!orgId, queryFn: () => assetService.listActiveSites(orgId) });
@@ -90,40 +92,51 @@ function useAssetFilters() {
   const catLabel = (k: string) => (k === "__none" ? "Sin categoría" : catName(k));
   const typeName = (id: string | null) => { const t = id ? typeMap[id] : null; return t ? i18nName(t.name_i18n, t.code) : "—"; };
 
+  const activeCount = [family, category, type, site].filter((v) => v !== "all").length;
   const bar = (
     <div className="flex flex-wrap gap-3">
       <div className="relative min-w-[220px] flex-1">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por código, nombre, nº de serie…" className="pl-9" />
       </div>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline"><SlidersHorizontal className="mr-2 h-4 w-4" />Filtros{activeCount > 0 ? ` (${activeCount})` : ""}</Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-72 space-y-2">
       <Select value={family} onValueChange={(v) => { setFamily(v); setType("all"); }}>
-        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todas las familias</SelectItem>
           {families.map((f) => <SelectItem key={f.id} value={f.id}>{i18nName(f.name_i18n, f.code)}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={category} onValueChange={(v) => { setCategory(v); setType("all"); }}>
-        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todas las categorías</SelectItem>
           {catCodes.map((c) => <SelectItem key={c} value={c}>{catName(c)}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={type} onValueChange={setType}>
-        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos los tipos</SelectItem>
           {visibleTypes.map((t) => <SelectItem key={t.id} value={t.id}>{i18nName(t.name_i18n, t.code)}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={site} onValueChange={setSite}>
-        <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todas las ubicaciones</SelectItem>
           {sites.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
         </SelectContent>
       </Select>
+          {activeCount > 0 && (
+            <Button variant="ghost" size="sm" className="w-full" onClick={() => { setFamily("all"); setCategory("all"); setType("all"); setSite("all"); }}>Quitar filtros</Button>
+          )}
+        </PopoverContent>
+      </Popover>
       <div className="flex items-center gap-2">
         <Switch id="hub-grouped" checked={grouped} onCheckedChange={setGrouped} />
         <Label htmlFor="hub-grouped" className="text-sm">Agrupar por categoría</Label>
@@ -153,7 +166,7 @@ type SortKey = "status" | "date" | "plan" | "last";
 function UpcomingTab() {
   const { orgId } = useMaintenanceRequest();
   const f = useAssetFilters();
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: 1 });
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "status", dir: 1 });
   const [viewing, setViewing] = useState<null | { title: string; assets: any[] }>(null);
   const { data: upcoming = [], isLoading } = useQuery({ queryKey: sessionKeys.upcoming(orgId), enabled: !!orgId, queryFn: () => sessionService.listUpcoming(orgId) });
   const { data: sessions = [] } = useQuery({ queryKey: sessionKeys.list(orgId, "all"), enabled: !!orgId, queryFn: () => sessionService.listSessions(orgId, "all") });
@@ -285,6 +298,7 @@ function UpcomingTab() {
           </TableBody>
         </Table>
       </div>
+      <p className="text-xs text-muted-foreground">Fechas estimadas con las reglas de cálculo actuales, pendientes de revisión.</p>
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Equipos incluidos · {viewing?.title}</DialogTitle></DialogHeader>
@@ -310,6 +324,86 @@ function UpcomingTab() {
 }
 
 function HistoryTab() {
+  const [mode, setMode] = useState<"interventions" | "assets">("interventions");
+  return (
+    <div className="space-y-4">
+      <ToggleGroup type="single" variant="outline" value={mode} onValueChange={(v) => v && setMode(v as typeof mode)} className="justify-start">
+        <ToggleGroupItem value="interventions">Por intervenciones</ToggleGroupItem>
+        <ToggleGroupItem value="assets">Por activo</ToggleGroupItem>
+      </ToggleGroup>
+      {mode === "interventions" ? <InterventionsHistory /> : <AssetHistory />}
+    </div>
+  );
+}
+
+const PAGE = 50;
+const OUTCOMES: Record<string, { t: string; v: "outline" | "destructive" | "secondary" }> = {
+  ok: { t: "Correcto", v: "outline" },
+  with_incidents: { t: "Con incidencias", v: "destructive" },
+  incomplete: { t: "Incompleto", v: "secondary" },
+  incomplete_with_incidents: { t: "Incompleto con incidencias", v: "destructive" },
+};
+const outcomeLabel = (o: string | null) => (o ? OUTCOMES[o] ?? { t: o, v: "secondary" as const } : null);
+
+function InterventionsHistory() {
+  const { orgId } = useMaintenanceRequest();
+  const [page, setPage] = useState(0);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: sessionKeys.interventions(orgId, page * PAGE, PAGE), enabled: !!orgId,
+    queryFn: () => sessionService.listInterventions(orgId, page * PAGE, PAGE),
+  });
+  const rows = data?.rows ?? [], total = data?.total ?? 0, pages = Math.max(1, Math.ceil(total / PAGE));
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Fecha de ejecución</TableHead><TableHead>Plan</TableHead><TableHead>Equipos</TableHead>
+              <TableHead>Resultado</TableHead><TableHead>Ejecución</TableHead><TableHead>Cierre / registro</TableHead><TableHead className="w-[40px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">Cargando…</TableCell></TableRow>
+            ) : isError ? (
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-sm text-destructive">No se ha podido cargar el histórico.</TableCell></TableRow>
+            ) : rows.length === 0 ? (
+              <TableRow><TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">Aún no hay intervenciones cerradas.</TableCell></TableRow>
+            ) : rows.map((r) => {
+              const o = outcomeLabel(r.outcome);
+              return (
+                <TableRow key={r.id}>
+                  <TableCell className="text-sm font-medium">{r.executed_on ? fdate(r.executed_on) : <span className="text-muted-foreground italic">No consta</span>}</TableCell>
+                  <TableCell className="text-sm">
+                    {r.plan_id ? <Link to="/maintenance-plans/$id" params={{ id: r.plan_id }} className="font-medium hover:underline">{r.plan_name ?? r.plan_code}</Link> : <span className="text-muted-foreground">Sin plan</span>}
+                    <div className="font-mono text-xs text-muted-foreground">{r.code}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">{r.asset_count}</TableCell>
+                  <TableCell>{o ? <Badge variant={o.v}>{o.t}</Badge> : <span className="text-sm text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="text-sm">{r.is_external ? `Externa${r.external_provider ? ` · ${r.external_provider}` : ""}` : "Interna"}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{fdate(r.closed_at)}</TableCell>
+                  <TableCell>
+                    <Link to="/maintenance/$id" params={{ id: r.id }} aria-label={`Abrir ${r.code}`}><ChevronRight className="h-4 w-4 text-muted-foreground" /></Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span>{total} {total === 1 ? "intervención" : "intervenciones"} · página {page + 1} de {pages}</span>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+          <Button variant="outline" size="sm" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>Siguiente</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssetHistory() {
   const { orgId } = useMaintenanceRequest();
   const f = useAssetFilters();
   const [selected, setSelected] = useState<string | null>(null);

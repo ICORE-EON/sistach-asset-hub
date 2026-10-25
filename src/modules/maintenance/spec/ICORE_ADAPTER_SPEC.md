@@ -80,6 +80,7 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 |---|---|---|---|---|---|---|
 | `listPlans` | `orgId: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_plans | — |
 | `getPlan` | `orgId: string, id: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_plans | — |
+| `listPlanScopeCounts` | `orgId: string` | `PlanScopeCount[]` | read | mnt.view | RLS mnt_plan_assets | — |
 | `listPlanAssets` | `orgId: string, planId: string` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_plan_assets | — |
 | `listCertificateTemplates` | `orgId: string, orderBy: "code" \| "name"` | `DTO (ver contrato)` | read | mnt.view | RLS mnt_certificate_templates | — |
 | `listScopeAssets` | `orgId: string, q: ScopeQuery` | `ScopeAsset[]` | read | mnt.view | RLS mnt_assets + expansión de centros | sites |
@@ -102,6 +103,7 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `createSession` | `orgId: string, v: NewSession` | `string` | atomic | mnt.run | RPC mnt_create_session (idempotente por request_id) | sites, people |
 | `startSession` | `orgId: string, sessionId: string` | `boolean` | write | mnt.run | RLS + mnt_tg_session_guard (draft→in_progress) | — |
 | `listUpcoming` | `orgId: string` | `UpcomingRow[]` | read | mnt.view | RLS | — |
+| `listInterventions` | `orgId: string, page: { offset: number; limit: number }` | `InterventionPage` | read | mnt.view | RLS mnt_sessions | — |
 | `recordExternal` | `orgId: string, sessionId: string, v: ExternalRecord` | `void` | write | mnt.run | RLS + mnt_tg_session_guard (→closed, revisión externa) | — |
 | `assertItemWritable` | `orgId: string, sessionId: string, itemId: string` | `{ id: string; asset_id: string; metadata: Json; }` | read | mnt.run | Solo UX: la autoridad es mnt_tg_item_guard | — |
 | `setItemResult` | `orgId: string, sessionId: string, itemId: string, result: string, observations: string \| null, failCount: number` | `void` | write | mnt.run | RLS + mnt_tg_item_guard | people |
@@ -153,3 +155,8 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | `uploadTemplateLogo` | `orgId: string, templateId: string, file: BinaryUpload` | `string` | host | mnt.admin | Almacenamiento del host (bytes Uint8Array) | storage |
 | `listAssetsForExternal` | `orgId: string` | `{ id: string; code: string; name: string \| null; }[]` | read | mnt.certify | RLS mnt_assets | — |
 | `registerExternal` | `orgId: string, v: { title: string; issuedOn: string; validUntil: string \| null; issuerName: string \| null; issuerRole: string \| null; provider: string; externalNumber: string \| null; notes: string \| null; assetId: string \| null; file: BinaryUpload; }` | `DTO (ver contrato)` | atomic | mnt.certify | RPC mnt_register_external_certificate | documents, people |
+
+
+## Notas Bloque 1A
+- `listInterventions`: sesiones cerradas de la org, orden `closed_at` desc, paginado en servidor. `executed_on` = fecha efectiva (externas: `performed_on` declarado; internas: última finalización de equipo); `null` si no consta, nunca se sustituye por `closed_at`. `asset_count` desde `close_snapshot` o, si falta, ítems vivos. Derivación pura en `domain/intervention.ts`.
+- `listPlanScopeCounts`: por plan, vínculos totales (`linked`) y vigentes hoy (`current`: `start_on` ≤ hoy y sin `end_on` pasado).

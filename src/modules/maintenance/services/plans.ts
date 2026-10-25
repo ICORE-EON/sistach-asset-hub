@@ -30,6 +30,7 @@ export const planFrequencyLabel = (frequency: string, intervalMonths?: number | 
 export const planKeys = {
   list: (orgId: string | null) => ["maintenance-plans", orgId] as const,
   detail: (orgId: string | null, id: string) => ["plan", orgId, id] as const,
+  scopeCounts: (orgId: string | null) => ["plan-scope-counts", orgId] as const,
   assets: (orgId: string | null, id: string) => ["plan-assets", orgId, id] as const,
   certTemplatesByName: (orgId: string | null) => ["cert-templates-family", orgId] as const,
   certTemplatesByCode: (orgId: string | null) => ["certificate-templates-pick", orgId] as const,
@@ -60,6 +61,7 @@ export const planService = {
     if (!p) throw new Error("Plan no encontrado");
     return p;
   },
+  listPlanScopeCounts: (orgId: string | null) => repo().listPlanScopeCounts(need(orgId)),
   listPlanAssets: (orgId: string | null, planId: string) => repo().listPlanAssets(need(orgId), planId),
   listCertificateTemplates: (orgId: string | null, orderBy: "name" | "code") =>
     repo().listCertificateTemplates(need(orgId), orderBy),

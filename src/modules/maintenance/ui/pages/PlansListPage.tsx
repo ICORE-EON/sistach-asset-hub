@@ -40,6 +40,7 @@ import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/check
 import { assetKeys, assetService } from "../../services/assets";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { FREQUENCIES, planFrequencyLabel, planKeys, planService } from "../../services/plans";
+import { sessionKeys, sessionService } from "../../services/sessions";
 
 export { FREQUENCIES };
 
@@ -60,6 +61,21 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
     enabled: !!activeCompanyId,
     queryFn: () => planService.listPlans(activeCompanyId),
   });
+
+  // Independent queries: if either fails the plan list is still shown (cells show "—").
+  const { data: scopeCounts } = useQuery({
+    queryKey: planKeys.scopeCounts(activeCompanyId),
+    enabled: !!activeCompanyId,
+    queryFn: () => planService.listPlanScopeCounts(activeCompanyId),
+  });
+  const { data: upcoming } = useQuery({
+    queryKey: sessionKeys.upcoming(activeCompanyId),
+    enabled: !!activeCompanyId,
+    queryFn: () => sessionService.listUpcoming(activeCompanyId),
+  });
+  const scopeBy = new Map((scopeCounts ?? []).map((c) => [c.plan_id, c]));
+  const nextBy = new Map<string, string>();
+  for (const u of upcoming ?? []) if (u.next_due_at && (!nextBy.has(u.plan_id) || u.next_due_at < nextBy.get(u.plan_id)!)) nextBy.set(u.plan_id, u.next_due_at);
 
   const { data: templates = [] } = useQuery({
     queryKey: checklistKeys.published(activeCompanyId),
@@ -240,12 +256,10 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Código</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Familia</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Plantilla</TableHead>
+              <TableHead>Plan</TableHead>
               <TableHead>Frecuencia</TableHead>
+              <TableHead>Activos</TableHead>
+              <TableHead title="Estimación con las reglas actuales de cálculo (pendientes de revisión)">Próximo vencimiento*</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
@@ -253,42 +267,45 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : plans.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   Aún no hay planes. {templates.length === 0 && "Necesitas al menos una plantilla publicada."}
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   Ningún plan coincide con los filtros.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs">{p.code}</TableCell>
                   <TableCell className="font-medium">
                     <Link to="/maintenance-plans/$id" params={{ id: p.id }} className="hover:underline">
                       {p.name}
                     </Link>
+                    <div className="font-mono text-xs font-normal text-muted-foreground">
+                      {p.code} · {p.execution_mode === "external" ? "Externo" : "Interno"}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {p.asset_families
-                      ? i18nName(p.asset_families.name_i18n, p.asset_families.code)
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {p.asset_types ? i18nName(p.asset_types.name_i18n, p.asset_types.code) : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">{p.checklist_templates?.name ?? "—"}</TableCell>
                   <TableCell className="text-sm">
                     {planFrequencyLabel(p.frequency, p.interval_months)}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {(() => {
+                      const c = scopeBy.get(p.id);
+                      if (!c) return "—";
+                      return c.current === c.linked ? `${c.current}` : `${c.current} vigentes de ${c.linked}`;
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {nextBy.get(p.id) ? new Date(nextBy.get(p.id)!).toLocaleDateString("es-ES") : "—"}
                   </TableCell>
                   <TableCell>
                     {p.active ? <Badge>Activo</Badge> : <Badge variant="secondary">Pausado</Badge>}
@@ -306,6 +323,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
           </TableBody>
         </Table>
       </div>
+      <p className="text-xs text-muted-foreground">* Próximo vencimiento estimado con las reglas de cálculo actuales, pendientes de revisión. «Vigentes»: equipos con vínculo en vigor hoy.</p>
     </div>
   );
 }

@@ -145,7 +145,7 @@ describe("session rules (unchanged)", () => {
 describe("session query keys and screens", () => {
   it("every factory embeds orgId at position 1 and differs between tenants", () => {
     const f = Object.entries(sessionKeys) as Array<[string, (o: string, x?: string) => readonly unknown[]]>;
-    expect(f.length).toBe(9);
+    expect(f.length).toBe(10);
     for (const [name, k] of f) {
       expect(k(A, "x")[1], name).toBe(A);
       expect(JSON.stringify(k(A, "x"))).not.toBe(JSON.stringify(k(B, "x")));

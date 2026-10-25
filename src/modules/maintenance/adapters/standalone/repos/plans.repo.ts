@@ -7,7 +7,7 @@
  * scope_location_ids stays an array until the phase-5 normalization.
  */
 import type { StandaloneClient } from "../client";
-import type { NewPlan, ScopeQuery } from "../../../contracts/repositories";
+import type { NewPlan, PlanScopeCount, ScopeQuery } from "../../../contracts/repositories";
 export type { NewPlan, ScopeQuery };
 import { expandLocationIds, type ScopeAsset, type ScopeLocation } from "../../../domain/scope";
 
@@ -61,6 +61,25 @@ export function createPlansRepo(c: StandaloneClient) {
     async listPlans(orgId: string) {
       return ok(await c.from("maintenance_plans").select(PLAN_LIST_SELECT)
         .eq("company_id", orgId).is("deleted_at", null).order("code")) ?? [];
+    },
+    /** Counts links of the org's plans; links are reached only through plans proven to belong to orgId. */
+    async listPlanScopeCounts(orgId: string): Promise<PlanScopeCount[]> {
+      const plans = ok(await c.from("maintenance_plans").select("id").eq("company_id", orgId).is("deleted_at", null)) ?? [];
+      if (!plans.length) return [];
+      const today = new Date().toISOString().slice(0, 10);
+      const out = new Map<string, PlanScopeCount>(plans.map((p) => [p.id, { plan_id: p.id, linked: 0, current: 0 }]));
+      const ids = plans.map((p) => p.id);
+      for (let from = 0; ; from += 1000) {
+        const rows = ok(await c.from("maintenance_plan_assets").select("plan_id, start_on, end_on")
+          .in("plan_id", ids).order("id").range(from, from + 999)) ?? [];
+        for (const r of rows) {
+          const e = out.get(r.plan_id); if (!e) continue;
+          e.linked++;
+          if ((!r.start_on || r.start_on <= today) && (!r.end_on || r.end_on >= today)) e.current++;
+        }
+        if (rows.length < 1000) break;
+      }
+      return [...out.values()];
     },
     async getPlan(orgId: string, id: string) {
       return ok(await c.from("maintenance_plans").select(PLAN_DETAIL_SELECT)
