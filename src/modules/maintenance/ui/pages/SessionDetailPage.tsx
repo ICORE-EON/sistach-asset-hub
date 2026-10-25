@@ -1,3 +1,4 @@
+import { DueDecisionsPanel, buildDueDecisions, type DueChoices, type DuePanelRow } from "../components/due-decisions-panel";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -587,6 +588,13 @@ function CloseSessionDialog({
 }) {
   const [signerName, setSignerName] = useState("");
   const [signerRole, setSignerRole] = useState("");
+  const [dueChoices, setDueChoices] = useState<DueChoices>({});
+  const { data: preview = [] } = useQuery({
+    queryKey: sessionKeys.duePreview(orgId, sessionId), enabled: open && !!orgId,
+    queryFn: () => sessionService.listDuePreview(orgId, sessionId),
+  });
+  const dueRows: DuePanelRow[] = preview.map((r) => ({ item_id: r.item_id, code: r.asset_code, name: r.asset_name,
+    result: r.result === "pending" ? "skipped" : r.result, linked: r.linked, planned_on: r.planned_on, proposed_on: r.proposed_on, calendar_on: r.calendar_on }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
@@ -631,7 +639,9 @@ function CloseSessionDialog({
       if (!signerName.trim()) throw new Error("Indica el nombre del firmante");
       if (!hasInk.current) throw new Error("Firma para continuar");
       const signature = canvasRef.current!.toDataURL("image/png");
-      const { cert, pdfFailed } = await sessionService.closeSession(orgId, sessionId, { signerName, signerRole, signature });
+      const { decisions, error } = buildDueDecisions(dueRows, dueChoices);
+      if (error) throw new Error(error);
+      const { cert, pdfFailed } = await sessionService.closeSession(orgId, sessionId, { signerName, signerRole, signature, decisions });
       if (pdfFailed)
         toast.warning("Certificado emitido, pero no se pudo generar el PDF. Podrás regenerarlo desde el detalle.");
       return cert;
@@ -661,6 +671,7 @@ function CloseSessionDialog({
               constarán así en el certificado.
             </p>
           )}
+          <DueDecisionsPanel rows={dueRows} value={dueChoices} onChange={setDueChoices} disabled={close.isPending} />
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Firmante *</Label>

@@ -9,19 +9,32 @@
  *  - item.metadata.snapshot: asset, type, location and checklist version at opening
  *  - session.metadata.close_snapshot: per-item results frozen at close
  */
-import type { ExternalRecord, InterventionPage, UpcomingRow } from "../../../contracts/repositories";
+import type { DueDecision, DuePreviewRow, ExternalRecord, InterventionPage, UpcomingRow } from "../../../contracts/repositories";
+import { addMonthsClamped, planIntervalMonths, toOrgDate } from "../../../domain/due-date";
 import { effectiveExecution, interventionScope } from "../../../domain/intervention";
 import type { Json } from "@/integrations/supabase/types";
 import type { StandaloneClient } from "../client";
 import type { NewSession } from "../../../contracts/repositories";
 export type { NewSession };
-import { assertTransition, legacySessionOutcome } from "../../../domain/session-rules";
+import { assertTransition } from "../../../domain/session-rules";
 import { closeResults, historicalItem, historicalSession } from "../../../domain/session-history";
 
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 const DENY = "no encontrada en la organización activa";
 type Meta = Record<string, unknown>;
 const meta = (m: unknown): Meta => (m && typeof m === "object" && !Array.isArray(m) ? (m as Meta) : {});
+const PAGE = 1000;
+/** Reads every page (no silent 1000-row truncation); any page error aborts the whole read. */
+async function readAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const rows = ok(await page(from, from + PAGE - 1)) ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
+}
+const decisionsJson = (d: DueDecision[] | undefined) =>
+  (d ?? []).map((x) => ({ item_id: x.itemId, action: x.action, due: x.due ?? null, reason: x.reason ?? null })) as unknown as Json;
 
 export function createSessionsRepo(c: StandaloneClient) {
   const getOwn = async (orgId: string, sessionId: string) => {
@@ -36,6 +49,11 @@ export function createSessionsRepo(c: StandaloneClient) {
       .eq("id", planId).eq("company_id", orgId).maybeSingle());
     if (!p) throw new Error(`Plan ${DENY.replace("encontrada", "encontrado")}`);
     return p;
+  };
+
+  const orgTz = async (orgId: string): Promise<string> => {
+    const r = await c.rpc("mnt_sa_org_tz", { p_company: orgId });
+    return (!r.error && typeof r.data === "string" && r.data) || "Europe/Madrid";
   };
 
   return {
@@ -97,10 +115,14 @@ export function createSessionsRepo(c: StandaloneClient) {
     async createSession(orgId: string, v: NewSession) {
       const plan = await assertPlan(orgId, v.planId);
       const links = ok(await c.from("maintenance_plan_assets")
-        .select("asset_id, assets(id, code, name, manufacturer, model, company_id, asset_type_id, location_id, locations(name), asset_types(code, name_i18n))")
+        .select("asset_id, start_on, end_on, assets(id, code, name, status, deleted_at, manufacturer, model, company_id, asset_type_id, location_id, locations(name), asset_types(code, name_i18n))")
         .eq("plan_id", v.planId)) ?? [];
-      type A = { id: string; code: string; name: string | null; manufacturer?: string | null; model?: string | null; company_id: string; asset_type_id: string; location_id: string | null; locations: { name: string } | null; asset_types: { code: string; name_i18n?: unknown } | null };
-      let rows = (links as Array<{ asset_id: string; assets: A | null }>).filter((pa) => pa.assets && pa.assets.company_id === orgId);
+      type A = { id: string; code: string; name: string | null; status?: string; deleted_at?: string | null; manufacturer?: string | null; model?: string | null; company_id: string; asset_type_id: string; location_id: string | null; locations: { name: string } | null; asset_types: { code: string; name_i18n?: unknown } | null };
+      const today = toOrgDate(new Date(), await orgTz(orgId));
+      // Only links in force (started, not ended) and assets not retired/deleted enter an ordinary session.
+      let rows = (links as Array<{ asset_id: string; start_on: string | null; end_on: string | null; assets: A | null }>).filter((pa) =>
+        pa.assets && pa.assets.company_id === orgId && !pa.assets.deleted_at && pa.assets.status !== "retired"
+        && (!pa.start_on || pa.start_on <= today) && (!pa.end_on || pa.end_on >= today));
       if (v.locationId) rows = rows.filter((pa) => pa.assets?.location_id === v.locationId);
       if (rows.length === 0) throw new Error("El plan no tiene equipos para esta selección");
 
@@ -169,37 +191,77 @@ export function createSessionsRepo(c: StandaloneClient) {
       return upd.length > 0;
     },
 
+    /** Persisted next due per link in force; nothing is recalculated on read (Bloque 1B). */
     async listUpcoming(orgId: string): Promise<UpcomingRow[]> {
       const plans = ok(await c.from("maintenance_plans").select("id, code, name, frequency, interval_months, execution_mode")
         .eq("company_id", orgId).eq("active", true).is("deleted_at", null)) ?? [];
       if (!plans.length) return [];
       const planIds = plans.map((p) => p.id);
+      const today = toOrgDate(new Date(), await orgTz(orgId));
+      type L = { id: string; asset_id: string; plan_id: string; start_on: string | null; end_on: string | null; next_due_on: string | null;
+        assets: { company_id: string; status: string; deleted_at: string | null } | null };
+      type D = { asset_id: string; result: string; completed_at: string | null; maintenance_sessions: { plan_id: string | null } | null };
+      type O = { id: string; plan_id: string; maintenance_items: Array<{ asset_id: string }> };
       const [links, done, open] = await Promise.all([
-        c.from("maintenance_plan_assets").select("asset_id, plan_id, start_on, end_on").in("plan_id", planIds),
-        c.from("maintenance_sessions").select("plan_id, closed_at, maintenance_items(asset_id, completed_at)")
-          .eq("company_id", orgId).eq("status", "closed").in("plan_id", planIds),
-        c.from("maintenance_sessions").select("id, plan_id, maintenance_items(asset_id)")
-          .eq("company_id", orgId).in("status", ["draft", "in_progress"]).in("plan_id", planIds),
+        readAll<L>((a, b) => c.from("maintenance_plan_assets")
+          .select("id, asset_id, plan_id, start_on, end_on, next_due_on, assets(company_id, status, deleted_at)")
+          .in("plan_id", planIds).order("id").range(a, b) as unknown as PromiseLike<{ data: L[] | null; error: unknown }>),
+        // Last PERFORMED review per link: skipped / pending / global N/A never count as done.
+        readAll<D>((a, b) => c.from("maintenance_items")
+          .select("asset_id, result, completed_at, maintenance_sessions!inner(plan_id, status, company_id)")
+          .eq("maintenance_sessions.company_id", orgId).eq("maintenance_sessions.status", "closed")
+          .in("maintenance_sessions.plan_id", planIds).in("result", ["ok", "with_incident"]).not("completed_at", "is", null)
+          .order("id").range(a, b) as unknown as PromiseLike<{ data: D[] | null; error: unknown }>),
+        readAll<O>((a, b) => c.from("maintenance_sessions").select("id, plan_id, maintenance_items(asset_id)")
+          .eq("company_id", orgId).in("status", ["draft", "in_progress"]).in("plan_id", planIds)
+          .order("id").range(a, b) as unknown as PromiseLike<{ data: O[] | null; error: unknown }>),
       ]);
-      const last = new Map<string, string>();
-      for (const s of ok(done) ?? []) for (const it of (s.maintenance_items ?? []) as Array<{ asset_id: string; completed_at: string | null }>) {
-        const k = `${s.plan_id}|${it.asset_id}`; const d = it.completed_at ?? s.closed_at;
-        if (d && (!last.has(k) || d > last.get(k)!)) last.set(k, d);
+      const last = new Map<string, { at: string; result: string }>();
+      for (const it of done) {
+        const k = `${it.maintenance_sessions?.plan_id}|${it.asset_id}`; const cur = last.get(k);
+        if (it.completed_at && (!cur || it.completed_at > cur.at)) last.set(k, { at: it.completed_at, result: it.result });
       }
       const openBy = new Map<string, string>();
-      for (const s of ok(open) ?? []) for (const it of (s.maintenance_items ?? []) as Array<{ asset_id: string }>) openBy.set(`${s.plan_id}|${it.asset_id}`, s.id);
-      const months: Record<string, number> = { monthly: 1, quarterly: 3, biannual: 6, semiannual: 6, annual: 12, biennial: 24 };
+      for (const s of open) for (const it of s.maintenance_items ?? []) openBy.set(`${s.plan_id}|${it.asset_id}`, s.id);
       const byId = new Map(plans.map((p) => [p.id, p]));
-      const today = new Date().toISOString().slice(0, 10);
-      return (ok(links) ?? []).filter((l) => !l.end_on || l.end_on >= today).map((l) => {
-        const p = byId.get(l.plan_id)!; const k = `${l.plan_id}|${l.asset_id}`;
-        const m = p.interval_months ?? months[p.frequency] ?? null;
-        const base = last.get(k) ?? (l.start_on as string | null) ?? null;
-        let next: string | null = null;
-        if (m) { const d = base ? new Date(base) : new Date(); if (base) d.setMonth(d.getMonth() + m); next = d.toISOString().slice(0, 10); }
-        return { asset_id: l.asset_id, plan_id: l.plan_id, plan_code: p.code, plan_name: p.name, frequency: p.frequency,
-          interval_months: m, execution_mode: p.execution_mode, last_done_at: last.get(k) ?? null, next_due_at: next,
-          open_session_id: openBy.get(k) ?? null };
+      return links
+        .filter((l) => l.assets && l.assets.company_id === orgId && !l.assets.deleted_at && l.assets.status !== "retired"
+          && (!l.end_on || l.end_on >= today))
+        .map((l) => {
+          const p = byId.get(l.plan_id)!; const k = `${l.plan_id}|${l.asset_id}`; const lr = last.get(k);
+          return { asset_id: l.asset_id, plan_id: l.plan_id, plan_code: p.code, plan_name: p.name, frequency: p.frequency,
+            interval_months: planIntervalMonths(p.frequency, p.interval_months), execution_mode: p.execution_mode,
+            last_done_at: lr?.at ?? null, next_due_at: l.next_due_on, open_session_id: openBy.get(k) ?? null,
+            plan_asset_id: l.id, scheduled: !!l.next_due_on, last_result: lr?.result ?? null,
+            starts_on: l.start_on && l.start_on > today ? l.start_on : null };
+        });
+    },
+
+    /** Same proposal rule the close function applies (server is authoritative; this is the preview). */
+    async listDuePreview(orgId: string, sessionId: string): Promise<DuePreviewRow[]> {
+      const s = ok(await c.from("maintenance_sessions").select("id, plan_id, is_external, metadata, maintenance_plans(frequency, interval_months)")
+        .eq("id", sessionId).eq("company_id", orgId).maybeSingle());
+      if (!s) throw new Error(`Sesión ${DENY}`);
+      const tz = await orgTz(orgId);
+      const plan = s.maintenance_plans as { frequency: string; interval_months: number | null } | null;
+      const months = plan ? planIntervalMonths(plan.frequency, plan.interval_months) : null;
+      const items = ok(await c.from("maintenance_items").select("id, asset_id, result, completed_at, metadata, assets(code, name)")
+        .eq("session_id", sessionId).order("created_at")) ?? [];
+      const links = s.plan_id ? ok(await c.from("maintenance_plan_assets").select("asset_id, next_due_on, end_on, created_at")
+        .eq("plan_id", s.plan_id)) ?? [] : [];
+      const planned = new Map<string, string | null>();
+      for (const l of [...links].sort((a, b) => Number(!a.end_on) - Number(!b.end_on) || a.created_at.localeCompare(b.created_at)))
+        planned.set(l.asset_id, l.next_due_on);
+      return items.map((it) => {
+        const a = it.assets as { code: string; name: string | null } | null;
+        const snap = meta(meta(it.metadata).snapshot).asset as { code?: string; name?: string | null } | undefined;
+        const performed = it.result === "ok" || it.result === "with_incident";
+        const exec = performed && it.completed_at ? toOrgDate(it.completed_at, tz) : null;
+        const p = planned.has(it.asset_id) ? planned.get(it.asset_id) ?? null : null;
+        return { item_id: it.id, asset_id: it.asset_id, asset_code: a?.code ?? snap?.code ?? null, asset_name: a?.name ?? snap?.name ?? null,
+          result: it.result, planned_on: p, executed_on: exec,
+          proposed_on: exec && months ? addMonthsClamped(exec, months) : null,
+          calendar_on: exec && p && months ? addMonthsClamped(p, months) : null, linked: planned.has(it.asset_id), months };
       });
     },
 
@@ -227,27 +289,15 @@ export function createSessionsRepo(c: StandaloneClient) {
       };
     },
 
+    /** External review: common result + per-item exceptions + due dates + close, in one database transaction. */
     async recordExternal(orgId: string, sessionId: string, v: ExternalRecord) {
-      const s = await getOwn(orgId, sessionId);
-      if (s.status === "closed" || s.status === "cancelled") throw new Error("La sesión está cerrada");
-      const items = ok(await c.from("maintenance_items").select("id, asset_id, metadata").eq("session_id", sessionId)) ?? [];
-      const result = v.result === "ok" ? "ok" : "failed";
-      const at = new Date(`${v.performedOn}T12:00:00`).toISOString();
-      for (const it of items)
-        ok(await c.from("maintenance_items").update({
-          result, observations: v.description, completed_at: at,
-          metadata: { ...meta(it.metadata), completion: { result, external: true, at } } as unknown as Json,
-        }).eq("id", it.id).eq("session_id", sessionId));
-      const closedAt = new Date().toISOString();
-      const close_snapshot = { at: closedAt, items: items.map((i) => ({ item_id: i.id, asset_id: i.asset_id, result, asset: meta(meta(i.metadata).snapshot).asset ?? null })) };
-      const upd = ok(await c.from("maintenance_sessions").update({
-        status: "closed", started_at: at, closed_at: closedAt, is_external: true,
-        external_provider: v.provider, external_cert_number: v.reference, signer_name: v.provider,
-        outcome: v.result,
-        metadata: { ...meta(s.metadata), outcome: v.result, skipped_count: 0, close_snapshot,
-          external: { performed_on: v.performedOn, result: v.result, description: v.description } } as unknown as Json,
-      }).eq("id", sessionId).eq("company_id", orgId).in("status", ["draft", "in_progress"]).select("id")) ?? [];
-      if (!upd.length) throw new Error("No se pudo registrar la revisión");
+      await getOwn(orgId, sessionId);
+      ok(await c.rpc("mnt_sa_record_external", {
+        p_company: orgId, p_session: sessionId, p_performed_on: v.performedOn, p_provider: v.provider,
+        p_reference: v.reference ?? "", p_result: v.result, p_description: v.description ?? "",
+        p_exceptions: (v.exceptions ?? []).map((e) => ({ item_id: e.itemId, result: e.result, note: e.note ?? null })) as unknown as Json,
+        p_decisions: decisionsJson(v.decisions),
+      }));
     },
 
     /** Item must belong to a session of the org that is in progress. */
@@ -268,40 +318,23 @@ export function createSessionsRepo(c: StandaloneClient) {
     },
 
     /**
-     * in_progress → closed. Pending items become skipped, outcome is stored as before and per-item
-     * results are frozen in close_snapshot. The final update is conditional on status = in_progress,
-     * so a second close (retry, reload, double click) never re-closes. Returns closedNow=false then.
+     * in_progress → closed in ONE database transaction (mnt_sa_close_session): pending items become skipped,
+     * outcome + close_snapshot are stored and each item's due decision is applied with its log row.
+     * Idempotent: a repeated close returns closedNow=false and changes nothing.
      */
-    async closeSession(orgId: string, sessionId: string, v: { signerName: string; signerRole: string | null; signature: string }) {
+    async closeSession(orgId: string, sessionId: string, v: { signerName: string; signerRole: string | null; signature: string; decisions?: DueDecision[] }) {
+      const before = await getOwn(orgId, sessionId);
+      if (before.status !== "closed") assertTransition(before.status, "closed");
+      const r = ok(await c.rpc("mnt_sa_close_session", {
+        p_company: orgId, p_session: sessionId, p_signer_name: v.signerName, p_signer_role: v.signerRole ?? "",
+        p_signature: v.signature, p_decisions: decisionsJson(v.decisions),
+      })) as { closed_now?: boolean; pending_count?: number } | null;
       const session = ok(await c.from("maintenance_sessions")
         .select("*, maintenance_plans(name, interval_months, asset_families(requires_certificate))")
         .eq("id", sessionId).eq("company_id", orgId).maybeSingle());
       if (!session) throw new Error(`Sesión ${DENY}`);
-      const items = (ok(await c.from("maintenance_items").select("id, asset_id, result, observations, metadata").eq("session_id", sessionId)) ?? [])
-        .map((i) => ({ ...i }));
-      if (session.status === "closed") {
-        const skipped = Number(meta(session.metadata).skipped_count ?? 0);
-        return { closedNow: false, session, items, pendingCount: skipped };
-      }
-      assertTransition(session.status, "closed");
-
-      const pendingIds = items.filter((i) => i.result === "pending").map((i) => i.id);
-      if (pendingIds.length) {
-        ok(await c.from("maintenance_items").update({ result: "skipped" }).in("id", pendingIds).eq("session_id", sessionId).eq("result", "pending"));
-        for (const it of items) if (it.result === "pending") it.result = "skipped";
-      }
-      const outcome = legacySessionOutcome(items.map((i) => i.result), pendingIds.length);
-      const closedAt = new Date().toISOString();
-      const close_snapshot = {
-        at: closedAt,
-        items: items.map((i) => ({ item_id: i.id, asset_id: i.asset_id, result: i.result, asset: meta(meta(i.metadata).snapshot).asset ?? null })),
-      };
-      const upd = ok(await c.from("maintenance_sessions").update({
-        status: "closed", closed_at: closedAt, signer_name: v.signerName, signer_role: v.signerRole,
-        signature_image_url: v.signature,
-        metadata: { ...meta(session.metadata), outcome, skipped_count: pendingIds.length, close_snapshot } as unknown as Json,
-      }).eq("id", sessionId).eq("company_id", orgId).eq("status", "in_progress").select("id")) ?? [];
-      return { closedNow: upd.length > 0, session, items, pendingCount: pendingIds.length };
+      const items = ok(await c.from("maintenance_items").select("id, asset_id, result, observations, metadata").eq("session_id", sessionId)) ?? [];
+      return { closedNow: !!r?.closed_now, session, items, pendingCount: Number(r?.pending_count ?? 0) };
     },
   };
 }

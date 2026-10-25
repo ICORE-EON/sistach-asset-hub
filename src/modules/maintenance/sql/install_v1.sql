@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS public.mnt_catalog_versions (
   catalog text PRIMARY KEY, version int NOT NULL, applied_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS public.mnt_orgs (
   org_id uuid PRIMARY KEY, registered_at timestamptz NOT NULL DEFAULT now());
+-- Organisation calendar time zone (set by the host); used to turn instants into calendar due dates.
+ALTER TABLE public.mnt_orgs ADD COLUMN IF NOT EXISTS timezone text NOT NULL DEFAULT 'UTC';
 
 CREATE TABLE IF NOT EXISTS public.mnt_asset_families (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -193,6 +195,18 @@ CREATE TABLE IF NOT EXISTS public.mnt_plan_assets (
   PRIMARY KEY (plan_id, asset_id),
   FOREIGN KEY (org_id, plan_id) REFERENCES public.mnt_plans(org_id, id) ON DELETE CASCADE,
   FOREIGN KEY (org_id, asset_id) REFERENCES public.mnt_assets(org_id, id));
+-- Current planned due date per link (NULL = sin programar); written only by mnt_set_due / mnt_close_session.
+ALTER TABLE public.mnt_plan_assets ADD COLUMN IF NOT EXISTS next_due_on date;
+-- Append-only log of due-date changes (who, when, old, new, reason).
+CREATE TABLE IF NOT EXISTS public.mnt_due_changes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL REFERENCES public.mnt_orgs(org_id),
+  plan_id uuid NOT NULL, asset_id uuid NOT NULL, session_id uuid, item_id uuid,
+  old_due date, new_due date,
+  kind text NOT NULL CHECK (kind IN ('initial','close','reschedule','exemption','no_advance')),
+  reason text, changed_by_ref uuid NOT NULL, changed_by_snapshot jsonb,
+  changed_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS mnt_due_changes_link_idx ON public.mnt_due_changes(org_id, plan_id, asset_id, changed_at DESC);
 CREATE TABLE IF NOT EXISTS public.mnt_plan_type_templates (
   org_id uuid NOT NULL, plan_id uuid NOT NULL,
   asset_type_id uuid NOT NULL REFERENCES public.mnt_asset_types(id),
@@ -387,6 +401,17 @@ CREATE OR REPLACE FUNCTION public.mnt_tg_append_only() RETURNS trigger
 LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN RAISE EXCEPTION 'mnt: % es un historial inmutable', TG_TABLE_NAME USING ERRCODE = '55000'; END $$;
 
+-- next_due_on changes only through mnt_set_due / mnt_close_session (they set mnt.due_writer locally).
+CREATE OR REPLACE FUNCTION public.mnt_tg_due_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  IF coalesce(current_setting('mnt.due_writer', true), '') <> 'on' AND
+     ((TG_OP = 'INSERT' AND NEW.next_due_on IS NOT NULL) OR (TG_OP = 'UPDATE' AND NEW.next_due_on IS DISTINCT FROM OLD.next_due_on)) THEN
+    RAISE EXCEPTION 'mnt: la próxima fecha solo se cambia con mnt_set_due o al cerrar' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END $$;
+
 -- Referenced catalogue rows must be global or belong to the same organisation.
 CREATE OR REPLACE FUNCTION public.mnt_tg_catalog_scope() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -563,7 +588,7 @@ BEGIN
     EXECUTE format('DROP TRIGGER IF EXISTS mnt_site_scope ON public.%I', t);
     EXECUTE format('CREATE TRIGGER mnt_site_scope BEFORE INSERT OR UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_site_scope()', t);
   END LOOP;
-  FOREACH t IN ARRAY ARRAY['mnt_session_history','mnt_incident_history'] LOOP
+  FOREACH t IN ARRAY ARRAY['mnt_session_history','mnt_incident_history','mnt_due_changes'] LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS mnt_append_only ON public.%I', t);
     EXECUTE format('CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only()', t);
   END LOOP;
@@ -578,6 +603,8 @@ DROP TRIGGER IF EXISTS mnt_code ON public.mnt_incidents;
 CREATE TRIGGER mnt_code BEFORE INSERT ON public.mnt_incidents FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_code('incident', 'INC');
 DROP TRIGGER IF EXISTS mnt_code ON public.mnt_certificates;
 CREATE TRIGGER mnt_code BEFORE INSERT ON public.mnt_certificates FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_code('certificate', 'CERT');
+DROP TRIGGER IF EXISTS mnt_due_guard ON public.mnt_plan_assets;
+CREATE TRIGGER mnt_due_guard BEFORE INSERT OR UPDATE ON public.mnt_plan_assets FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_due_guard();
 DROP TRIGGER IF EXISTS mnt_guard ON public.mnt_sessions;
 CREATE TRIGGER mnt_guard BEFORE INSERT OR UPDATE ON public.mnt_sessions FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_session_guard();
 DROP TRIGGER IF EXISTS mnt_guard ON public.mnt_session_items;
@@ -641,12 +668,12 @@ BEGIN
   INSERT INTO public.mnt_session_items(org_id, session_id, asset_id, checklist_version_id)
   SELECT p_org, sid, a.id, v.id
     FROM public.mnt_plan_assets pa
-    JOIN public.mnt_assets a ON a.org_id = pa.org_id AND a.id = pa.asset_id AND a.deleted_at IS NULL
+    JOIN public.mnt_assets a ON a.org_id = pa.org_id AND a.id = pa.asset_id AND a.deleted_at IS NULL AND a.status <> 'retired'
     JOIN public.mnt_plan_type_templates ptt ON ptt.plan_id = pa.plan_id AND ptt.asset_type_id = a.asset_type_id
     JOIN LATERAL (SELECT cv.id FROM public.mnt_checklist_versions cv
                    WHERE cv.template_id = ptt.checklist_template_id AND cv.is_published
                    ORDER BY cv.version DESC LIMIT 1) v ON true
-   WHERE pa.org_id = p_org AND pa.plan_id = p_plan AND (pa.end_on IS NULL OR pa.end_on >= current_date)
+   WHERE pa.org_id = p_org AND pa.plan_id = p_plan AND pa.start_on <= current_date AND (pa.end_on IS NULL OR pa.end_on >= current_date)
      AND (p_asset_ids IS NULL OR a.id = ANY (p_asset_ids));
   GET DIAGNOSTICS missing = ROW_COUNT;
   IF missing = 0 THEN
@@ -656,8 +683,89 @@ BEGIN
   RETURN sid;
 END $$;
 
--- Close a session atomically: status + history + incidents per failed response + certificate + outbox.
-CREATE OR REPLACE FUNCTION public.mnt_close_session(p_org uuid, p_session uuid) RETURNS jsonb
+-- First date (batch) and free rescheduling: plan-management permission; reason required to change an existing date.
+CREATE OR REPLACE FUNCTION public.mnt_set_due(p_org uuid, p_items jsonb, p_reason text DEFAULT NULL) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); it jsonb; r record; v_new date; v_reason text; n int := 0;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
+  IF me IS NULL THEN RAISE EXCEPTION 'mnt: sin identidad' USING ERRCODE = '42501'; END IF;
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN RAISE EXCEPTION 'mnt: lista no válida' USING ERRCODE = '22023'; END IF;
+  FOR it IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    SELECT pa.plan_id, pa.asset_id, pa.next_due_on INTO r FROM public.mnt_plan_assets pa
+     WHERE pa.org_id = p_org AND pa.plan_id = (it->>'plan_id')::uuid AND pa.asset_id = (it->>'asset_id')::uuid FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'mnt: equipo del plan no encontrado' USING ERRCODE = 'P0002'; END IF;
+    v_new := nullif(it->>'due', '')::date;
+    CONTINUE WHEN v_new IS NOT DISTINCT FROM r.next_due_on;
+    v_reason := nullif(btrim(coalesce(it->>'reason', p_reason, '')), '');
+    IF r.next_due_on IS NOT NULL AND v_reason IS NULL THEN
+      RAISE EXCEPTION 'mnt: indica el motivo del cambio de fecha' USING ERRCODE = '23514';
+    END IF;
+    PERFORM set_config('mnt.due_writer', 'on', true);
+    UPDATE public.mnt_plan_assets SET next_due_on = v_new WHERE org_id = p_org AND plan_id = r.plan_id AND asset_id = r.asset_id;
+    PERFORM set_config('mnt.due_writer', 'off', true);
+    INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+    VALUES (p_org, r.plan_id, r.asset_id, r.next_due_on, v_new, CASE WHEN r.next_due_on IS NULL THEN 'initial' ELSE 'reschedule' END, v_reason, me, snap);
+    n := n + 1;
+  END LOOP;
+  RETURN n;
+END $$;
+
+-- Per-item due decisions inside the close transaction. Single rule: proposal = execution + interval;
+-- calendar alternative = planned + interval; anything else needs a reason. Skipped never advances.
+CREATE OR REPLACE FUNCTION public.mnt_apply_due(p_org uuid, p_session uuid, p_plan uuid, p_decisions jsonb) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot();
+  v_tz text := coalesce((SELECT timezone FROM public.mnt_orgs WHERE org_id = p_org), 'UTC');
+  v_months int := (SELECT coalesce(interval_months, CASE frequency WHEN 'monthly' THEN 1 WHEN 'quarterly' THEN 3
+    WHEN 'semiannual' THEN 6 WHEN 'annual' THEN 12 END) FROM public.mnt_plans WHERE id = p_plan);
+  it record; d jsonb; l record; has_link boolean; v_exec date; v_planned date; v_prop date; v_cal date;
+  v_action text; v_due date; v_reason text; v_kind text;
+BEGIN
+  FOR it IN SELECT i.id, i.asset_id, i.result, i.completed_at FROM public.mnt_session_items i WHERE i.session_id = p_session ORDER BY i.created_at, i.id LOOP
+    SELECT x INTO d FROM jsonb_array_elements(coalesce(p_decisions, '[]'::jsonb)) x WHERE x->>'item_id' = it.id::text LIMIT 1;
+    SELECT pa.next_due_on INTO l FROM public.mnt_plan_assets pa WHERE pa.org_id = p_org AND pa.plan_id = p_plan AND pa.asset_id = it.asset_id FOR UPDATE;
+    has_link := FOUND;
+    v_planned := CASE WHEN has_link THEN l.next_due_on END;
+    -- reopen + close again: the first close's snapshot and decisions are kept, never rewritten
+    CONTINUE WHEN (SELECT coalesce(metadata->'due', '{}'::jsonb) ? it.id::text FROM public.mnt_sessions WHERE id = p_session);
+    v_exec := CASE WHEN it.result IN ('ok','failed') THEN (coalesce(it.completed_at, now()) AT TIME ZONE v_tz)::date END;
+    v_prop := CASE WHEN v_exec IS NOT NULL AND v_months IS NOT NULL THEN (v_exec + make_interval(months => v_months))::date END;
+    v_cal := CASE WHEN v_exec IS NOT NULL AND v_planned IS NOT NULL AND v_months IS NOT NULL THEN (v_planned + make_interval(months => v_months))::date END;
+    v_action := coalesce(d->>'action', CASE WHEN it.result IN ('ok','failed') THEN 'advance' WHEN it.result = 'not_applicable' THEN NULL ELSE 'keep' END);
+    IF v_action IS NULL THEN RAISE EXCEPTION 'mnt: decide la próxima fecha de los equipos «No aplica»' USING ERRCODE = '23514'; END IF;
+    IF v_action NOT IN ('advance','keep') THEN RAISE EXCEPTION 'mnt: decisión no válida' USING ERRCODE = '22023'; END IF;
+    IF it.result = 'skipped' AND v_action = 'advance' THEN RAISE EXCEPTION 'mnt: un equipo no realizado no avanza' USING ERRCODE = '23514'; END IF;
+    v_reason := nullif(btrim(coalesce(d->>'reason', '')), '');
+    v_due := CASE WHEN v_action = 'advance' THEN coalesce(nullif(d->>'due', '')::date, v_prop) END;
+    IF v_action = 'advance' AND v_due IS NULL THEN RAISE EXCEPTION 'mnt: indica la próxima fecha' USING ERRCODE = '23514'; END IF;
+    IF v_reason IS NULL AND ((it.result = 'failed' AND v_action = 'keep') OR (it.result = 'not_applicable' AND v_action = 'advance')
+        OR (v_action = 'advance' AND v_due IS DISTINCT FROM v_prop AND v_due IS DISTINCT FROM v_cal)) THEN
+      RAISE EXCEPTION 'mnt: indica el motivo de la decisión sobre la próxima fecha' USING ERRCODE = '23514';
+    END IF;
+    v_kind := CASE WHEN it.result = 'not_applicable' AND v_action = 'advance' THEN 'exemption'
+                   WHEN it.result = 'failed' AND v_action = 'keep' THEN 'no_advance' ELSE 'close' END;
+    UPDATE public.mnt_sessions SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{due}',
+        coalesce(metadata->'due', '{}'::jsonb) || jsonb_build_object(it.id::text, jsonb_build_object(
+          'planned_on', v_planned, 'executed_on', v_exec, 'late', (v_exec IS NOT NULL AND v_planned IS NOT NULL AND v_exec > v_planned),
+          'proposed_on', v_prop, 'calendar_on', v_cal, 'advanced', v_action = 'advance',
+          'applied_due', CASE WHEN v_action = 'advance' THEN v_due ELSE v_planned END, 'reason', v_reason)))
+     WHERE id = p_session;
+    IF has_link AND (v_kind = 'no_advance' OR (v_action = 'advance' AND v_due IS DISTINCT FROM v_planned)) THEN
+      IF v_action = 'advance' THEN
+        PERFORM set_config('mnt.due_writer', 'on', true);
+        UPDATE public.mnt_plan_assets SET next_due_on = v_due WHERE org_id = p_org AND plan_id = p_plan AND asset_id = it.asset_id;
+        PERFORM set_config('mnt.due_writer', 'off', true);
+      END IF;
+      INSERT INTO public.mnt_due_changes(org_id, plan_id, asset_id, session_id, item_id, old_due, new_due, kind, reason, changed_by_ref, changed_by_snapshot)
+      VALUES (p_org, p_plan, it.asset_id, p_session, it.id, v_planned, CASE WHEN v_action = 'advance' THEN v_due ELSE v_planned END, v_kind, v_reason, me, snap);
+    END IF;
+  END LOOP;
+END $$;
+
+-- Close a session atomically: status + history + incidents per failed response + due dates + certificate + outbox.
+DROP FUNCTION IF EXISTS public.mnt_close_session(uuid, uuid);
+CREATE OR REPLACE FUNCTION public.mnt_close_session(p_org uuid, p_session uuid, p_decisions jsonb DEFAULT '[]'::jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   s public.mnt_sessions%ROWTYPE;
@@ -676,6 +784,7 @@ BEGIN
   END IF;
   v_outcome := CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_items WHERE session_id = p_session AND result = 'failed')
                     THEN 'with_incidents' ELSE 'ok' END;
+  PERFORM public.mnt_apply_due(p_org, p_session, s.plan_id, p_decisions);
   UPDATE public.mnt_sessions SET status = 'closed', closed_at = now(), closed_by_ref = me,
          closed_by_snapshot = snap, outcome = v_outcome
    WHERE id = p_session;
@@ -849,7 +958,7 @@ DECLARE
     'mnt_checklist_template_sites','mnt_checklist_versions','mnt_checklist_questions','mnt_certificate_templates',
     'mnt_plans','mnt_plan_sites','mnt_plan_assets','mnt_plan_type_templates','mnt_sessions','mnt_session_items',
     'mnt_responses','mnt_session_history','mnt_incidents','mnt_incident_history','mnt_certificates',
-    'mnt_certificate_items','mnt_counters','mnt_outbox'];
+    'mnt_certificate_items','mnt_counters','mnt_outbox','mnt_due_changes'];
   -- table => permission required to write (clients); reads always need mnt.view
   writable jsonb := '{
     "mnt_org_asset_types":"mnt.admin", "mnt_assets":"mnt.manage_assets", "mnt_kit_items":"mnt.manage_assets",
@@ -859,7 +968,7 @@ DECLARE
     "mnt_plan_sites":"mnt.admin", "mnt_plan_assets":"mnt.admin", "mnt_plan_type_templates":"mnt.admin",
     "mnt_session_items":"mnt.run", "mnt_responses":"mnt.run"}';
   update_only jsonb := '{"mnt_sessions":"mnt.run", "mnt_incidents":"mnt.run"}';
-  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items'];
+  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items','mnt_due_changes'];
 BEGIN
   FOREACH t IN ARRAY all_tables LOOP
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
@@ -908,7 +1017,7 @@ BEGIN
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
   END LOOP;
   FOREACH p IN ARRAY ARRAY['mnt_can(uuid,text)','mnt_is_client()','mnt_create_session(uuid,uuid,uuid,uuid,date,uuid[])',
-    'mnt_close_session(uuid,uuid)','mnt_reopen_session(uuid,uuid,text)','mnt_open_incident(uuid,text,text,text,uuid,uuid)',
+    'mnt_close_session(uuid,uuid,jsonb)','mnt_set_due(uuid,jsonb,text)','mnt_reopen_session(uuid,uuid,text)','mnt_open_incident(uuid,text,text,text,uuid,uuid)',
     'mnt_change_incident_status(uuid,uuid,text,text,text)','mnt_attach_certificate_pdf(uuid,uuid,uuid,text)',
     'mnt_revoke_certificate(uuid,uuid,text)','mnt_publish_checklist_version(uuid,uuid)',
     'mnt_register_external_certificate(uuid,text,date,date,text,text,uuid,uuid,text)'] LOOP

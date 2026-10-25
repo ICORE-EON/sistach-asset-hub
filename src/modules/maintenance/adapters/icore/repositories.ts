@@ -74,6 +74,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       setCertificateTemplate: nc("plans.setCertificateTemplate"),
       setActive: nc("plans.setActive"),
       addAssets: nc("plans.addAssets"),
+      setDue: nc("plans.setDue"),
       removeAsset: nc("plans.removeAsset"),
     },
     sessions: {
@@ -87,6 +88,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       startSession: nc("sessions.startSession"),
       recordExternal: nc("sessions.recordExternal"),
       listUpcoming: nc("sessions.listUpcoming"),
+      listDuePreview: nc("sessions.listDuePreview"),
       listInterventions: nc("sessions.listInterventions"),
       assertItemWritable: nc("sessions.assertItemWritable"),
       setItemResult: nc("sessions.setItemResult"),

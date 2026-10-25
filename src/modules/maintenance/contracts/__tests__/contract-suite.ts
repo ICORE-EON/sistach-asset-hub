@@ -46,11 +46,11 @@ const rejectsOrEmpty = async (p: Promise<unknown>) => {
 export function defineRepositoryContract(setup: ContractSetup) {
   describe(`contrato de datos de mantenimiento: ${setup.name}`, () => {
     describe("shape", () => {
-      it("expone las 103 operaciones catalogadas como funciones", () => {
+      it("expone las 105 operaciones catalogadas como funciones", () => {
         const r = setup.repos();
         const missing = (Object.keys(OPERATIONS) as OperationKey[]).filter((k) => typeof op(r, k) !== "function");
         expect(missing).toEqual([]);
-        expect(Object.keys(OPERATIONS)).toHaveLength(103);
+        expect(Object.keys(OPERATIONS)).toHaveLength(105);
       });
     });
 
