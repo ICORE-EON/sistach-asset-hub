@@ -29,6 +29,13 @@
       "when": 1792956494108,
       "tag": "0003_mnt_2a_link_removed_not_history",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792956586873,
+      "tag": "0004_mnt_2a_delete_guard_parent_company",
+      "breakpoints": true
     }
   ]
 }
