@@ -40,6 +40,8 @@ import { resolveTemplatesForType, type ScopedTemplate } from "../../domain/check
 import { assetKeys, assetService } from "../../services/assets";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { FREQUENCIES, planFrequencyLabel, planKeys, planService } from "../../services/plans";
+import { planIntervalMonths } from "../../domain/due-date";
+import { InitialDuePicker } from "../components/initial-due-picker";
 import { sessionKeys, sessionService } from "../../services/sessions";
 
 export { FREQUENCIES };
@@ -730,6 +732,13 @@ function CreatePlanDialog({
           <Label>Notas</Label>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
         </div>
+
+        {selectedIds.length > 0 && (
+          <InitialDuePicker
+            months={frequency === "custom" ? (Number(customYears) || 0) * 12 : planIntervalMonths(frequency, null)}
+            onChange={setInitialDue}
+          />
+        )}
       </div>
       <DialogFooter>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
