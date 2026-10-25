@@ -1,106 +1,116 @@
-# Bloque 1B (revisado) — Vencimientos con control del usuario
+# Bloque 1B (versión final) — Vencimientos sencillos para pyme
 
-Solo planificación. El diagnóstico anterior sigue siendo válido (skipped y "no aplica" reinician el ciclo usando `closed_at`; `start_on + intervalo` como primera fecha; desbordes de fin de mes con `setMonth`; mezcla UTC/local; activos retirados sin excluir; truncado silencioso a partir de 1000 filas; `createSession` sin filtrar vínculos ni activos). Esta revisión cambia la solución: **la próxima fecha pasa a ser un dato guardado por equipo y plan**, que el sistema propone y el usuario puede corregir, en lugar de recalcularse cada vez.
+Solo es un plan. El diagnóstico ya está aceptado y no se repite. Principio: con pocos equipos (por ejemplo, 5 extintores, 2 climatizadores y un compresor) se debe poder programar, registrar y consultar en pocos pasos. La integridad, los permisos y la trazabilidad no se recortan.
 
-## 1. Reglas de negocio
+## 1. Qué cambia respecto a la versión anterior (simplificación)
 
-Tres conceptos separados, **por equipo** (nunca solo por sesión):
-- **Ejecución**: si se hizo o no la revisión del equipo.
-- **Resultado**: conforme o con incidencias.
-- **Seguimiento**: las incidencias siguen su circuito actual. No hay motor nuevo.
+- Se elimina el margen anti-deriva (1/6 del intervalo, con un máximo de 30 días).
+- Se elimina la tabla de bitácora con varios tipos de origen y el relleno inicial con fechas calculadas.
+- Se elimina el paso "Revisar programación" como pantalla aparte: se sustituye por una línea editable en el diálogo de cierre ya existente.
+- Se mantiene el resto: la próxima fecha queda guardada por equipo y plan, se puede corregir y cada cambio queda registrado.
 
-| Situación del equipo al cerrar | Ejecución | ¿Avanza el ciclo? | Interacción |
+## 2. Regla de fecha propuesta (una sola)
+
+**Propuesta = fecha real de la revisión + intervalo del plan.**
+
+- Es fácil de explicar ("la siguiente vence un periodo después de la que se ha hecho") y nunca esconde un retraso: si se revisa tarde, la fecha prevista original sigue registrada y la diferencia se ve.
+- **Mantener el calendario**: en el cierre, si había fecha prevista y no coincide con la propuesta, aparece un único botón alternativo, "Mantener calendario (prevista + intervalo)". Es solo otro valor sugerido para la misma casilla, no un segundo motor ni un ajuste del plan.
+- El responsable puede aceptar la propuesta, elegir la alternativa o escribir otra fecha.
+- Una fecha corregida no significa que se haya cumplido una norma. Si la revisión se hizo después de la fecha prevista, el equipo se marca como "Realizado con retraso" en su historial.
+
+Aritmética: fechas de calendario (día, sin hora). Al sumar meses, si el día no existe se usa el último día del mes (31-ene + 1 = 28/29-feb; 29-feb + 12 = 28-feb). La fecha real de una revisión interna es el día local de la organización: Europe/Madrid en esta app; en ICORE, la zona horaria la aporta el host. La fecha real de una revisión externa es la `performed_on` indicada.
+
+## 3. Reglas por equipo al cerrar
+
+| Resultado del equipo | ¿Se hizo? | Próxima fecha por defecto | ¿Hay que hacer algo? |
 |---|---|---|---|
-| Conforme (`ok`) | Realizada | Sí, con la fecha propuesta | Ninguna |
-| Con incidencias (`with_incident`, `failed` externo) | Realizada | Sí por defecto | Ninguna; el usuario puede pulsar "No avanzar" y debe dar un motivo |
-| Omitido (`skipped` o pendiente al cerrar) | No realizada | No. Sigue con su fecha prevista (y saldrá vencido) | Ninguna. Nunca cuenta como hecho |
-| "No aplica" global del equipo (`not_applicable`) | No realizada | **Solo si el usuario lo decide** | Pregunta obligatoria "¿Programar el siguiente mantenimiento?" con motivo. Si dice sí, es una **exención justificada** del ciclo |
-| Puntos del checklist marcados "no aplica" | No afecta | Según el resultado del equipo | Ninguna |
-| Sesión cancelada | — | No | Ninguna |
+| Conforme | Sí | Se aplica la propuesta | No |
+| Con incidencias | Sí | Se aplica la propuesta | No. Opción "No avanzar" con motivo obligatorio |
+| Omitido o pendiente | No | No cambia (si ya ha pasado, sale vencido) | No |
+| "No aplica" global del equipo | No | No cambia | Sí: elegir "Mantener fecha" o "Exención: programar siguiente" (motivo obligatorio) |
+| Puntos del checklist "no aplica" | — | Según el resultado del equipo | No |
 
-Pregunta "¿Programar el siguiente mantenimiento?": aparece solo en casos excepcionales: equipos con "No aplica" global o cuando el usuario elige "No avanzar" o "Cambiar fecha". El cierre normal conforme no añade pasos.
+Varios equipos: el resultado común se aplica a todos y solo se tocan las excepciones. Esto vale para revisiones internas y externas. En el registro externo se añade "Excepciones por equipo": por defecto todos tienen el resultado común y se pueden marcar 2 de 50 como "Con incidencias" u "Omitido". Nunca se piden 50 confirmaciones.
 
-Exención de un omitido (no toca hacerlo este ciclo): se hace desde Próximos con la acción "Reprogramar" sobre ese equipo (con motivo obligatorio). Así queda constancia sin fingir una revisión.
+## 4. Primera fecha al vincular un equipo a un plan
 
-## 2. Regla de propuesta (determinista, sin dos motores)
+Al crear el plan, al añadir equipos o al dar de alta el activo, un único selector para el lote:
+1. **Fecha prevista**: se escribe directamente.
+2. **Última revisión**: se escribe la fecha y se propone última + intervalo, editable.
+3. **Sin programar** (por defecto).
 
-Datos: `P` = fecha prevista del ciclo, `E` = fecha efectiva de la revisión (día calendario), `I` = intervalo en meses, `T` = margen = mín(30 días, I × 30 / 6), es decir, una sexta parte del intervalo, con un máximo de 30 días.
+`start_on` conserva su significado de inicio del vínculo y no se usa como vencimiento.
 
-- Si `|E − P| ≤ T` → propuesta = `P + I` (se respeta el calendario y no hay deriva por adelantarse o retrasarse unos días).
-- Si no, o si no hay `P` → propuesta = `E + I` (se adopta el nuevo ritmo real tras un retraso o adelanto grande).
+## 5. Almacenamiento mínimo
 
-Por qué: con una única regla se evita que el calendario se desplace un poco en cada ciclo (deriva) y, a la vez, no se encadenan vencimientos imposibles tras un retraso grande. El usuario puede corregir siempre la fecha.
+Una migración aditiva:
+- `maintenance_plan_assets.next_due_on date null`: próxima fecha actual, `null` = sin programar.
+- Nueva tabla `mnt_due_changes`, de solo inserción: `company_id`, `plan_asset_id`, `session_id null`, `old_due`, `new_due`, `reason null`, `changed_by` (siempre `auth.uid()`, asignado en el servidor) y `changed_at`. RLS de lectura por organización, sin escritura directa (solo mediante funciones). Sin FK a auth.users, igual que el resto del módulo.
+- En `maintenance_items.metadata.due` (sin columna nueva), congelado al cerrar: `planned_on` (fecha prevista antes de ejecutar), `executed_on`, `late` y `applied_due`. El pasado nunca se sobrescribe.
 
-Aritmética: fechas calendario `YYYY-MM-DD`; sumar meses recortando al último día del mes (31-ene + 1 = 28/29-feb; 29-feb + 12 = 28-feb). La fecha efectiva de un cierre interno se convierte al día local de la organización (Europe/Madrid en esta app; en ICORE, la zona horaria de la organización la aporta el host).
+Por qué no basta con lo que ya existe: no hay ningún campo de vencimiento, y `audit_logs` purga los registros antiguos y no se usa en las tablas de mantenimiento. Guardarlo solo en metadata no permitiría corregir ni consultar las fechas.
 
-## 3. Primer vencimiento
+Datos actuales (de prueba): todos los vínculos quedan **sin programar**. No se generan fechas y el historial no se toca.
 
-Al asignar equipos a un plan (crear plan, "Añadir equipos" y, más adelante, desde el alta del activo), se elige una opción en un único selector para todo el lote, editable por equipo:
-1. **Próxima fecha prevista**: se indica directamente.
-2. **Última revisión**: se indica la fecha y se propone `última + I` (editable).
-3. **Sin programar**: aparece en Próximos como "Sin programar" y no se marca como vencido.
+## 6. Cierre atómico e idempotente
 
-`start_on` mantiene su significado (inicio del vínculo) y **no** se usa como vencimiento. Ejemplo del extintor trasladado: última revisión en enero → propuesta en abril → el responsable la cambia a mayo indicando el motivo → queda registrado.
+Se crea una función en la base de datos, `mnt_close_session(session_id, signer, decisiones[])`, que sustituye los varios pasos del cierre actual (interno). Para el externo se crea `mnt_record_external(session_id, datos, excepciones[])`. Cada una, en una sola transacción:
+1. Comprueba la organización y el permiso de ejecutar (`can_close_session`).
+2. Marca los pendientes como omitidos, guarda resultados e instantánea y cierra la sesión solo si aún no estaba cerrada.
+3. Por cada equipo aplica su decisión: actualiza `next_due_on` e inserta en la bitácora.
+4. Si se repite la llamada (reintento o doble clic) y la sesión ya está cerrada, no hace nada y devuelve el estado.
 
-## 4. Almacenamiento mínimo necesario
+El certificado se sigue emitiendo después, con el flujo idempotente actual. Así no puede quedar una sesión cerrada con las fechas sin actualizar. Si fallase el certificado, el reintento solo emite el certificado.
 
-Comprobado: `audit_logs` existe, pero ninguna tabla de mantenimiento tiene el disparador de auditoría y tiene purga por antigüedad (`audit_logs_purge_old`). Por eso no sirve como evidencia permanente de cambios de fecha. `maintenance_plan_assets` no tiene campo de vencimiento. `maintenance_items.metadata` ya guarda instantáneas.
+## 7. Permisos
 
-Propuesta (una migración aditiva, sin tocar datos):
-- `maintenance_plan_assets`: añadir `next_due_on date null` (null = sin programar), `last_done_on date null` y `due_updated_at timestamptz null`. Es el **estado actual** y se lee rápido.
-- Nueva tabla `mnt_due_changes` (solo inserción, RLS por `company_id`, sin FK a auth.users, `person_ref uuid`): `plan_asset_id`, `item_id null`, `old_due date null`, `new_due date null`, `source` (`initial | proposal | manual | exemption | no_advance`), `reason text null` (obligatorio en manual, exención y no avanzar), `created_at`. Es la **bitácora**.
-- `maintenance_items.metadata.due` (sin columna nueva): `{ planned_on, effective_on, proposed_on, applied_on, advanced }`, congelado al cerrar junto al `close_snapshot` actual. Esto conserva la fecha prevista y la efectiva de cada ejecución sin sobrescribir el historial.
-- Una función `mnt_apply_due_changes(session, decisiones)` con `SECURITY DEFINER`, en una sola transacción: actualiza `next_due_on` solo si sigue siendo la fecha leída (control de concurrencia) e inserta en la bitácora. Se ejecuta al cerrar (interno y externo) y al reprogramar.
+- Confirmar o cambiar la fecha durante el cierre: quien puede cerrar sesiones (`can_close_session`), y solo para los equipos de esa sesión.
+- Reprogramar libremente desde Próximos o Planes: quien gestiona planes (`can_manage_assets`), con la función `mnt_reschedule(plan_asset_id, new_due, reason)`. El motivo es obligatorio si ya había fecha.
+- La identidad siempre la pone el servidor (`auth.uid()`), nunca un identificador enviado desde el navegador.
 
-Alternativas descartadas: solo metadata (la bitácora quedaría dispersa y no se puede consultar), `audit_logs` (purga y semántica genérica) o seguir calculando al vuelo (no permite corregir la fecha).
+## 8. Próximos, Planes y sesiones (Bloque 1A)
 
-Datos existentes (de prueba): un relleno inicial en la misma migración rellena `next_due_on` con la regla nueva a partir de la última ejecución realizada; los vínculos sin historial quedan sin programar. Se registra con `source='initial'`.
+- Próximos lee `next_due_on` en vez de calcularlo. Mantiene la agrupación plan + fecha y añade el grupo "Sin programar", la acción "Reprogramar" en "Ver equipos" y una marca discreta "última con incidencias".
+- Exclusiones: activos retirados o borrados y vínculos con `end_on` vencido. Los averiados o en mantenimiento siguen apareciendo.
+- `createSession` toma solo vínculos vigentes y activos no retirados.
+- Sin truncado silencioso: se lee por bloques con `range` hasta el final y, si algo falla, se muestra un error. Sin vistas ni tablas de rendimiento.
+- Histórico: no cambia.
 
-## 5. Flujo con 50 extintores (47 realizados y 3 omitidos)
+## 9. Componentes afectados
 
-Al pulsar "Cerrar y firmar" no hay preguntas: los 47 avanzan con la propuesta y los 3 omitidos mantienen su fecha (saldrán vencidos en Próximos). Solo si hay equipos con "No aplica" global aparece un paso "Revisar programación" que lista **solo esos equipos**. Ese paso permite marcar todos a la vez y escribir un motivo común. Para corregir fechas de forma excepcional, en ese mismo paso hay un enlace opcional "Ajustar fechas" que permite cambiarlas por equipo o en bloque.
+- Dominio: `domain/due-date.ts` (`addMonthsClamped`, `toOrgDate`, `proposeDue`, `calendarAlternative`, `defaultDecision(result)`) y sus pruebas.
+- Contratos y especificación: `UpcomingRow` añade `next_due_on` (fecha guardada), `scheduled`, `last_result` y `plan_asset_id`. Las operaciones `sessions.close` y `recordExternal` aceptan `decisiones[]` y `excepciones[]`. Nueva `plans.reschedule`. Primera fecha en `createPlan` y `addAssets`. `TenantPort.timezone` opcional. Se actualizan `spec/` y `install_v1.sql`, con pruebas en PostgreSQL desechable.
+- Adaptador standalone: `sessions.repo.ts` (llama a las dos funciones), `plans.repo.ts` (primera fecha y reprogramar) y `listUpcoming`.
+- UI: línea editable de próxima fecha en el diálogo de cierre (solo se despliega si hay excepciones o el usuario quiere cambiarla), excepciones en el registro externo, selector de primera fecha en Planes y "Reprogramar" en Próximos.
 
-Registro externo: igual, con un único resultado para todos y avance de todos por defecto.
+## 10. Pruebas de aceptación
 
-## 6. Componentes afectados
+- Fechas: 31-ene + 1 mes, 29-feb + 12 meses, intervalo de 60 meses, cierre a las 23:30 y a las 00:30 en Madrid.
+- 5 extintores conformes: cierre sin preguntas, 5 fechas = real + intervalo y 5 entradas en la bitácora.
+- 47 conformes y 3 omitidos: los 3 conservan la fecha y salen vencidos.
+- Externo con 48 conformes y 2 con incidencias: los 50 avanzan por defecto y los 2 quedan marcados.
+- "No avanzar" o exención sin motivo: se rechaza. "No aplica" global sin decisión: no se puede cerrar.
+- Revisión tarde: queda `late = true` con la fecha prevista original; "Mantener calendario" propone prevista + intervalo.
+- Doble cierre o reintento: un solo cambio de fechas. Fallo del certificado: las fechas quedan aplicadas y el reintento solo emite el certificado.
+- Reprogramar sin permiso de gestión, o sin motivo cuando ya hay fecha: se rechaza. Quien hizo el cambio = usuario autenticado.
+- Otra organización: no ve ni cambia fechas ni bitácora.
+- Activo retirado: fuera de Próximos y presente en Histórico. Averiado: visible.
+- Lectura de más de 1000 vínculos sin truncado (en base desechable).
 
-- Dominio (portable): `domain/due-date.ts` con `addMonthsClamped`, `toOrgDate`, `proposeNextDue(P, E, I)`, `isExecution(result)` y `defaultAdvance(result)`, más pruebas.
-- Contratos: `UpcomingRow` añade `scheduled`, `last_result` y `plan_asset_id`. Nuevas operaciones `sessions.applyDueDecisions` y `plans.rescheduleAsset({planAssetId, newDue, reason})`, y la opción de primer vencimiento en `createPlan`/`addAssets`. Todo con `orgId` explícito; se documenta en `spec/` (ICORE_ADAPTER_SPEC, DTO_MAPPING, operations).
-- Adaptador standalone: `listUpcoming` lee `next_due_on` (sin recalcular), excluye activos retirados o borrados (no los averiados ni los que están en mantenimiento) y vínculos con `end_on` pasado, y pagina por bloques. `closeSession`/`recordExternal` llaman a la función atómica. `createSession` filtra vínculos vigentes y activos no retirados. `plans.repo` acepta el primer vencimiento.
-- UI: Próximos del Bloque 1A añade la acción "Reprogramar" por equipo en el diálogo "Ver equipos", el estado "Sin programar" y una marca discreta de "última con incidencias". La agrupación plan + fecha funciona igual y es más estable porque las fechas ya están guardadas. Planes: selector de primer vencimiento en crear y añadir equipos. Sesión: paso "Revisar programación" condicional.
-- Histórico: sin cambios (sigue ordenado por fecha administrativa y paginado en servidor).
+## 11. Se aplaza
 
-## 7. Casos límite y pruebas de aceptación
+Reglas de tolerancia, calendarios reglamentarios, configuración de base por plan, relleno de fechas para clientes reales, reprogramación masiva avanzada, Histórico ordenado por fecha efectiva, vistas o columnas de rendimiento para grandes volúmenes y cualquier cambio en Incidencias.
 
-- 31-ene + 1 mes, 29-feb + 12 meses, 30-nov + 3 meses, intervalo de 60 meses.
-- Cierre a las 23:30 de Madrid = ese mismo día; a las 00:30 = el día siguiente.
-- Regla de propuesta: revisión 10 días tarde dentro del margen → `P + I`; 4 meses tarde → `E + I`; sin `P` → `E + I`.
-- 50 equipos: 47 conformes y 3 omitidos → 47 avanzan, 3 conservan la fecha, 0 preguntas y 47 entradas en la bitácora con `source='proposal'`.
-- Con incidencias: avanza por defecto; "No avanzar" sin motivo se rechaza.
-- "No aplica" global: sin decisión no se puede cerrar; si se avanza, queda como `exemption` con motivo.
-- Reprogramación manual: exige motivo; guarda la fecha anterior y la nueva; el historial de la ejecución no cambia.
-- Dos cierres simultáneos de la misma fecha: solo uno aplica y el otro no la sobrescribe.
-- Primer vencimiento: fecha directa, desde última revisión o sin programar; `start_on` futuro no altera la fecha.
-- Activo retirado: desaparece de Próximos y sigue en Histórico. Activo averiado: sigue apareciendo.
-- Más de 1500 vínculos (en base desechable): sin truncado.
-- Otra organización no ve ni modifica fechas ni bitácora (RLS y función).
-
-## 8. Portabilidad e ICORE
-
-Reglas en `domain/`; persistencia con tablas `mnt_` y columnas en tablas propias del módulo; la zona horaria la aporta el host (TenantPort `timezone`, opcional). Se añade al instalador limpio `install_v1.sql` y a sus pruebas en PostgreSQL desechable. Sin dependencias standalone en las capas exportables.
-
-## 9. Secuencia y complejidad
+## 12. Entregas
 
 | Entrega | Contenido | Complejidad |
 |---|---|---|
-| 1B-1 | Dominio de fechas y propuesta, con pruebas | Baja |
-| 1B-2 | Migración aditiva, función atómica, relleno inicial, instalador limpio y pruebas SQL | Media |
-| 1B-3 | Adaptador: `listUpcoming` sobre `next_due_on`, exclusiones, paginación, `createSession` filtrado | Media |
-| 1B-4 | Cierre interno y externo con avance por equipo y paso condicional | Media |
-| 1B-5 | Reprogramar desde Próximos y primer vencimiento en Planes | Baja-Media |
+| 1B-1 | Dominio de fechas y pruebas | Baja |
+| 1B-2 | Migración, tres funciones, instalador limpio y pruebas SQL | Media |
+| 1B-3 | Próximos sobre `next_due_on`, exclusiones, lectura sin truncado y sesiones filtradas | Baja-Media |
+| 1B-4 | Cierre interno y externo con resultado común, excepciones y fecha editable | Media |
+| 1B-5 | Primera fecha en Planes y "Reprogramar" | Baja |
 
-## 10. Decisiones imprescindibles antes de aprobar
+## 13. Decisión técnica imprescindible
 
-1. Margen anti-deriva: ¿aceptáis 1/6 del intervalo con un máximo de 30 días?
-2. ¿Quién puede reprogramar? Propuesta: los mismos que pueden gestionar planes (`can_manage_assets`).
-3. ¿El relleno inicial de los datos de prueba se aplica así o preferís dejar todos los vínculos sin programar?
+Cerrar con una función de la base de datos en lugar del cierre por pasos actual. **Recomendación para pyme: sí.** Es la única forma sencilla de garantizar que la sesión cerrada y las fechas cambian juntas, y además simplifica los reintentos. Sustituye código existente y no lo duplica.
