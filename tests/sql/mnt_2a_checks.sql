@@ -3,7 +3,7 @@
 -- Org B (Sistach): UB administrador; UA se añade como 'manager' solo dentro de la prueba. Registros T2A-*.
 DO $run$
 DECLARE
-  total int := 0; passed int := 0; fails text := '';
+  total int := 0; passed int := 0; fails text := ''; results text := '';
   r record; v text; c bigint; q text; k text; val text;
   UA constant uuid := '3b7de027-5b93-4336-a2a3-ececd12f7443';
   UB constant uuid := 'fbf169ac-47e9-4061-a3b2-c9e030e1f214';
@@ -112,8 +112,9 @@ BEGIN
     END;
     RESET ROLE;
     total := total + 1;
+    results := results || format(E'\n%s %s (%s): esperado %s, obtenido %s', CASE WHEN v = r.expected THEN 'PASS' ELSE 'FAIL' END, r.n, r.actor, r.expected, v);
     IF v = r.expected THEN passed := passed + 1; ELSE fails := fails || format(' [%s %s: esperado %s, obtenido %s]', r.n, r.actor, r.expected, v); END IF;
   END LOOP;
-  RAISE EXCEPTION 'MNT_2A RESULTADO %/% %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END;
+  RAISE EXCEPTION 'MNT_2A RESULTADO %/% % %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END, results;
 END
 $run$;
