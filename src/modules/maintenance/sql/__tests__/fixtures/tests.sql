@@ -342,4 +342,55 @@ SELECT t.fails('2A: borrador con observaciones no se elimina', format('SELECT mn
 SELECT t.ok('2A: borrador genuinamente vacio se elimina', (mnt_delete_draft_session(:orgA, 'a0000000-0000-4000-8000-00000000d201')->>'deleted')::boolean
   AND EXISTS (SELECT 1 FROM mnt_sessions WHERE id = 'a0000000-0000-4000-8000-00000000d202'));
 RESET ROLE;
+-- ---- Bloque 2B: reparaciones ----
+\set runA '''a0000000-0000-4000-8000-0000000000a3'''
+INSERT INTO host_stub.members VALUES (:orgA, :runA, 'Tecnico A', '{mnt.view,mnt.run}');
+SET ROLE authenticated;
+SELECT t.login(:adminA);
+INSERT INTO mnt_assets(id, org_id, asset_type_id, site_ref, name)
+  SELECT 'a0000000-0000-4000-8000-0000000a5e21', :orgA, id, :siteA, 'Extintor 2B' FROM mnt_asset_types WHERE code = 'extinguisher_co2';
+SELECT (public.mnt_create_corrective(:orgA, 'a0000000-0000-4000-8000-0000000a5e21', current_date - 3, 'high', 'TEST manometro', NULL, true, 'Proveedor TEST', true)->>'id') AS r1 \gset
+SELECT t.ok('2B: reparacion sin plan, tipo corrective, equipo inactivo por decision explicita',
+  (SELECT kind = 'corrective' AND plan_id IS NULL AND status = 'in_progress' AND code LIKE 'REP-%' FROM mnt_sessions WHERE id = :'r1')
+  AND (SELECT status FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e21') = 'inactive');
+SELECT t.login(:runA);
+SELECT t.fails('2B: sin gestionar activos no marca averiado', format('SELECT public.mnt_create_corrective(%L, ''a0000000-0000-4000-8000-0000000a5e21'', current_date, ''low'', ''x'', NULL, false, NULL, true)', :orgA), '42501');
+SELECT (public.mnt_create_corrective(:orgA, 'a0000000-0000-4000-8000-0000000a5e21', current_date, 'low', 'TEST sin marcar')->>'id') AS r2 \gset
+SELECT t.ok('2B: crear no cambia el estado si no se pide', (SELECT status FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e21') = 'inactive');
+SELECT t.fails('2B: deteccion futura rechazada', format('SELECT public.mnt_create_corrective(%L, ''a0000000-0000-4000-8000-0000000a5e21'', current_date + 1, ''low'', ''x'')', :orgA), '23514');
+SELECT t.ok('2B: actuacion registrada', public.mnt_add_entry(:orgA, :'r1', current_date - 2, 'Diagnostico') IS NOT NULL
+  AND public.mnt_add_entry(:orgA, :'r1', current_date - 1, 'Recarga') IS NOT NULL);
+SELECT t.fails('2B: actuacion anterior a deteccion', format('SELECT public.mnt_add_entry(%L, %L, current_date - 9, ''x'')', :orgA, :'r1'), '23514');
+SELECT t.fails('2B: actuaciones inmutables', format('UPDATE mnt_session_entries SET body = ''x'' WHERE session_id = %L', :'r1'), NULL);
+SELECT t.fails('2B: cliente no inserta actuaciones directas', format('INSERT INTO mnt_session_entries(org_id, session_id, performed_on, body, author_snapshot) VALUES (%L, %L, current_date, ''x'', ''{}'')', :orgA, :'r1'), '42501');
+SELECT t.fails('2B: cierre preventivo rechaza reparaciones', format('SELECT public.mnt_close_session(%L, %L)', :orgA, :'r1'), '42501');
+SELECT t.login(:adminA);
+SELECT t.fails('2B: cierre preventivo (admin) rechaza reparaciones', format('SELECT public.mnt_close_session(%L, %L)', :orgA, :'r1'), '23514');
+SELECT t.fails('2B: cliente no cierra directamente', format('UPDATE mnt_sessions SET status = ''closed'' WHERE id = %L', :'r1'), '42501');
+SELECT t.fails('2B: cliente no edita resultado del equipo', format('UPDATE mnt_session_items SET result = ''ok'' WHERE session_id = %L', :'r1'), '42501');
+SELECT t.login(:runA);
+SELECT t.fails('2B: no reparado exige explicacion', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''not_repaired'', '''')', :orgA, :'r2'), '23514');
+SELECT t.fails('2B: no reparado no reactiva', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''not_repaired'', ''falta pieza'', NULL, NULL, true)', :orgA, :'r2'), '23514');
+SELECT t.fails('2B: reactivar exige gestionar activos', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''repaired'', NULL, NULL, NULL, true)', :orgA, :'r1'), '42501');
+SELECT t.login(:adminA);
+SELECT t.ok('2B: reparado con reactivacion explicita', (public.mnt_close_corrective(:orgA, :'r1', current_date - 1, 'repaired', 'Recarga', 'Proveedor TEST', 'P-1', true)->>'reactivated')::boolean
+  AND (SELECT status FROM mnt_assets WHERE id = 'a0000000-0000-4000-8000-0000000a5e21') = 'active'
+  AND (SELECT completed_at::date FROM mnt_session_items WHERE session_id = :'r1') = current_date - 1
+  AND (SELECT detected_on FROM mnt_sessions WHERE id = :'r1') = current_date - 3
+  AND (SELECT closed_at IS NOT NULL AND outcome = 'repaired' FROM mnt_sessions WHERE id = :'r1'));
+SELECT t.ok('2B: cierre idempotente', NOT (public.mnt_close_corrective(:orgA, :'r1', current_date, 'replaced')->>'closed_now')::boolean
+  AND (SELECT outcome FROM mnt_sessions WHERE id = :'r1') = 'repaired');
+SELECT t.ok('2B: sin cambios de fecha ni certificados', (SELECT count(*) FROM mnt_due_changes WHERE session_id = :'r1') = 0
+  AND (SELECT count(*) FROM mnt_certificates WHERE session_id = :'r1') = 0);
+SELECT t.fails('2B: no se reabre una reparacion', format('SELECT public.mnt_reopen_session(%L, %L, ''x'')', :orgA, :'r1'), '23514');
+SELECT t.fails('2B: actuacion en reparacion cerrada', format('SELECT public.mnt_add_entry(%L, %L, current_date, ''x'')', :orgA, :'r1'), '23514');
+SELECT t.ok('2B: cancelar reparacion reutiliza 2A', (public.mnt_cancel_session(:orgA, :'r2', 'TEST error de alta')->>'cancelled_now')::boolean);
+SELECT t.login(:adminB);
+SELECT t.fails('2B: otra organizacion no crea', format('SELECT public.mnt_create_corrective(%L, ''a0000000-0000-4000-8000-0000000a5e21'', current_date, ''low'', ''x'')', :orgA), '42501');
+SELECT t.fails('2B: otra organizacion no finaliza', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''repaired'')', :orgA, :'r2'), '42501');
+SELECT t.ok('2B: otra organizacion no ve actuaciones', (SELECT count(*) FROM mnt_session_entries WHERE session_id = :'r1') = 0);
+SELECT t.login(:viewA);
+SELECT t.fails('2B: lector no crea reparaciones', format('SELECT public.mnt_create_corrective(%L, ''a0000000-0000-4000-8000-0000000a5e21'', current_date, ''low'', ''x'')', :orgA), '42501');
+RESET ROLE;
+SELECT t.fails('2B: preventivo sin plan rechazado', format('INSERT INTO mnt_sessions(org_id, code, request_id, status, kind) VALUES (%L, ''BAD'', gen_random_uuid(), ''draft'', ''preventive'')', :orgA), '23514');
 \echo TESTS_DONE
