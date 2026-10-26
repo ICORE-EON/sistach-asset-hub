@@ -52,6 +52,15 @@ echo "PASS idempotencia: reinstalar y resembrar deja el mismo esquema y catalogo
 # 3. behaviour tests (RLS, triggers, RPC, rollback)
 PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p; /ERROR/p; /LINE/p'
 
+# Current optional inventory catalog; preserve legacy seed and test idempotence.
+P -d mnt -f "$SQL/seed_inventory_v2.sql" >/dev/null
+V1="$(P -d mnt -Atc "$FP")"
+P -d mnt -f "$SQL/seed_inventory_v2.sql" >/dev/null
+V2="$(P -d mnt -Atc "$FP")"
+[ "$V1" = "$V2" ] || { echo "FAIL catalogo v2 idempotencia"; exit 1; }
+echo "PASS catalogo v2 idempotente sin sobrescribir legado"
+PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/current_delivery.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /FAIL/p; /ERROR/p; /LINE/p'
+
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"
 CLOSE="SET ROLE authenticated; SELECT set_config('request.jwt.claims', '{\"sub\":\"a0000000-0000-4000-8000-0000000000a1\"}', false);"

@@ -1,0 +1,28 @@
+-- Disposable cluster only. Existing fixtures remain intact; changes here roll back.
+BEGIN;
+SET ROLE authenticated;
+SELECT t.login('a0000000-0000-4000-8000-0000000000a1');
+SELECT t.ok('clasificacion: defaults seguros', (SELECT plan_nature='preventive' AND requirement_origin='unspecified' FROM mnt_plans WHERE code='P1'));
+SELECT t.fails('clasificacion: naturaleza invalida', $$UPDATE mnt_plans SET plan_nature='corrective' WHERE code='P1'$$, '23514');
+SELECT t.fails('clasificacion: origen invalido', $$UPDATE mnt_plans SET requirement_origin='automatic' WHERE code='P1'$$, '23514');
+SELECT t.fails('clasificacion: referencia maximo 500', $$UPDATE mnt_plans SET requirement_reference=repeat('x',501) WHERE code='P1'$$, '23514');
+UPDATE mnt_plans SET plan_nature='predictive', requirement_origin='manufacturer', requirement_reference='Manual confirmado' WHERE code='P1';
+SELECT t.ok('clasificacion: guarda y recupera', (SELECT plan_nature='predictive' AND requirement_origin='manufacturer' AND requirement_reference='Manual confirmado' FROM mnt_plans WHERE code='P1'));
+SELECT t.login('b0000000-0000-4000-8000-0000000000b1');
+SELECT t.ok('clasificacion: aislamiento lectura', (SELECT count(*) FROM mnt_plans WHERE code='P1')=0);
+UPDATE mnt_plans SET requirement_origin='legal' WHERE code='P1';
+SELECT t.login('a0000000-0000-4000-8000-0000000000a1');
+SELECT t.ok('clasificacion: aislamiento escritura', (SELECT requirement_origin='manufacturer' FROM mnt_plans WHERE code='P1'));
+SELECT t.login('a0000000-0000-4000-8000-0000000000a2');
+SELECT t.fails('clasificacion: lector no crea', $$INSERT INTO mnt_plans(org_id,code,name,asset_family_id,frequency) SELECT 'a0000000-0000-4000-8000-000000000001','NO','NO',id,'annual' FROM mnt_asset_families WHERE code='pci'$$, '42501');
+SELECT t.login('a0000000-0000-4000-8000-0000000000a1');
+SELECT t.fails('ficha: rechaza version ausente', $$UPDATE mnt_assets SET metadata='{"technical":{"profile":"hvac","values":{"charge_kg":2}}}' WHERE code LIKE 'AST-%'$$, 'P0001');
+UPDATE mnt_assets SET metadata='{"technical":{"profile":"hvac","version":1,"values":{"charge_kg":2,"gwp":675,"gwp_source":"manual"}}}' WHERE org_id='a0000000-0000-4000-8000-000000000001';
+SELECT t.ok('ficha: valores tipados recuperados', (SELECT bool_and(jsonb_typeof(metadata->'technical'->'values'->'charge_kg')='number') FROM mnt_assets WHERE org_id='a0000000-0000-4000-8000-000000000001'));
+SELECT t.fails('ficha: rechaza valores booleanos', $$UPDATE mnt_assets SET metadata='{"technical":{"profile":"hvac","version":1,"values":{"charge_kg":true}}}' WHERE org_id='a0000000-0000-4000-8000-000000000001'$$, 'P0001');
+RESET ROLE;
+SELECT t.ok('catalogo v2: 51 tipos con metadatos originales', (SELECT count(*) FROM mnt_asset_types WHERE metadata ? 'catalog_code')=51);
+SELECT t.ok('catalogo v2: 9 familias disponibles', (SELECT count(*) FROM mnt_asset_families WHERE code IN ('electricidad','energia','climatizacion','pci','vehiculos','presion','maquinaria','medida','agua_ma') AND org_id IS NULL)=9);
+SELECT t.ok('catalogo v2: tipos nuevos nunca activados', (SELECT count(*) FROM mnt_org_asset_types a JOIN mnt_asset_types t ON t.id=a.asset_type_id WHERE t.metadata ? 'catalog_code')=0);
+ROLLBACK;
+SELECT t.ok('rollback: clasificacion original preservada', (SELECT plan_nature='preventive' AND requirement_origin='unspecified' FROM mnt_plans WHERE code='P1'));

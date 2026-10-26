@@ -187,6 +187,12 @@ describe("tenant switch with active cache", () => {
 });
 
 describe("cross-org guards and writes", () => {
+  it('requires explicit frequency and refuses a repeated code before writes, scoped to org', async () => {
+    await expect(planService.createPlan(B, { ...baseCreate, frequency: '' })).rejects.toThrow(/frecuencia/);
+    await expect(planService.createPlan(B, { ...baseCreate, code: 'plan-b' })).rejects.toThrow(/Ya existe/);
+    expect(writes).toHaveLength(0);
+    expect(await planService.createPlan(B, { ...baseCreate, code: 'PLAN-A' })).toBe(1);
+  });
   it("any relation or change on another org's resources is refused before writing", async () => {
     await expect(planService.setActive(B, "pA", false)).rejects.toThrow(/organización activa/);
     await expect(planService.setCertificateTemplate(B, "pA", null)).rejects.toThrow(/organización activa/);

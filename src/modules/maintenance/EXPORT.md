@@ -20,3 +20,5 @@ La prueba `ui/__tests__/module-boundary.test.ts` impide que las capas exportable
 Manifiesto exacto de archivos incluidos/excluidos: `spec/EXPORT_MANIFEST.json`. Especificación de integración en `spec/`
 (`ICORE_ADAPTER_SPEC.md`, `HOST_CONTRACTS.md`, `DTO_MAPPING.md`, `INSTALL_ICORE.md`, `ICORE_DECISIONS.md`).
 El esqueleto `adapters/icore/repositories.ts` sí se exporta; no se registra en esta app.
+
+Actualización 2026-10-26: manifiesto regenerado para incluir todos los archivos portables actuales, fichas/catálogos, clasificación, sugerencias y correctivos. `seed_inventory_v2.sql` aporta catálogo actual sin activación. El instalador admite actualización aditiva de planes y guardas técnicas. Metrología se incluye como código opcional pero su SQL/adaptador ICORE sigue pendiente; no declarar integración completa del host. Límites y dependencias exactos en `spec/INSTALL_ICORE.md`.

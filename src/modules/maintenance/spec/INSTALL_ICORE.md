@@ -5,6 +5,7 @@
 2. ICORE crea sus puntos de integración SQL (`HOST_CONTRACTS.md` §1–5) y los roles `anon`, `authenticated`, `service_role`.
 3. Ejecutar `sql/install_v1.sql` (transaccional, idempotente; aborta sin crear nada si falta un requisito).
 4. Opcional: `sql/seed_catalog_v1.sql` (5 familias y 14 tipos globales; ninguno se activa para ninguna organización).
+   Para biblioteca actual añadir `sql/seed_inventory_v2.sql` (9 familias / 51 tipos sugeridos, códigos originales y perfil en metadata). Conserva v1 y no sobrescribe filas existentes ni activa tipos. Catálogos y perfiles declarativos se copian también con el manifiesto.
 5. Registrar organizaciones: `select mnt_register_org(<org>)` con service_role. Activar tipos por organización explícitamente.
 6. Implementar `adapters/icore/repositories.ts` sustituyendo cada `nc(...)` (ver `ICORE_ADAPTER_SPEC.md`).
 7. Registrar una sola vez al arrancar: `registerMaintenanceAdapter({ id: "icore", repositories })`.
@@ -32,3 +33,16 @@
 - Bloque 2A: probar las cinco RPC (`mnt_delete_asset`, `mnt_delete_plan`, `mnt_unlink_plan_asset`, `mnt_cancel_session`, `mnt_delete_draft_session`) y sus permisos; `mnt.admin` para borrado definitivo debe corresponder exclusivamente a administradores.
 - El host debe bloquear, en su autoridad SQL y dentro de la operación de borrado, dependencias documentales directas/indirectas y borradores con evidencia; proteger filas y objetos de documentos de cierres/certificados y sus incidencias. No añadir tablas documentales duplicadas al módulo. Ver `sql/INTEGRATION.md`.
 - Instalación local comprobada el 2026-10-25: 107 PASS (32 de 2A), `ALL_DONE`; no equivale a aceptación en el ICORE real.
+
+## Entrega actual y límites obligatorios
+Reejecutar el instalador actualizado sobre instalaciones `mnt_*` anteriores añade clasificación, ejecución y guardas de ficha sin reclasificar planes ni reprogramar fechas. No ejecutar sobre Sistach para convertir su esquema: los adaptadores traducen DTOs (`DTO_MAPPING.md`). Catálogos v2 son opcionales y no importan activos/planes.
+
+El adaptador TS sigue siendo un **esqueleto fail-closed**, no un adaptador conectado: incluye operaciones correctivas con sus nombres contractuales. El host debe implementar las consultas/RPC con `orgId` explícito y devolver los DTOs anidados. La instalación SQL con host simulado no equivale a integrar el host ICORE real.
+
+Dependencias exactas del host pendientes:
+1. Funciones SQL `host_has_perm`, `host_person_ref`, `host_person_snapshot`, `host_site_in_org`, `host_document_version_sha`, identidad `auth.uid()`, roles y registro `mnt_register_org`; permisos `mnt.manage_assets`, `mnt.manage_plans`, `mnt.run`, `mnt.close`, `mnt.certify`, `mnt.admin` y demás del contrato.
+2. Repositorios reales, mapeos de estados/códigos/centros/personas, categorías de inventario y proveedores de UI/adjuntos; rutas para todos los enlaces de las pantallas, React Query, kit UI y estilos del host.
+3. Sistema documental con versiones, almacenamiento y protección transaccional de evidencias/incidencias; consumidor outbox y generación/almacenamiento de certificados.
+4. Metrología: se incluyen contratos/servicios/UI/dominio pero **no hay instalador limpio ni adaptador metrológico ICORE**; mantener capacidad deshabilitada y no montar sus rutas hasta portar sus ocho tablas, RPC de validación/estado/impacto/centro y contador. Rehacer ese esquema aquí sería una ampliación material, no una sincronización pequeña.
+
+Dependencias npm completas en `EXPORT_MANIFEST.json`: no credenciales del standalone ni dependencias Node en runtime. PostgreSQL temporal valida instalación/aislamiento; staging con host real y E2E de escritura siguen siendo aceptación separada. Biblioteca de factores de emisión aplazada: no se proporcionan valores sin contrastar ámbito/año/fuente oficial; PCA/GWP existente permanece separado.
