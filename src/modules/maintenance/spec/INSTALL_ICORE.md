@@ -12,6 +12,9 @@
 8. Montar `MaintenanceUiProvider` con `{ request: { orgId, userId, role }, Attachments }` y las rutas envoltorio (path/head/component) hacia `ui/pages/*`.
 9. Configurar el consumidor de `mnt_outbox`.
 
+### Sugerencias de mantenimiento v2
+El catálogo portable `domain/maintenance-suggestions.ts` contiene 37 intervenciones, consumidas por el mismo formulario del módulo. Copiar catálogo, selector, pantalla y pruebas mediante el manifiesto existente: no requiere migración ni seed SQL adicional y no crea planes. Mantiene los 13 códigos anteriores. Seis propuestas trimestrales/anuales son orientativas y editables; el resto queda a definir por empresa, sin origen legal automático. El usuario aplica explícitamente y revisa frecuencia/equipos antes de guardar. La corrección no cambia dependencias del host ni supone integración real.
+
 ## Configuración necesaria
 - Dependencias npm usadas por el paquete: `react`, `@tanstack/react-query`, `@tanstack/react-router` (solo en envoltorios del host), `pdf-lib`, `zod`, `lucide-react`, `sonner`, kit UI `@/components/ui/*` y `@/lib/utils` (alias `@`).
 - Variables de entorno: el paquete no lee ninguna; las credenciales de base y almacenamiento son del host.

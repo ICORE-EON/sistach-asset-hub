@@ -1,5 +1,10 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Corrección acotada de sugerencias 2026-10-26 (COMPLETADA)
+- [x] 37 intervenciones concretas, notas y seis propuestas trimestrales/anuales orientativas revisables; resto a definir por empresa. Aplicación explícita, 13 códigos antiguos conservados, ningún cambio en planes/datos.
+- [x] Vitest 257 PASS / 4 omitidas, incluida instalación SQL en PostgreSQL temporal y manifiesto. Build observado OK; typecheck manual separado no ejecutado por restricción del entorno. Navegador autenticado verifica nombre/notas/frecuencia y selección previa intacta hasta aplicar; formulario móvil sin desbordamiento, cero errores y sin guardar/TEST.
+- [x] Catálogo/UI/tests ya incluidos en manifiesto ICORE; no requiere migración ni seed/alteración de instalador. Dependencias y límites vigentes en `spec/INSTALL_ICORE.md`; integración real del host/adaptador y metrología pendientes, no afirmadas. E2E de nueva persistencia no realizado por prohibición de escribir datos.
+
 ## Entrega acotada 2026-10-26 — portabilidad y sugerencias (ENTREGADO con bloqueo de host/metrología)
 - [x] Sincronizados clasificación, ejecución, guarda técnica, catálogo v2 y manifiesto completo. SQL temporal 150 PASS/ALL_DONE, actualización con plan legado intacto. Host real NO integrado; portado SQL/adaptador metrología pendiente por alcance material, ver `spec/INSTALL_ICORE.md`.
 - [x] Sugerencias opcionales en Nuevo plan: 13 tareas prácticas, origen sin especificar, frecuencia y equipos confirmados; navegador autenticado sin escritura, cero errores. E2E de persistencia no ejecutado por restricción TEST. Vitest 237 PASS/4 omitidas, incluida completitud de manifiesto; build OK; typecheck separado no ejecutado por restricción del entorno.

@@ -1,5 +1,5 @@
 # Agent rules
-- Suggested maintenance is a shared declarative catalog; applying only fills the existing plan form, requires explicit frequency/assets, and uses a stable plan code for duplicate checks — avoids automatic scheduling and parallel plan engines.
+- Suggested maintenance is a shared versioned declarative catalog; applying only fills the existing plan form with editable values and requires asset selection and frequency review, preserving stable plan codes across revisions for duplicate checks — avoids automatic scheduling and parallel plan engines. No SQL seed of suggestions: the portable domain catalog is the single source for both hosts.
 - Maintenance screens live in `src/modules/maintenance/ui/pages`; route files are thin wrappers (path/head/component) — keeps the module portable to ICORE.
 - Maintenance services get data only via `getRepositories()` (contracts/registry); the host registers one adapter at startup (`src/router.tsx`) — lets ICORE plug its adapter without touching services/UI.
 - Module UI reads org/user/role and the attachments slot from `ui/host.tsx` (`MaintenanceUiProvider`), never from app contexts — keeps request context explicit per tree (SSR-safe).

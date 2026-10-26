@@ -22,3 +22,5 @@ Manifiesto exacto de archivos incluidos/excluidos: `spec/EXPORT_MANIFEST.json`. 
 El esqueleto `adapters/icore/repositories.ts` sí se exporta; no se registra en esta app.
 
 Actualización 2026-10-26: manifiesto regenerado para incluir todos los archivos portables actuales, fichas/catálogos, clasificación, sugerencias y correctivos. `seed_inventory_v2.sql` aporta catálogo actual sin activación. El instalador admite actualización aditiva de planes y guardas técnicas. Metrología se incluye como código opcional pero su SQL/adaptador ICORE sigue pendiente; no declarar integración completa del host. Límites y dependencias exactos en `spec/INSTALL_ICORE.md`.
+
+Corrección de sugerencias v2: 37 intervenciones en el catálogo declarativo compartido; los archivos ya están incluidos en el manifiesto. No requiere seed SQL ni modificación del instalador y conserva códigos antiguos/planes guardados. Aplicación explícita de nombre, nota y frecuencia orientativa editable; sin obligación legal automática.
