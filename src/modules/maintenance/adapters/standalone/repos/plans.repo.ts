@@ -129,6 +129,8 @@ export function createPlansRepo(c: StandaloneClient) {
         asset_type_id: types.length === 1 ? types[0] : null,
         checklist_template_id: v.type_templates[0]?.checklist_template_id ?? null,
         execution_mode: v.execution_mode ?? "internal", default_provider: v.default_provider ?? null,
+        plan_nature: v.plan_nature ?? "preventive", requirement_origin: v.requirement_origin ?? "unspecified",
+        requirement_reference: v.requirement_reference ?? null,
         certificate_template_id: v.certificate_template_id, frequency: v.frequency,
         interval_months: v.interval_months, notes: v.notes, scope_mode: v.scope_mode,
         scope_location_ids: v.scope_location_ids, scope_include_sublocations: v.scope_include_sublocations,
@@ -164,7 +166,9 @@ export function createPlansRepo(c: StandaloneClient) {
     },
     async updatePlan(orgId: string, planId: string, v: PlanEdit) {
       await assertPlan(orgId, planId);
-      ok(await c.from("maintenance_plans").update({ name: v.name, frequency: v.frequency, interval_months: v.interval_months, notes: v.notes })
+      ok(await c.from("maintenance_plans").update({ name: v.name, frequency: v.frequency, interval_months: v.interval_months, notes: v.notes,
+        ...(v.plan_nature ? { plan_nature: v.plan_nature } : {}), ...(v.requirement_origin ? { requirement_origin: v.requirement_origin } : {}),
+        ...(v.requirement_reference !== undefined ? { requirement_reference: v.requirement_reference } : {}) })
         .eq("id", planId).eq("company_id", orgId));
     },
     async setArchived(orgId: string, planId: string, archived: boolean) {

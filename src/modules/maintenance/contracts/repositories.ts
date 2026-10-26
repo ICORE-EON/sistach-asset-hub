@@ -51,6 +51,7 @@ export type NewPlan = {
   scope_include_sublocations: boolean; certificate_template_id: string | null;
   asset_ids: string[]; type_templates: Array<{ asset_type_id: string; checklist_template_id: string }>;
   execution_mode?: "internal" | "external"; default_provider?: string | null;
+  plan_nature?: string; requirement_origin?: string; requirement_reference?: string | null;
   /** First due date for every new link (null = sin programar). Exceptions are set later with setDue. */
   initial_due?: string | null;
 };
@@ -80,7 +81,8 @@ export type DuePreviewRow = {
 /** Result of a safe permanent delete: blockers explain why it is not allowed (then archive/retire instead). */
 export type DeleteCheck = { deleted: boolean; eligible: boolean; blockers: string[]; already?: boolean; code?: string;
   remove?: { plan_links?: number; kit_items?: number; removed_documents?: number; empty_drafts?: string[] } };
-export type PlanEdit = { name: string; frequency: string; interval_months: number | null; notes: string | null };
+export type PlanClassification = { plan_nature: string; requirement_origin: string; requirement_reference: string | null };
+export type PlanEdit = { name: string; frequency: string; interval_months: number | null; notes: string | null } & Partial<PlanClassification>;
 /** Batch due change: same date for many links, or per-link exceptions. Reason required to change an existing date. */
 export type DueChange = { planAssetId: string; due: string | null; reason?: string | null };
 /** One closed intervention. executed_on is the effective execution date (null = not recorded); closed_at is the administrative close. */
@@ -168,8 +170,8 @@ export interface ChecklistsRepository {
 
 /** plans capability */
 export interface PlansRepository {
-  listPlans(orgId: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; } | null; }[]>;
-  getPlan(orgId: string, id: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; current_version: number; } | null; certificate_templates: { id: string; code: string; name: string; } | null; } | null>;
+  listPlans(orgId: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; plan_nature: string; requirement_origin: string; requirement_reference: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; } | null; }[]>;
+  getPlan(orgId: string, id: string): Promise<{ active: boolean; archived_at: string | null; asset_family_id: string | null; asset_type_id: string | null; certificate_template_id: string | null; checklist_template_id: string | null; execution_mode: string; default_provider: string | null; plan_nature: string; requirement_origin: string; requirement_reference: string | null; code: string; company_id: string; created_at: string; deleted_at: string | null; frequency: string; id: string; interval_months: number | null; name: string; notes: string | null; scope_include_sublocations: boolean; scope_location_ids: string[]; scope_mode: string; updated_at: string; asset_types: { code: string; name_i18n: Json; } | null; asset_families: { code: string; name_i18n: Json; } | null; checklist_templates: { code: string; name: string; current_version: number; } | null; certificate_templates: { id: string; code: string; name: string; } | null; } | null>;
   listPlanScopeCounts(orgId: string): Promise<PlanScopeCount[]>;
   listPlanAssets(orgId: string, planId: string): Promise<{ asset_id: string; company_id: string | null; created_at: string; end_on: string | null; id: string; plan_id: string; start_on: string; next_due_on: string | null; assets: { id: string; code: string; name: string | null; status: string; locations: { name: string; } | null; }; }[]>;
   listCertificateTemplates(orgId: string, orderBy: "code" | "name"): Promise<{ id: string; code: string; name: string; is_default: boolean; asset_family_id: string | null; }[]>;

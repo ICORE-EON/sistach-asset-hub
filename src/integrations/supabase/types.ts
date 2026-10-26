@@ -2319,6 +2319,9 @@ export type Database = {
           interval_months: number | null
           name: string
           notes: string | null
+          plan_nature: string
+          requirement_origin: string
+          requirement_reference: string | null
           scope_include_sublocations: boolean
           scope_location_ids: string[]
           scope_mode: string
@@ -2342,6 +2345,9 @@ export type Database = {
           interval_months?: number | null
           name: string
           notes?: string | null
+          plan_nature?: string
+          requirement_origin?: string
+          requirement_reference?: string | null
           scope_include_sublocations?: boolean
           scope_location_ids?: string[]
           scope_mode?: string
@@ -2365,6 +2371,9 @@ export type Database = {
           interval_months?: number | null
           name?: string
           notes?: string | null
+          plan_nature?: string
+          requirement_origin?: string
+          requirement_reference?: string | null
           scope_include_sublocations?: boolean
           scope_location_ids?: string[]
           scope_mode?: string

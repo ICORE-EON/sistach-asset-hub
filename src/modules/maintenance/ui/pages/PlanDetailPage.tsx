@@ -1,3 +1,4 @@
+import { planNatureLabel, requirementOriginLabel } from "../../domain/plan-classification";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -258,6 +259,9 @@ export function PlanDetailPage() {
             <CardTitle className="text-base">Configuración</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            <Row label="Naturaleza">{planNatureLabel(plan.plan_nature)}</Row>
+            <Row label="Origen del requisito">{requirementOriginLabel(plan.requirement_origin)}</Row>
+            {plan.requirement_reference && <Row label="Referencia">{plan.requirement_reference}</Row>}
             <Row label="Frecuencia">
               {planFrequencyLabel(plan.frequency, plan.interval_months)}
             </Row>
