@@ -1,3 +1,5 @@
+import { buildSheet, profileOfType, type TechnicalSheet } from "../../domain/technical-profiles";
+import { TechnicalSheetFields } from "../components/technical-sheet";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -349,7 +351,7 @@ function CreateAssetDialog({
   locations,
   onCreated,
 }: {
-  types: Array<{ id: string; code: string; name_i18n: unknown; is_system: boolean }>;
+  types: Array<{ id: string; code: string; name_i18n: unknown; is_system: boolean; metadata?: unknown }>;
   locations: Array<{ id: string; code: string; name: string }>;
   onCreated: () => void;
 }) {
@@ -362,10 +364,20 @@ function CreateAssetDialog({
   const [serial, setSerial] = useState("");
   const [installDate, setInstallDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [tech, setTech] = useState<Record<string, string>>({});
+  const [techErrors, setTechErrors] = useState<Record<string, string>>({});
+  const profile = profileOfType(types.find((t) => t.id === assetTypeId)?.metadata);
 
   const create = useMutation({
     mutationFn: async () => {
       if (!activeCompanyId) throw new Error("No hay empresa activa");
+      let technical: TechnicalSheet | undefined;
+      if (profile) {
+        const r = buildSheet(profile, tech);
+        if (!r.ok) { setTechErrors(r.errors); throw new Error("Revisa la ficha técnica"); }
+        setTechErrors({});
+        technical = r.sheet;
+      }
       await assetService.createAsset(activeCompanyId, {
         asset_type_id: assetTypeId,
         location_id: locationId || null,
@@ -375,6 +387,7 @@ function CreateAssetDialog({
         serial_number: serial || null,
         install_date: installDate || null,
         notes: notes || null,
+        technical,
       });
     },
     onSuccess: () => {
@@ -445,6 +458,12 @@ function CreateAssetDialog({
           <Label>Notas</Label>
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
         </div>
+        {profile && (
+          <div className="space-y-3 rounded-md border border-border p-4 sm:col-span-2">
+            <p className="text-sm font-medium">Ficha técnica · {profile.label}</p>
+            <TechnicalSheetFields profile={profile} value={tech} onChange={setTech} errors={techErrors} />
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button onClick={() => create.mutate()} disabled={create.isPending || !assetTypeId}>
