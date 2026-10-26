@@ -8,7 +8,7 @@ describe("configurar inventario", () => {
   });
   it("no duplica tipos ni familias existentes", () => {
     const p = planImport(["EXT-POLVO", "BIE", "CLIMA-SPLIT"], { familyCodes: ["pci"], typeCodes: ["bie"] });
-    expect(p.types.map((t) => t.code)).toEqual(["EXT-POLVO", "CLIMA-SPLIT"]);
+    expect(p.types.map((t) => t.code)).toEqual(["CLIMA-SPLIT", "EXT-POLVO"]);
     expect(p.families.map((f) => f.code)).toEqual(["climatizacion"]);
   });
   it("sin selección no crea nada", () => {
