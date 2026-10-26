@@ -7,23 +7,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FREQUENCIES } from "../../services/plans";
+import { PlanClassificationFields } from "./plan-classification-fields";
 
-type Values = { name: string; frequency: string; customYears: number | null; notes: string | null };
+type Values = { name: string; frequency: string; customYears: number | null; notes: string | null; nature: string; origin: string; reference: string | null };
 
 export function PlanEditDialog(props: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  plan: { name: string; frequency: string; interval_months: number | null; notes: string | null };
+  plan: { name: string; frequency: string; interval_months: number | null; notes: string | null; plan_nature?: string; requirement_origin?: string; requirement_reference?: string | null };
   onSave: (v: Values) => Promise<void>;
 }) {
   const { plan, open } = props;
-  const [v, setV] = useState<Values>({ name: "", frequency: "annual", customYears: null, notes: null });
+  const [v, setV] = useState<Values>({ name: "", frequency: "annual", customYears: null, notes: null, nature: "preventive", origin: "unspecified", reference: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!open) return;
     setError(null);
     setV({ name: plan.name, frequency: plan.frequency, notes: plan.notes,
+      nature: plan.plan_nature ?? "preventive", origin: plan.requirement_origin ?? "unspecified", reference: plan.requirement_reference ?? null,
       customYears: plan.frequency === "custom" ? Math.max(1, Math.round((plan.interval_months ?? 12) / 12)) : null });
   }, [open, plan]);
   const freqChanged = v.frequency !== plan.frequency
@@ -64,6 +66,8 @@ export function PlanEditDialog(props: {
               </p>
             )}
           </div>
+          <PlanClassificationFields nature={v.nature} origin={v.origin} reference={v.reference ?? ""}
+            onChange={(c) => setV({ ...v, ...c })} />
           <div className="space-y-1">
             <Label htmlFor="plan-edit-notes">Notas</Label>
             <Textarea id="plan-edit-notes" rows={3} value={v.notes ?? ""} onChange={(e) => setV({ ...v, notes: e.target.value })} />

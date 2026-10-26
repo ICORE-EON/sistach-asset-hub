@@ -9,6 +9,7 @@ import { addMonthsClamped, isCalendarDate } from "../domain/due-date";
 /** Resolved per call from the registered host adapter (no org/user state is kept). */
 const repo = () => getRepositories().plans;
 
+import { normalizeClassification } from "../domain/plan-classification";
 export type { ScopeQuery };
 
 export const FREQUENCIES = [
@@ -51,6 +52,7 @@ export type CreatePlanInput = {
   selectedIds: string[]; usedTypeIds: string[]; templateFor: (typeId: string) => string;
   certTemplateId: string;
   executionMode?: "internal" | "external"; defaultProvider?: string;
+  nature?: string; origin?: string; reference?: string | null;
   /** Número de años cuando frequency === "custom". */
   customYears?: number;
   /** Primera fecha común para todos los equipos (fecha directa o calculada desde la última revisión); vacío = sin programar. */
@@ -92,6 +94,7 @@ export const planService = {
       execution_mode: external ? "external" : "internal", default_provider: external ? v.defaultProvider?.trim() || null : null,
       type_templates: external ? [] : v.usedTypeIds.map((t) => ({ asset_type_id: t, checklist_template_id: v.templateFor(t) })),
       initial_due: v.initialDue || null,
+      ...normalizeClassification({ nature: v.nature, origin: v.origin, reference: v.reference }),
     });
     return v.selectedIds.length;
   },
@@ -107,13 +110,14 @@ export const planService = {
   removeAsset: (orgId: string | null, planId: string, assignmentId: string, reason?: string | null) =>
     repo().removeAsset(need(orgId), planId, assignmentId, reason ?? null),
   /** Edit name/frequency/notes. Does not reschedule existing due dates (server keeps per-session frozen frequency). */
-  updatePlan: async (orgId: string | null, planId: string, v: { name: string; frequency: string; customYears?: number | null; notes: string | null }) => {
+  updatePlan: async (orgId: string | null, planId: string, v: { name: string; frequency: string; customYears?: number | null; notes: string | null; nature?: string; origin?: string; reference?: string | null }) => {
     if (!v.name.trim()) throw new Error("El nombre es obligatorio");
     const freq = FREQUENCIES.find((f) => f.value === v.frequency);
     if (!freq) throw new Error("Frecuencia no válida");
     const interval_months = v.frequency === "custom" ? Math.max(0, Math.round(v.customYears ?? 0)) * 12 : freq.months;
     if (v.frequency === "custom" && !interval_months) throw new Error("Indica cada cuántos años se repite");
-    const edit: PlanEdit = { name: v.name.trim(), frequency: v.frequency, interval_months, notes: v.notes?.trim() || null };
+    const edit: PlanEdit = { name: v.name.trim(), frequency: v.frequency, interval_months, notes: v.notes?.trim() || null,
+      ...(v.nature !== undefined || v.origin !== undefined ? normalizeClassification({ nature: v.nature, origin: v.origin, reference: v.reference }) : {}) };
     return repo().updatePlan(need(orgId), planId, edit);
   },
   setArchived: (orgId: string | null, planId: string, archived: boolean) => repo().setArchived(need(orgId), planId, archived),
