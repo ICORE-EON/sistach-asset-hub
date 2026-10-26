@@ -1,9 +1,10 @@
 import { buildSheet, profileOfType, type TechnicalSheet } from "../../domain/technical-profiles";
 import { TechnicalSheetFields } from "../components/technical-sheet";
+import { InventoryWizard } from "../components/inventory-wizard";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Plus, Search, QrCode } from "lucide-react";
+import { Boxes, Plus, Search, QrCode, Wand2 } from "lucide-react";
 import { assetService, assetKeys } from "../../services/assets";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ export function AssetsListPage() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [wizard, setWizard] = useState(false);
 
   const canManage = role === "administrator" || role === "system_manager";
 
@@ -185,6 +187,13 @@ export function AssetsListPage() {
           </div>
         </div>
         {canManage && (
+          <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setWizard(true)}>
+            <Wand2 className="mr-2 h-4 w-4" />
+            Configurar inventario
+          </Button>
+          <InventoryWizard open={wizard} onOpenChange={setWizard} orgId={activeCompanyId}
+            families={families as { id: string; code: string }[]} types={types as { code: string }[]} />
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -201,6 +210,7 @@ export function AssetsListPage() {
               }}
             />
           </Dialog>
+          </div>
         )}
       </div>
 

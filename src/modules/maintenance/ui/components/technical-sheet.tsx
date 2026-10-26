@@ -1,14 +1,24 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { co2eTonnes, formatValue, type TechnicalProfile, type TechnicalValues } from "../../domain/technical-profiles";
+import { co2eTonnes, formatValue, gwpFor, type TechnicalProfile, type TechnicalValues } from "../../domain/technical-profiles";
 
 /** Formulario genérico a partir de la definición declarativa del perfil. */
 export function TechnicalSheetFields({ profile, value, onChange, errors = {}, disabled }: {
   profile: TechnicalProfile; value: Record<string, string>; onChange: (v: Record<string, string>) => void;
   errors?: Record<string, string>; disabled?: boolean;
 }) {
-  const set = (k: string, v: string) => onChange({ ...value, [k]: v });
+  const set = (k: string, v: string) => {
+    const next = { ...value, [k]: v };
+    if (k === "refrigerant") {
+      // Propone el factor documentado; si no hay (p. ej. «Otro»), el usuario lo introduce a mano.
+      const ref = gwpFor(v);
+      if (ref) { next.gwp = String(ref.gwp); next.gwp_source = ref.source; }
+      else if (value.gwp_source && gwpFor(value.refrigerant)) { next.gwp = ""; next.gwp_source = ""; }
+    }
+    if (k === "gwp" && value.gwp_source && gwpFor(value.refrigerant)?.gwp !== Number(v.replace(",", "."))) next.gwp_source = "Manual";
+    onChange(next);
+  };
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {profile.attributes.map((a) => (
@@ -36,7 +46,7 @@ export function TechnicalSheetFields({ profile, value, onChange, errors = {}, di
 
 /** Vista de solo lectura. */
 export function TechnicalSheetView({ profile, values }: { profile: TechnicalProfile; values: TechnicalValues }) {
-  const co2 = profile.code === "hvac" ? co2eTonnes(values) : null;
+  const co2 = profile.attributes.some((a) => a.key === "charge_kg") ? co2eTonnes(values) : null;
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
       {profile.attributes.map((a) => (

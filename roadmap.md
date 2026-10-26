@@ -59,5 +59,6 @@
 ## Reconducción ICORE (2026-10-26) — máximo 2 entregas
 ### Hito 1 — Activos inteligentes
 - [x] **1A** Ficha técnica Climatización extremo a extremo: perfil en catálogo de sistema (código, declarativo), activado por empresa en cada tipo (Tipos de activo → Ficha técnica), campos en alta de activo y tarjeta ver/editar en la ficha del activo; valores tipados en `assets.metadata.technical`, guarda SQL de formato. Pendiente: aceptación del usuario y prueba en navegador con datos reales.
-- [ ] **1B** (tras aceptación) Perfiles electricidad, PCI, vehículos, medida; asistente inicial de inventario con familias/tipos sugeridos copiables por empresa. Límite: sin obligaciones legales predefinidas.
+- [x] **1B** Asistente «Configurar inventario» (6 grupos, 18 tipos, sin duplicar), perfiles extintor/BIE/eléctrico/vehículo/medida, PCA AR4 (Reg. UE 517/2014) con fuente guardada. Vitest 205/15 omitidas; navegador hasta confirmar sin escribir.
+- [ ] 1B pendiente: E2E con escritura (importar tipo + crear/editar activo) — requiere autorización para crear tipos en una empresa.
 ### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.
