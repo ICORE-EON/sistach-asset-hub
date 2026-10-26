@@ -1,3 +1,5 @@
+import { PLAN_NATURES, REQUIREMENT_ORIGINS, planNatureLabel, requirementOriginLabel } from "../../domain/plan-classification";
+import { PlanClassificationFields } from "../components/plan-classification-fields";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -131,6 +133,8 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
     if (typeFilter !== "all" && p.asset_type_id !== typeFilter) return false;
     if (frequencyFilter !== "all" && p.frequency !== frequencyFilter) return false;
     if (statusFilter !== "all" && p.active !== (statusFilter === "active")) return false;
+    if (natureFilter !== "all" && p.plan_nature !== natureFilter) return false;
+    if (originFilter !== "all" && p.requirement_origin !== originFilter) return false;
     return true;
   });
 
@@ -139,7 +143,9 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
     familyFilter !== "all" ||
     typeFilter !== "all" ||
     frequencyFilter !== "all" ||
-    statusFilter !== "all";
+    statusFilter !== "all" ||
+    natureFilter !== "all" ||
+    originFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -237,6 +243,20 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
             <SelectItem value="paused">Pausados</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={natureFilter} onValueChange={setNatureFilter}>
+          <SelectTrigger className="w-[190px]" aria-label="Filtrar por naturaleza"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las naturalezas</SelectItem>
+            {PLAN_NATURES.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={originFilter} onValueChange={setOriginFilter}>
+          <SelectTrigger className="w-[190px]" aria-label="Filtrar por origen"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los orígenes</SelectItem>
+            {REQUIREMENT_ORIGINS.map((n) => <SelectItem key={n.value} value={n.value}>{n.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {hasFilters && (
           <Button
             variant="ghost"
@@ -247,6 +267,8 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
               setTypeFilter("all");
               setFrequencyFilter("all");
               setStatusFilter("all");
+              setNatureFilter("all");
+              setOriginFilter("all");
             }}
           >
             Limpiar
@@ -259,6 +281,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
           <TableHeader>
             <TableRow>
               <TableHead>Plan</TableHead>
+              <TableHead>Naturaleza / origen</TableHead>
               <TableHead>Frecuencia</TableHead>
               <TableHead>Activos</TableHead>
               <TableHead title="Estimación con las reglas actuales de cálculo (pendientes de revisión)">Próximo vencimiento*</TableHead>
@@ -269,19 +292,19 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                   Cargando…
                 </TableCell>
               </TableRow>
             ) : plans.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                   Aún no hay planes. {templates.length === 0 && "Necesitas al menos una plantilla publicada."}
                 </TableCell>
               </TableRow>
             ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                   Ningún plan coincide con los filtros.
                 </TableCell>
               </TableRow>
@@ -295,6 +318,12 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
                     <div className="font-mono text-xs font-normal text-muted-foreground">
                       {p.code} · {p.execution_mode === "external" ? "Externo" : "Interno"}
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <div>{planNatureLabel(p.plan_nature)}</div>
+                    <Badge variant={p.requirement_origin === "legal" ? "default" : "outline"} className="mt-1 font-normal">
+                      {requirementOriginLabel(p.requirement_origin)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-sm">
                     {planFrequencyLabel(p.frequency, p.interval_months)}
@@ -357,6 +386,9 @@ function CreatePlanDialog({
   const [executionMode, setExecutionMode] = useState<"internal" | "external">("internal");
   const [defaultProvider, setDefaultProvider] = useState("");
   const [initialDue, setInitialDue] = useState<string | null>(null);
+  const [nature, setNature] = useState("preventive");
+  const [origin, setOrigin] = useState("unspecified");
+  const [reference, setReference] = useState("");
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -455,7 +487,7 @@ function CreatePlanDialog({
       planService.createPlan(activeCompanyId, {
         code, name, familyId, frequency, notes, scopeMode, locationIds, includeSub,
         selectedIds, usedTypeIds, templateFor, certTemplateId, executionMode, defaultProvider,
-        customYears: Number(customYears) || 0, initialDue,
+        customYears: Number(customYears) || 0, initialDue, nature, origin, reference,
       }),
     onSuccess: (n) => {
       toast.success(`Plan creado con ${n} equipo(s)`);
@@ -505,6 +537,8 @@ function CreatePlanDialog({
             )}
           </div>
         </div>
+        <PlanClassificationFields nature={nature} origin={origin} reference={reference}
+          onChange={(c) => { if (c.nature !== undefined) setNature(c.nature); if (c.origin !== undefined) setOrigin(c.origin); if (c.reference !== undefined) setReference(c.reference); }} />
         <div className="space-y-2">
           <Label>Tipo de ejecución *</Label>
           <RadioGroup value={executionMode} onValueChange={(v) => setExecutionMode(v as "internal" | "external")} className="grid grid-cols-2 gap-2">
