@@ -26,7 +26,7 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 | `signer_ip`, `signer_user_agent` | contexto de solicitud | lo aporta ICORE si lo exige | decisión ICORE |
 
 ## Actualización 2026-10-26
-- `plan_nature`, `requirement_origin`, `requirement_reference`: mismas columnas/códigos en `mnt_plans`; edición requiere `mnt.manage_plans`. Origen por defecto `unspecified`; nunca inferido.
+- `plan_nature`, `requirement_origin`, `requirement_reference`: mismas columnas/códigos en `mnt_plans`; el instalador conserva permiso `mnt.admin` de gestión de planes; el host debe mapear gestión sin conceder borrado administrativo a roles no administradores. Origen por defecto `unspecified`; nunca inferido.
 - `execution_mode` / `default_provider`: mismas columnas en `mnt_plans`; sesiones usan `is_external` / `external_provider`.
 - `active` / `archived_at` del DTO plan: mapear desde `status = active/paused/archived`, no crear dos autoridades de estado.
 - Fichas: `mnt_asset_types.metadata.technical_profile`; `mnt_assets.metadata.technical = {profile,version,values}`. Valores y referencias GWP conservados exactamente; validación UX declarativa, SQL de forma y RLS autoritativa.
