@@ -121,7 +121,7 @@ export interface AssetsRepository {
   createFamily(orgId: string, v: { code: string; name: string; color: string; requires_certificate: boolean; }): Promise<void>;
   setFamilyRequiresCertificate(orgId: string, id: string, value: boolean): Promise<void>;
   deleteFamily(orgId: string, id: string): Promise<void>;
-  listTypes(orgId: string): Promise<{ id: string; code: string; name_i18n: Json; category: string; is_system: boolean; family_id: string | null; }[]>;
+  listTypes(orgId: string): Promise<{ id: string; code: string; name_i18n: Json; category: string; is_system: boolean; family_id: string | null; metadata: Json; }[]>;
   listTypesAdmin(orgId: string): Promise<{ active: boolean; category: string; code: string; company_id: string | null; created_at: string; family_id: string | null; id: string; is_system: boolean; metadata: Json; name_i18n: Json; updated_at: string; }[]>;
   createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null; technical_profile?: string | null; }): Promise<void>;
   setTypeFamily(orgId: string, typeId: string, familyId: string | null): Promise<void>;

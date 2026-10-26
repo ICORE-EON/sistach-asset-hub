@@ -43,7 +43,7 @@ export const assetService = {
 
   listTypes: (orgId: string | null) => repo().listTypes(need(orgId)),
   listTypesAdmin: (orgId: string | null) => repo().listTypesAdmin(need(orgId)),
-  createType: (orgId: string | null, v: { code: string; name: string; category: string; familyId: string }) => {
+  createType: (orgId: string | null, v: { code: string; name: string; category: string; familyId: string; technicalProfile?: string | null }) => {
     if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
     return repo().createType(need(orgId), { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null, technical_profile: v.technicalProfile });
   },
