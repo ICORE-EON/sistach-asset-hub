@@ -80,6 +80,9 @@ export const planService = {
     if (!external && v.usedTypeIds.some((id) => !v.templateFor(id)))
       throw new Error("Hay tipos de activo sin plantilla de checklist publicada");
     const freq = FREQUENCIES.find((f) => f.value === v.frequency);
+    if (!freq) throw new Error('Selecciona una frecuencia');
+    const existing = await repo().listPlans(orgId);
+    if (existing.some(p => p.code.toUpperCase() === v.code.toUpperCase())) throw new Error('Ya existe un plan con este código');
     const intervalMonths =
       v.frequency === "custom"
         ? Math.max(1, Math.round(v.customYears ?? 0)) * 12

@@ -1,5 +1,10 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Entrega acotada 2026-10-26 — portabilidad y sugerencias (EN CURSO)
+- [ ] Sincronizar instalador ICORE: clasificación, ficha técnica, catálogo y manifiesto completo; validar instalación limpia/idempotencia/aislamiento. Host real no integrado.
+- [ ] Sugerencias opcionales en Nuevo plan: 13 tareas prácticas, origen sin especificar, frecuencia y equipos confirmados; no modificar planes existentes.
+- Biblioteca de emisiones aplazada en esta entrega: contrastar fuentes oficiales por ámbito/año antes de incluir cifras; priorizar portabilidad y sugerencias. Sin motor de huella ni cálculos automáticos.
+
 - [x] Fase 0/1: Vitest, frontera `src/modules/maintenance`, contratos, manifest, dominio puro + tests
 - [x] Fase 2: adaptadores standalone (tenant, authz, people, sites, assets, docs) + preflight + stub ICORE — esperando revisión antes de fase 3
 - [ ] Fase 3: repositorios y servicios por dominio (quitar supabase.* de páginas)
