@@ -64,6 +64,13 @@
       "when": 1792966482347,
       "tag": "0008_mnt_2b_authority_exec",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793009105228,
+      "tag": "0009_mnt_1a_technical_sheet_guard",
+      "breakpoints": true
     }
   ]
 }
