@@ -7,8 +7,7 @@ import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { AssetPicker } from "../components/asset-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -332,7 +331,9 @@ export function PlanDetailPage() {
                   </Button>
                 </DialogTrigger>
                 <AssignAssetsDialog
+                  key={activeCompanyId}
                   candidates={availableAssets}
+                  locations={locations}
                   months={plan.interval_months}
                   onAdd={async (ids, initialDue) => {
                     await addAssets.mutateAsync({ assetIds: ids, initialDue });
@@ -423,34 +424,18 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function AssignAssetsDialog({
   candidates,
+  locations,
   months,
   onAdd,
 }: {
   candidates: ScopeAsset[];
+  locations: import("../../domain/scope").ScopeLocation[];
   months: number | null;
   onAdd: (ids: string[], initialDue: string | null) => Promise<unknown>;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [initialDue, setInitialDue] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("__all__");
   const [saving, setSaving] = useState(false);
-
-  const locationOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const a of candidates) {
-      if (a.location_id) map.set(a.location_id, a.locations?.name ?? a.location_id);
-    }
-    return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [candidates]);
-
-  const visible = candidates.filter((a) => {
-    if (locationFilter !== "__all__" && a.location_id !== locationFilter) return false;
-    if (!search) return true;
-    return `${a.code} ${a.name ?? ""}`.toLowerCase().includes(search.toLowerCase());
-  });
-
-  const allVisibleSelected = visible.length > 0 && visible.every((a) => selected.includes(a.id));
 
   return (
     <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
@@ -458,67 +443,7 @@ function AssignAssetsDialog({
         <DialogTitle>Añadir equipos al plan</DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por código o nombre…"
-            className="min-w-[180px] flex-1"
-          />
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todas las ubicaciones</SelectItem>
-              {locationOptions.map((l) => (
-                <SelectItem key={l.id} value={l.id}>
-                  {l.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={allVisibleSelected}
-            onCheckedChange={(c) =>
-              setSelected((prev) =>
-                c
-                  ? [...new Set([...prev, ...visible.map((a) => a.id)])]
-                  : prev.filter((id) => !visible.some((a) => a.id === id)),
-              )
-            }
-          />
-          Seleccionar todos los visibles ({visible.length})
-        </label>
-
-        <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-md border p-2">
-          {visible.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              No hay equipos disponibles.
-            </p>
-          ) : (
-            visible.map((a) => (
-              <label key={a.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={selected.includes(a.id)}
-                  onCheckedChange={() =>
-                    setSelected((prev) =>
-                      prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id],
-                    )
-                  }
-                />
-                <span className="font-mono text-xs">{a.code}</span>
-                <span className="truncate">{a.name ?? "(sin nombre)"}</span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {a.locations?.name ?? "Sin ubicación"}
-                </span>
-              </label>
-            ))
-          )}
-        </div>
+        <AssetPicker candidates={candidates} selected={selected} onChange={setSelected} locations={locations} />
         {selected.length > 0 && <InitialDuePicker months={months} onChange={setInitialDue} />}
       </div>
       <DialogFooter>

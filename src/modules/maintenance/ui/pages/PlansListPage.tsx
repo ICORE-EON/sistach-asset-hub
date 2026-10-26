@@ -1,5 +1,7 @@
 import { PLAN_NATURES, REQUIREMENT_ORIGINS, planNatureLabel, requirementOriginLabel } from "../../domain/plan-classification";
 import { PlanClassificationFields } from "../components/plan-classification-fields";
+import { AssetPicker } from "../components/asset-picker";
+import { filterAssetCandidates } from "../../domain/asset-search";
 import { MaintenanceSuggestionPicker } from "../components/maintenance-suggestion-picker";
 import { suggestionPlanCode, type MaintenanceSuggestion } from '../../domain/maintenance-suggestions';
 import { Link } from "@tanstack/react-router";
@@ -174,6 +176,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
               </Button>
             </DialogTrigger>
             <CreatePlanDialog
+              key={activeCompanyId}
               plans={plans}
               types={types}
               templates={templates}
@@ -386,7 +389,6 @@ function CreatePlanDialog({
   const [locationIds, setLocationIds] = useState<string[]>([]);
   const [includeSub, setIncludeSub] = useState(true);
   const [excluded, setExcluded] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
   const [manualPicked, setManualPicked] = useState<string[]>([]);
   const [typeTemplates, setTypeTemplates] = useState<Record<string, string>>({});
   const [certTemplateId, setCertTemplateId] = useState("");
@@ -447,19 +449,12 @@ function CreatePlanDialog({
       }),
   });
 
-  const visible =
-    scopeMode === "manual" && search
-      ? candidates.filter((a) =>
-          `${a.code} ${a.name ?? ""}`.toLowerCase().includes(search.toLowerCase()),
-        )
-      : candidates;
-
   const selectedIds =
     scopeMode === "scoped"
       ? candidates.filter((a) => !excluded.includes(a.id)).map((a) => a.id)
       : manualPicked;
 
-  const groups = groupAssets(visible);
+  const groups = groupAssets(filterAssetCandidates(candidates, '', locations));
   const selectedAssets = candidates.filter((a) => selectedIds.includes(a.id));
   const usedTypeIds = [...new Set(selectedAssets.map((a) => a.asset_type_id))];
 
@@ -659,14 +654,10 @@ function CreatePlanDialog({
               </label>
             </div>
           ) : (
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar equipo por código o nombre…"
-            />
+            <AssetPicker candidates={candidates} selected={manualPicked} onChange={setManualPicked} locations={locations} loading={loadingCandidates} />
           )}
 
-          <div className="space-y-1">
+          {scopeMode === "scoped" && <div className="space-y-1">
             <p className="text-sm font-medium">
               {!familyId
                 ? "Selecciona una familia para ver los equipos"
@@ -719,7 +710,7 @@ function CreatePlanDialog({
                 ))
               )}
             </div>
-          </div>
+          </div>}
         </div>
 
         {executionMode === "internal" && usedTypeIds.length > 0 && (
