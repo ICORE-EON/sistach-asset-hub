@@ -20,7 +20,7 @@ export function MaintenanceSuggestionPicker({ plans, onSelect }: {
         <SelectContent><SelectItem value="all">Todas</SelectItem>{[...new Set(MAINTENANCE_SUGGESTIONS.map(s => s.group))].map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={selected} onValueChange={setSelected}>
-        <SelectTrigger className="h-auto min-h-9 min-w-0 flex-1 whitespace-normal text-left" aria-label="Tarea sugerida"><SelectValue placeholder="Sin sugerencia" /></SelectTrigger>
+        <SelectTrigger className="h-auto min-h-9 min-w-0 flex-1 whitespace-normal text-left [&>span]:line-clamp-none" aria-label="Tarea sugerida"><SelectValue placeholder="Sin sugerencia" /></SelectTrigger>
         <SelectContent>{MAINTENANCE_SUGGESTIONS.filter(s => group === 'all' || s.group === group).map(s => <SelectItem className="whitespace-normal" key={s.id} value={s.id} disabled={suggestionAlreadyApplied(s, plans)}>{s.name}{suggestionAlreadyApplied(s, plans) ? ' · Ya existe' : ''}</SelectItem>)}</SelectContent>
       </Select>
     </div>
