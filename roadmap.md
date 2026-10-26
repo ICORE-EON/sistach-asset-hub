@@ -1,5 +1,9 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Selector de activos con búsqueda 2026-10-26 (EN CURSO)
+- [ ] Selector portable en Planes → Añadir activos y alta de plan: código/nombre/tipo/centro sin acentos, contexto y selección múltiple conservada; sin cambiar permisos ni datos.
+- [ ] Pruebas de búsqueda, selección, aislamiento, manifiesto y navegador sin guardar; evaluar reutilización mínima en reparaciones y documentar límites.
+
 ## Corrección acotada de sugerencias 2026-10-26 (COMPLETADA)
 - [x] 37 intervenciones concretas, notas y seis propuestas trimestrales/anuales orientativas revisables; resto a definir por empresa. Aplicación explícita, 13 códigos antiguos conservados, ningún cambio en planes/datos.
 - [x] Vitest 257 PASS / 4 omitidas, incluida instalación SQL en PostgreSQL temporal y manifiesto. Build observado OK; typecheck manual separado no ejecutado por restricción del entorno. Navegador autenticado verifica nombre/notas/frecuencia y selección previa intacta hasta aplicar; formulario móvil sin desbordamiento, cero errores y sin guardar/TEST.
