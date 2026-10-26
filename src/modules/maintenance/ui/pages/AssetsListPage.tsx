@@ -210,6 +210,7 @@ export function AssetsListPage() {
               }}
             />
           </Dialog>
+          </div>
         )}
       </div>
 
