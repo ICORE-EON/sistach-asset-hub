@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
 
 type Cat = { code: string; name: string; saved: boolean };
-type TypeRow = { id: string; code: string; name_i18n: unknown; category: string; family_id: string | null; is_system: boolean };
+type TypeRow = { id: string; code: string; name_i18n: unknown; category: string; family_id: string | null; is_system: boolean; metadata?: unknown };
 
 const prettify = (c: string) => c.replace(/_/g, " ").replace(/^\w/, (x) => x.toUpperCase());
 
