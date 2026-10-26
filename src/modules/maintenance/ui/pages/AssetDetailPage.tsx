@@ -398,7 +398,7 @@ function TechnicalSheetCard({ orgId, assetId, canManage, metadata, profile }: {
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base">Ficha técnica · {profile.label}</CardTitle>
         {canManage && !editing && (
-          <Button variant="outline" size="sm" onClick={() => { setForm(mismatch ? {} : sheetToForm(saved)); setEditing(true); }}>
+          <Button variant="outline" size="sm" onClick={() => { setForm(mismatch ? {} : sheetToForm(saved, profile)); setEditing(true); }}>
             <Pencil className="mr-2 h-4 w-4" />{saved ? "Editar" : "Completar"}
           </Button>
         )}

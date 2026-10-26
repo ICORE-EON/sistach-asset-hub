@@ -30,6 +30,18 @@ export const gwpFor = (refrigerant: unknown) =>
 const REFRIGERANTS = [...Object.keys(REFRIGERANT_GWP), "Otro"];
 
 const opts = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
+type G = { group?: string; help?: string };
+const num = (key: string, label: string, unit: string | undefined, max: number, x: G & { step?: number; integer?: boolean; min?: number } = {}): AttrDef =>
+  ({ key, label, type: "number", unit, min: x.min ?? 0, max, step: x.step ?? (x.integer ? 1 : 0.01), integer: x.integer, group: x.group, help: x.help });
+const txt = (key: string, label: string, maxLength = 120, x: G = {}): AttrDef => ({ key, label, type: "text", maxLength, ...x });
+const en = (key: string, label: string, pairs: [string, string][], x: G = {}): AttrDef => ({ key, label, type: "enum", options: opts(pairs), ...x });
+const P = (code: string, label: string, attributes: AttrDef[], version = 1): TechnicalProfile => ({ code, version, label, attributes });
+
+const PHASES: [string, string][] = [["1", "Monofásica"], ["3", "Trifásica"]];
+const FUELS: [string, string][] = [["diesel", "Diésel"], ["petrol", "Gasolina"], ["natural_gas", "Gas natural"], ["lpg", "GLP"], ["biomass", "Biomasa"], ["electric", "Eléctrico"], ["other", "Otro"]];
+const voltage = (label = "Tensión nominal") => num("voltage_v", label, "V", 400000, { integer: true });
+const serves = txt("serves", "Instalaciones / equipos a los que da servicio", 200);
+
 const refrigerantAttrs: AttrDef[] = [
   { key: "refrigerant", label: "Refrigerante", type: "enum", group: "Refrigerante", options: REFRIGERANTS.map((r) => ({ value: r, label: r })) },
   { key: "charge_kg", label: "Carga de refrigerante", type: "number", unit: "kg", min: 0, max: 100000, step: 0.01, group: "Refrigerante" },
@@ -38,68 +50,159 @@ const refrigerantAttrs: AttrDef[] = [
   { key: "gwp_source", label: "Fuente del PCA", type: "text", maxLength: 120, group: "Refrigerante" },
 ];
 
-export const TECHNICAL_PROFILES: Record<string, TechnicalProfile> = {
-  hvac: {
-    code: "hvac", version: 1, label: "Climatización",
-    attributes: [
-      { key: "system_type", label: "Tipo de sistema", type: "enum", group: "General", options: opts([
-        ["split", "Split"], ["multisplit", "Multisplit"], ["vrf", "VRV / VRF"], ["rooftop", "Rooftop / compacto"],
-        ["chiller", "Enfriadora"], ["heat_pump", "Bomba de calor"], ["other", "Otro"]]) },
-      { key: "cooling_kw", label: "Potencia frío", type: "number", unit: "kW", min: 0, max: 10000, step: 0.01, group: "Potencia" },
-      { key: "heating_kw", label: "Potencia calor", type: "number", unit: "kW", min: 0, max: 10000, step: 0.01, group: "Potencia" },
-      ...refrigerantAttrs,
-    ],
-  },
-  pci_extinguisher: {
-    code: "pci_extinguisher", version: 1, label: "Extintor",
-    attributes: [
-      { key: "agent", label: "Agente extintor", type: "enum", options: opts([
-        ["abc_powder", "Polvo ABC"], ["co2", "CO₂"], ["water", "Agua"], ["foam", "Espuma (AFFF)"], ["wet_chemical", "Clase F"], ["other", "Otro"]]) },
-      { key: "capacity", label: "Capacidad", type: "number", unit: "kg / l", min: 0, max: 500, step: 0.1 },
-      { key: "efficacy", label: "Eficacia", type: "text", maxLength: 40, help: "Ej.: 21A-113B-C" },
-      { key: "manufacture_year", label: "Año de fabricación", type: "number", min: 1950, max: 2100, integer: true },
-    ],
-  },
-  pci_hose: {
-    code: "pci_hose", version: 1, label: "BIE / manguera",
-    attributes: [
-      { key: "diameter_mm", label: "Diámetro", type: "enum", options: opts([["25", "25 mm"], ["45", "45 mm"]]) },
-      { key: "hose_length_m", label: "Longitud manguera", type: "number", unit: "m", min: 0, max: 100, step: 0.5 },
-      { key: "hose_type", label: "Tipo de manguera", type: "enum", options: opts([["semi_rigid", "Semirrígida"], ["flat", "Plana"]]) },
-    ],
-  },
-  electrical: {
-    code: "electrical", version: 1, label: "Instalación eléctrica",
-    attributes: [
-      { key: "voltage_v", label: "Tensión", type: "number", unit: "V", min: 0, max: 400000, integer: true },
-      { key: "phases", label: "Fases", type: "enum", options: opts([["1", "Monofásica"], ["3", "Trifásica"]]) },
-      { key: "rated_current_a", label: "Intensidad nominal", type: "number", unit: "A", min: 0, max: 100000, step: 0.1 },
-      { key: "power_kw", label: "Potencia", type: "number", unit: "kW", min: 0, max: 100000, step: 0.01 },
-      { key: "power_kva", label: "Potencia aparente", type: "number", unit: "kVA", min: 0, max: 100000, step: 0.1 },
-    ],
-  },
-  vehicle: {
-    code: "vehicle", version: 1, label: "Vehículo",
-    attributes: [
-      { key: "plate", label: "Matrícula", type: "text", maxLength: 15 },
-      { key: "fuel", label: "Combustible", type: "enum", options: opts([
-        ["diesel", "Diésel"], ["petrol", "Gasolina"], ["electric", "Eléctrico"], ["hybrid", "Híbrido"], ["lpg", "GLP"], ["other", "Otro"]]) },
-      { key: "first_registration_year", label: "Año de matriculación", type: "number", min: 1950, max: 2100, integer: true },
-      { key: "odometer_km", label: "Kilometraje", type: "number", unit: "km", min: 0, max: 5000000, integer: true },
-      { key: "mma_kg", label: "MMA", type: "number", unit: "kg", min: 0, max: 100000, integer: true },
-    ],
-  },
-  measuring: {
-    code: "measuring", version: 1, label: "Equipo de medida",
-    attributes: [
-      { key: "magnitude", label: "Magnitud", type: "text", maxLength: 60, help: "Ej.: temperatura, presión, longitud" },
-      { key: "range_min", label: "Rango mínimo", type: "number", min: -1e9, max: 1e9, step: 0.001 },
-      { key: "range_max", label: "Rango máximo", type: "number", min: -1e9, max: 1e9, step: 0.001 },
-      { key: "unit", label: "Unidad", type: "text", maxLength: 20 },
-      { key: "resolution", label: "Resolución", type: "number", min: 0, max: 1e9, step: 0.0001 },
-    ],
-  },
-};
+const list: TechnicalProfile[] = [
+  // Instalaciones eléctricas
+  P("electric_meter", "Contador / punto de suministro", [
+    txt("supply_point_id", "Identificador del punto de suministro", 40, { help: "p.ej. CUPS en España" }),
+    txt("distributor", "Distribuidora", 80),
+    txt("access_tariff", "Tarifa de acceso", 40),
+    voltage(), en("phases", "Fases", PHASES),
+    num("contracted_power_max_kw", "Potencia contratada máxima", "kW", 100000,
+      { help: "Dato informativo. No determina por sí solo ninguna obligación legal." }),
+  ]),
+  P("power_analyzer", "Analizador de redes / subcontador", [
+    txt("magnitudes", "Magnitudes medidas", 120, { help: "Ej.: kWh, kW, cos φ, armónicos" }),
+    voltage(), txt("ct_ratio", "Relación de transformación", 30, { help: "Ej.: 200/5" }),
+    txt("accuracy_class", "Clase de precisión", 20),
+    en("communication", "Comunicación", [["none", "Ninguna"], ["modbus_rtu", "Modbus RTU"], ["modbus_tcp", "Modbus TCP"], ["pulse", "Impulsos"], ["other", "Otra"]]),
+    txt("monitors", "Consumos / instalaciones que monitoriza", 200),
+  ]),
+  P("lv_installation", "Instalación / cuadro de baja tensión", [
+    voltage(), num("rated_current_a", "Intensidad nominal", "A", 100000, { step: 0.1 }), en("phases", "Fases", PHASES),
+    num("design_power_kw", "Potencia de diseño", "kW", 100000, { help: "Solo si es técnicamente pertinente" }),
+    en("earthing_system", "Esquema de conexión a tierra", [["TT", "TT"], ["TN-S", "TN-S"], ["TN-C", "TN-C"], ["TN-C-S", "TN-C-S"], ["IT", "IT"]]),
+    serves,
+  ]),
+  P("transformer", "Transformador", [
+    num("power_kva", "Potencia", "kVA", 1000000, { step: 1 }),
+    num("primary_voltage_v", "Tensión primaria", "V", 400000, { integer: true }),
+    num("secondary_voltage_v", "Tensión secundaria", "V", 400000, { integer: true }),
+    en("cooling", "Aislamiento / refrigeración", [["oil", "Baño de aceite"], ["dry", "Seco (resina)"], ["other", "Otro"]]),
+  ]),
+  P("capacitor_bank", "Batería de condensadores", [
+    num("reactive_kvar", "Potencia reactiva", "kvar", 100000, { step: 0.1 }), voltage(), num("steps", "Escalones", undefined, 100, { integer: true }),
+  ]),
+  // Energía y generación
+  P("pv_plant", "Instalación fotovoltaica", [
+    num("peak_power_kwp", "Potencia pico", "kWp", 1000000), num("ac_power_kw", "Potencia nominal AC", "kW", 1000000),
+    num("modules", "Nº de módulos", undefined, 1000000, { integer: true }),
+    en("usage_mode", "Modalidad de utilización", [["self_no_surplus", "Autoconsumo sin excedentes"], ["self_surplus", "Autoconsumo con excedentes"], ["full_export", "Venta total"], ["other", "Otro"]]),
+  ]),
+  P("inverter", "Inversor", [
+    num("ac_power_kw", "Potencia AC", "kW", 100000), num("dc_power_kw", "Potencia DC máx.", "kW", 100000),
+    num("mppt", "Nº de MPPT", undefined, 100, { integer: true }), en("phases", "Fases", PHASES),
+  ]),
+  P("generator", "Grupo electrógeno", [
+    num("power_kva", "Potencia aparente", "kVA", 100000, { step: 0.1 }), num("power_kw", "Potencia activa", "kW", 100000),
+    en("fuel", "Combustible", FUELS), voltage(), num("tank_l", "Depósito", "l", 1000000, { step: 1 }),
+  ]),
+  P("ups", "SAI / UPS", [
+    num("power_kva", "Potencia", "kVA", 10000, { step: 0.1 }), num("autonomy_min", "Autonomía nominal", "min", 10000, { integer: true }),
+    txt("battery", "Batería", 80, { help: "Tipo y capacidad" }), voltage(), serves,
+  ]),
+  P("ev_charger", "Cargador de vehículo eléctrico", [
+    num("power_kw", "Potencia", "kW", 1000), en("current_type", "Corriente", [["ac", "AC"], ["dc", "DC"]]),
+    en("connector", "Conector", [["type2", "Tipo 2"], ["ccs2", "CCS2"], ["chademo", "CHAdeMO"], ["schuko", "Schuko"], ["other", "Otro"]]),
+    num("current_a", "Intensidad", "A", 1000, { step: 0.1 }), num("points", "Puntos de carga", undefined, 100, { integer: true }),
+  ]),
+  P("boiler", "Caldera", [
+    num("useful_power_kw", "Potencia útil", "kW", 100000), en("fuel", "Combustible", FUELS),
+    num("efficiency_pct", "Rendimiento", "%", 120, { step: 0.1 }),
+    num("design_pressure_bar", "Presión de diseño", "bar", 1000, { step: 0.1 }), num("design_temp_c", "Temperatura de diseño", "°C", 1000, { min: -50, step: 0.1 }),
+  ]),
+  // Climatización y refrigeración (hvac conserva claves de v1; añade eficiencia opcional)
+  P("hvac", "Climatización", [
+    en("system_type", "Tipo de sistema", [["split", "Split"], ["multisplit", "Multisplit"], ["vrf", "VRV / VRF"], ["rooftop", "Rooftop / compacto"],
+      ["chiller", "Enfriadora"], ["heat_pump", "Bomba de calor"], ["other", "Otro"]], { group: "General" }),
+    num("cooling_kw", "Potencia frío", "kW", 10000, { group: "Potencia" }),
+    num("heating_kw", "Potencia calor", "kW", 10000, { group: "Potencia" }),
+    txt("nominal_efficiency", "Eficiencia nominal", 40, { group: "Potencia", help: "Ej.: SEER 6,1 / SCOP 4,0" }),
+    ...refrigerantAttrs,
+  ]),
+  P("refrigeration", "Instalación frigorífica", [
+    num("cooling_kw", "Potencia frigorífica", "kW", 100000),
+    num("design_temp_c", "Temperatura de diseño", "°C", 100, { min: -100, step: 0.1 }),
+    ...refrigerantAttrs,
+  ]),
+  // PCI y emergencias
+  P("pci_extinguisher", "Extintor", [
+    en("agent", "Agente extintor", [["abc_powder", "Polvo ABC"], ["co2", "CO₂"], ["water", "Agua"], ["foam", "Espuma (AFFF)"], ["wet_chemical", "Clase F"], ["other", "Otro"]]),
+    num("capacity", "Capacidad", "kg / l", 500, { step: 0.1 }),
+    txt("efficacy", "Eficacia", 40, { help: "Ej.: 21A-113B-C" }),
+    num("manufacture_year", "Año de fabricación", undefined, 2100, { min: 1950, integer: true }),
+  ]),
+  P("pci_hose", "BIE / manguera", [
+    en("diameter_mm", "Diámetro", [["25", "25 mm"], ["45", "45 mm"]]),
+    num("hose_length_m", "Longitud manguera", "m", 100, { step: 0.5 }),
+    en("hose_type", "Tipo de manguera", [["semi_rigid", "Semirrígida"], ["flat", "Plana"]]),
+  ]),
+  P("fire_detection", "Detección y alarma de incendios", [
+    en("system_type", "Tipo de sistema", [["conventional", "Convencional"], ["addressable", "Analógico / direccionable"], ["wireless", "Vía radio"], ["other", "Otro"]]),
+    txt("technology", "Tecnología de detección", 80, { help: "Ej.: óptico, térmico, aspiración" }),
+    txt("panel_zone", "Central / zona", 80),
+  ]),
+  P("emergency_lighting", "Alumbrado de emergencia", [
+    en("lighting_type", "Tipo", [["non_maintained", "No permanente"], ["maintained", "Permanente"], ["central_battery", "Batería central"]]),
+    num("autonomy_min", "Autonomía", "min", 1000, { integer: true }), num("power_w", "Potencia", "W", 10000, { step: 0.1 }),
+  ]),
+  // Vehículos y equipos móviles. v2: kilometraje retirado (es una lectura fechada, no un atributo).
+  P("vehicle", "Vehículo", [
+    txt("plate", "Matrícula / identificador", 20),
+    en("fuel", "Combustible / propulsión", [["diesel", "Diésel"], ["petrol", "Gasolina"], ["electric", "Eléctrico"], ["hybrid", "Híbrido"], ["phev", "Híbrido enchufable"], ["lpg", "GLP"], ["cng", "GNC"], ["other", "Otro"]]),
+    num("power_kw", "Potencia", "kW", 10000),
+    num("first_registration_year", "Año de matriculación", undefined, 2100, { min: 1950, integer: true }),
+    num("homologated_consumption", "Consumo homologado", undefined, 1000, { step: 0.1 }),
+    en("consumption_unit", "Unidad del consumo homologado", [["l_100km", "l/100 km"], ["kwh_100km", "kWh/100 km"], ["kg_100km", "kg/100 km"]]),
+    num("co2_g_km", "Emisiones CO₂ homologadas", "g/km", 2000, { step: 0.1, help: "Si procede" }),
+    num("mma_kg", "MMA", "kg", 100000, { integer: true }),
+  ], 2),
+  P("forklift", "Carretilla / equipo móvil", [
+    en("propulsion", "Propulsión", [["electric", "Eléctrica"], ["diesel", "Diésel"], ["lpg", "GLP"], ["manual", "Manual"], ["other", "Otra"]]),
+    num("capacity_kg", "Capacidad nominal", "kg", 100000, { integer: true }), num("lift_height_m", "Altura de elevación", "m", 100, { step: 0.1 }),
+  ]),
+  // Presión y aire comprimido
+  P("compressor", "Compresor", [
+    num("flow_m3_min", "Caudal", "m³/min", 10000), num("pressure_bar", "Presión máxima", "bar", 1000, { step: 0.1 }),
+    num("power_kw", "Potencia", "kW", 10000),
+    en("technology", "Tecnología", [["screw", "Tornillo"], ["piston", "Pistón"], ["scroll", "Scroll"], ["centrifugal", "Centrífugo"], ["other", "Otra"]]),
+  ]),
+  P("pressure_vessel", "Depósito / equipo a presión", [
+    num("volume_l", "Volumen", "l", 10000000, { step: 1 }), num("ps_bar", "Presión máxima admisible (PS)", "bar", 1000, { step: 0.1 }),
+    num("design_temp_c", "Temperatura de diseño", "°C", 1000, { min: -200, step: 0.1 }), txt("fluid", "Fluido", 60),
+  ]),
+  // Maquinaria y elevación
+  P("machine", "Máquina", [txt("function", "Función", 120), num("power_kw", "Potencia", "kW", 100000), txt("rated_capacity", "Capacidad nominal", 60)]),
+  P("lifting", "Equipo de elevación", [num("max_load_kg", "Carga máxima", "kg", 1000000, { integer: true }), num("travel_m", "Altura / recorrido", "m", 1000, { step: 0.1 })]),
+  P("racking", "Estantería industrial", [num("load_per_level_kg", "Carga por nivel / módulo", "kg", 100000, { integer: true }), num("height_m", "Altura", "m", 100, { step: 0.1 })]),
+  // Instrumentos de medida y control (v2: exactitud, uso y control según uso)
+  P("measuring", "Instrumento de medida", [
+    txt("magnitude", "Magnitud", 60, { help: "Ej.: temperatura, presión, longitud" }),
+    num("range_min", "Rango mínimo", undefined, 1e9, { min: -1e9, step: 0.001 }),
+    num("range_max", "Rango máximo", undefined, 1e9, { min: -1e9, step: 0.001 }),
+    txt("unit", "Unidad", 20),
+    num("resolution", "Resolución", undefined, 1e9, { step: 0.0001 }),
+    txt("declared_accuracy", "Exactitud declarada", 60),
+    txt("intended_use", "Uso previsto", 120),
+    en("metrological_control", "Control metrológico según uso", [["calibration", "Calibración"], ["verification", "Verificación interna"], ["none", "Sin control (uso orientativo)"]]),
+  ], 2),
+  // Agua y medioambiente
+  P("water_tank", "Depósito", [
+    num("volume_m3", "Volumen", "m³", 100000), txt("material", "Material", 60), txt("product", "Producto almacenado", 80),
+    en("placement", "Tipo de instalación", [["aboveground", "Aéreo"], ["underground", "Enterrado"], ["semi", "Semienterrado"]]),
+    en("construction", "Construcción", [["single_wall", "Pared simple"], ["double_wall", "Pared doble"]]),
+    en("secondary_containment", "Contención secundaria", [["bund", "Cubeto"], ["other", "Otra"], ["none", "Sin contención"]]),
+  ]),
+  P("wwtp", "Depuradora (EDAR)", [num("nominal_flow_m3_d", "Caudal nominal", "m³/día", 1000000), txt("discharge_type", "Tipo de vertido", 80)]),
+  P("ro_plant", "Ósmosis inversa", [num("capacity_l_h", "Capacidad", "l/h", 10000000, { step: 1 })]),
+  P("pump", "Bomba", [num("flow_m3_h", "Caudal", "m³/h", 100000), num("head_m", "Altura manométrica", "m", 10000, { step: 0.1 }), num("power_kw", "Potencia", "kW", 10000)]),
+  // Heredado (Hito 1B): se conserva para tipos ya configurados; el catálogo usa perfiles específicos.
+  P("electrical", "Instalación eléctrica (genérica)", [
+    voltage("Tensión"), en("phases", "Fases", PHASES), num("rated_current_a", "Intensidad nominal", "A", 100000, { step: 0.1 }),
+    num("power_kw", "Potencia", "kW", 100000), num("power_kva", "Potencia aparente", "kVA", 100000, { step: 0.1 }),
+  ]),
+];
+
+export const TECHNICAL_PROFILES: Record<string, TechnicalProfile> = Object.fromEntries(list.map((p) => [p.code, p]));
 
 export const listProfiles = () => Object.values(TECHNICAL_PROFILES);
 export const getProfile = (code: unknown): TechnicalProfile | null =>
@@ -153,9 +256,11 @@ export function buildSheet(profile: TechnicalProfile, raw: Record<string, string
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, sheet: { profile: profile.code, version: profile.version, values } };
 }
 
-/** Valores de una ficha a strings para el formulario. */
-export const sheetToForm = (sheet: TechnicalSheet | null): Record<string, string> =>
-  Object.fromEntries(Object.entries(sheet?.values ?? {}).map(([k, v]) => [k, String(v)]));
+/** Valores de una ficha a strings para el formulario (descarta claves retiradas de la versión vigente). */
+export const sheetToForm = (sheet: TechnicalSheet | null, profile?: TechnicalProfile): Record<string, string> => {
+  const known = profile ? new Set(profile.attributes.map((a) => a.key)) : null;
+  return Object.fromEntries(Object.entries(sheet?.values ?? {}).filter(([k]) => !known || known.has(k)).map(([k, v]) => [k, String(v)]));
+};
 
 export function formatValue(a: AttrDef, v: unknown): string {
   if (v === undefined || v === null || v === "") return "—";

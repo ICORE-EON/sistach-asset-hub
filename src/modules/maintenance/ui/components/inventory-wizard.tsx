@@ -23,7 +23,7 @@ export function InventoryWizard({ open, onOpenChange, orgId, families, types }: 
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   const goStep2 = () => {
-    const sug = INVENTORY_GROUPS.filter((g) => groups.includes(g.code)).flatMap((g) => g.types.map((t) => t.code));
+    const sug = INVENTORY_GROUPS.filter((g) => groups.includes(g.code)).flatMap((g) => g.types.filter((t) => !t.optional).map((t) => t.code));
     setPicked(sug.filter((c) => !existingTypes.has(c)));
     setStep(2);
   };
@@ -74,9 +74,9 @@ export function InventoryWizard({ open, onOpenChange, orgId, families, types }: 
                   return (
                     <label key={t.code} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50">
                       <Checkbox disabled={exists} checked={!exists && picked.includes(t.code)} onCheckedChange={() => setPicked(toggle(picked, t.code))} />
-                      <span className="flex-1 text-sm">{t.name}</span>
+                      <span className="flex-1 text-sm">{t.name}{t.optional && <span className="ml-1 text-xs text-muted-foreground">(opcional)</span>}</span>
                       {exists ? <Badge variant="secondary">Ya existe</Badge>
-                        : t.profile && <Badge variant="outline">Ficha: {getProfile(t.profile)?.label}</Badge>}
+                        : <Badge variant="outline">{t.profile ? `Ficha: ${getProfile(t.profile)?.label}` : "Datos generales"}</Badge>}
                     </label>
                   );
                 })}

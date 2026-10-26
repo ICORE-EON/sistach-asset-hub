@@ -12,7 +12,8 @@ export const STATUS_LABEL: Record<string, string> = {
 export const KIND_LABEL: Record<string, string> = { calibration: "Calibración", verification: "Verificación", check: "Comprobación" };
 export const METHOD_LABEL: Record<string, string> = { external: "Externo", internal: "Interno" };
 export const UNIT_LABEL: Record<string, string> = { days: "días", months: "meses", years: "años", before_use: "Antes de cada uso" };
-export const TYPE_SUGGESTIONS = ["Calibre", "Micrómetro", "Manómetro", "Termómetro", "Balanza", "Multímetro", "Cinta métrica", "Torquímetro"];
+/** Mismos nombres que los tipos de «Instrumentos de medida y control» del catálogo de inventario. */
+export { MEASURING_TYPE_NAMES as TYPE_SUGGESTIONS } from "../../domain/inventory-catalog";
 
 export function StatusBadge({ stored, nextDue }: { stored: MtrStoredStatus; nextDue: string | null }) {
   const s = displayStatus(stored, nextDue, today());

@@ -60,5 +60,6 @@
 ### Hito 1 — Activos inteligentes
 - [x] **1A** Ficha técnica Climatización extremo a extremo: perfil en catálogo de sistema (código, declarativo), activado por empresa en cada tipo (Tipos de activo → Ficha técnica), campos en alta de activo y tarjeta ver/editar en la ficha del activo; valores tipados en `assets.metadata.technical`, guarda SQL de formato. Pendiente: aceptación del usuario y prueba en navegador con datos reales.
 - [x] **1B** Asistente «Configurar inventario» (6 grupos, 18 tipos, sin duplicar), perfiles extintor/BIE/eléctrico/vehículo/medida, PCA AR4 (Reg. UE 517/2014) con fuente guardada. Vitest 205/15 omitidas; navegador hasta confirmar sin escribir.
-- [ ] 1B pendiente: E2E con escritura (importar tipo + crear/editar activo) — requiere autorización para crear tipos en una empresa.
+- [x] **Biblioteca maestra**: 9 familias, 51 tipos (15 opcionales, no premarcados), 30 perfiles; vehículo v2 sin kilometraje, medida v2 con exactitud/uso/control; sugerencias de Equipos de medida alineadas. Sin migración (guard SQL solo valida forma). Vitest 216/15 omitidas.
+- [ ] Pendiente: E2E con escritura (importar tipo + crear/editar activo) — requiere autorización para crear tipos en una empresa. Limpieza de datos ficticios: requiere alcance exacto.
 ### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.
