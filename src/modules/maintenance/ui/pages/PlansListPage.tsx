@@ -1,5 +1,7 @@
 import { PLAN_NATURES, REQUIREMENT_ORIGINS, planNatureLabel, requirementOriginLabel } from "../../domain/plan-classification";
 import { PlanClassificationFields } from "../components/plan-classification-fields";
+import { MaintenanceSuggestionPicker } from "../components/maintenance-suggestion-picker";
+import { suggestionPlanCode, type MaintenanceSuggestion } from '../../domain/maintenance-suggestions';
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -172,6 +174,7 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
               </Button>
             </DialogTrigger>
             <CreatePlanDialog
+              plans={plans}
               types={types}
               templates={templates}
               onCreated={() => {
@@ -362,10 +365,12 @@ export function PlansListPage({ embedded = false }: { embedded?: boolean } = {})
 }
 
 function CreatePlanDialog({
+  plans,
   types,
   templates,
   onCreated,
 }: {
+  plans: Array<{ code: string; name: string }>;
   types: Array<{ id: string; code: string; name_i18n: unknown }>;
   templates: Array<ScopedTemplate & { code: string; name: string }>;
   onCreated: () => void;
@@ -391,6 +396,16 @@ function CreatePlanDialog({
   const [nature, setNature] = useState("preventive");
   const [origin, setOrigin] = useState("unspecified");
   const [reference, setReference] = useState("");
+  const [suggestionTypeCodes, setSuggestionTypeCodes] = useState<string[] | null>(null);
+  const applySuggestion = (s: MaintenanceSuggestion) => {
+    setCode(suggestionPlanCode(s)); setName(s.name); setNotes(s.description);
+    setNature(s.nature); setOrigin(s.origin); setReference(''); setFrequency('');
+    setInitialDue(null); setScopeMode('manual'); setManualPicked([]); setExcluded([]);
+    setTypeTemplates({}); setSuggestionTypeCodes(s.typeCodes.map(c => c.toUpperCase()));
+    const matched = allTypes.find(t => s.typeCodes.some(c => c.toUpperCase() === t.code.toUpperCase()));
+    setFamilyId(matched?.family_id ?? '');
+    setCertTemplateId('');
+  };
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -411,7 +426,8 @@ function CreatePlanDialog({
   });
 
   const family = families.find((f) => f.id === familyId);
-  const familyTypeIds = allTypes.filter((t) => t.family_id === familyId).map((t) => t.id);
+  const familyTypeIds = allTypes.filter((t) => t.family_id === familyId &&
+    (!suggestionTypeCodes || suggestionTypeCodes.includes(t.code.toUpperCase()))).map((t) => t.id);
 
   const { data: locations = [] } = useQuery({
     queryKey: assetKeys.scopeSites(activeCompanyId),
@@ -504,6 +520,7 @@ function CreatePlanDialog({
         <DialogTitle>Nuevo plan de mantenimiento</DialogTitle>
       </DialogHeader>
       <div className="space-y-4">
+        <MaintenanceSuggestionPicker plans={plans} onSelect={applySuggestion} />
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Código *</Label>
@@ -513,7 +530,7 @@ function CreatePlanDialog({
             <Label>Frecuencia *</Label>
             <Select value={frequency} onValueChange={setFrequency}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Selecciona frecuencia" />
               </SelectTrigger>
               <SelectContent>
                 {FREQUENCIES.map((f) => (
@@ -567,6 +584,7 @@ function CreatePlanDialog({
             value={familyId}
             onValueChange={(v) => {
               setFamilyId(v);
+              setSuggestionTypeCodes(null);
               setExcluded([]);
               setManualPicked([]);
               setTypeTemplates({});
@@ -777,7 +795,7 @@ function CreatePlanDialog({
         )}
       </div>
       <DialogFooter>
-        <Button onClick={() => create.mutate()} disabled={create.isPending}>
+        <Button onClick={() => create.mutate()} disabled={create.isPending || !frequency || !selectedIds.length || plans.some(p => p.code.toUpperCase() === code.toUpperCase())}>
           {create.isPending ? "Creando…" : "Crear plan"}
         </Button>
       </DialogFooter>

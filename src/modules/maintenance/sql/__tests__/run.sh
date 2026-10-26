@@ -49,8 +49,29 @@ echo "PASS idempotencia: reinstalar y resembrar deja el mismo esquema y catalogo
 [ "$(P -d mnt -Atc "SELECT count(*) FROM mnt_installation")" = "1" ] && [ "$(P -d mnt -Atc "SELECT version FROM mnt_catalog_versions")" = "1" ] \
   && echo "PASS version de instalacion y catalogo registradas una sola vez"
 
+# Upgrade from the previous plan shape, with a populated plan (never touches app DB).
+awk '/-- Additive upgrade:/{skip=1} /CREATE TABLE IF NOT EXISTS public.mnt_plan_sites/{skip=0} !skip {print}' "$SQL/install_v1.sql" > "$TMP/previous.sql"
+P -c "CREATE DATABASE upgrade" >/dev/null
+P -d upgrade -f "$HERE/fixtures/host_stub.sql" >/dev/null
+P -d upgrade -f "$TMP/previous.sql" >/dev/null
+P -d upgrade -c "SELECT mnt_register_org('d0000000-0000-4000-8000-000000000001'); INSERT INTO mnt_asset_families(org_id,code,name_i18n) VALUES ('d0000000-0000-4000-8000-000000000001','legacy','{\"es\":\"Legacy\"}'); INSERT INTO mnt_plans(org_id,code,name,asset_family_id,frequency) SELECT org_id,'LEGACY','Original',id,'annual' FROM mnt_asset_families WHERE code='legacy';" >/dev/null
+OLD="$(P -d upgrade -Atc "SELECT md5(row(org_id,code,name,asset_family_id,frequency,status,created_at)::text) FROM mnt_plans WHERE code='LEGACY'")"
+P -d upgrade -f "$SQL/install_v1.sql" >/dev/null
+NEW="$(P -d upgrade -Atc "SELECT md5(row(org_id,code,name,asset_family_id,frequency,status,created_at)::text) FROM mnt_plans WHERE code='LEGACY'")"
+[ "$OLD" = "$NEW" ] && [ "$(P -d upgrade -Atc "SELECT requirement_origin||'/'||plan_nature FROM mnt_plans WHERE code='LEGACY'")" = "unspecified/preventive" ] || { echo "FAIL upgrade preserves populated plan"; exit 1; }
+echo "PASS upgrade aditivo de plan legado poblado: huella preservada y defaults seguros"
+
 # 3. behaviour tests (RLS, triggers, RPC, rollback)
 PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p; /ERROR/p; /LINE/p'
+
+# Current optional inventory catalog; preserve legacy seed and test idempotence.
+P -d mnt -f "$SQL/seed_inventory_v2.sql" >/dev/null
+V1="$(P -d mnt -Atc "$FP")"
+P -d mnt -f "$SQL/seed_inventory_v2.sql" >/dev/null
+V2="$(P -d mnt -Atc "$FP")"
+[ "$V1" = "$V2" ] || { echo "FAIL catalogo v2 idempotencia"; exit 1; }
+echo "PASS catalogo v2 idempotente sin sobrescribir legado"
+PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/current_delivery.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /FAIL/p; /ERROR/p; /LINE/p'
 
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"

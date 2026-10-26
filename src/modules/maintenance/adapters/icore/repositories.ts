@@ -141,6 +141,15 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       listAssetsForExternal: nc("certificates.listAssetsForExternal"),
       registerExternal: nc("certificates.registerExternal"),
     },
+    corrective: {
+      list: nc('corrective.list'),
+      get: nc('corrective.get'),
+      create: nc('corrective.create'),
+      listEntries: nc('corrective.listEntries'),
+      addEntry: nc('corrective.addEntry'),
+      linkIncident: nc('corrective.linkIncident'),
+      close: nc('corrective.close'),
+    },
   };
 }
 

@@ -24,3 +24,12 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 | `status`, `outcome` (sesión, incidencia, certificado) | estado del módulo | columnas propias | solo cambian por RPC |
 | `metadata` | extensión libre | `metadata jsonb` | |
 | `signer_ip`, `signer_user_agent` | contexto de solicitud | lo aporta ICORE si lo exige | decisión ICORE |
+
+## Actualización 2026-10-26
+- `plan_nature`, `requirement_origin`, `requirement_reference`: mismas columnas/códigos en `mnt_plans`; el instalador conserva permiso `mnt.admin` de gestión de planes; el host debe mapear gestión sin conceder borrado administrativo a roles no administradores. Origen por defecto `unspecified`; nunca inferido.
+- `execution_mode` / `default_provider`: mismas columnas en `mnt_plans`; sesiones usan `is_external` / `external_provider`.
+- `active` / `archived_at` del DTO plan: mapear desde `status = active/paused/archived`, no crear dos autoridades de estado.
+- Fichas: `mnt_asset_types.metadata.technical_profile`; `mnt_assets.metadata.technical = {profile,version,values}`. Valores y referencias GWP conservados exactamente; validación UX declarativa, SQL de forma y RLS autoritativa.
+- Catálogo v2: convertir código físico de tipo a `metadata.catalog_code` (p.ej. `ext_polvo` → `EXT-POLVO`) al devolver el DTO. Al escribir, buscar código físico normalizado, nunca insertar el código con guiones en la tabla ICORE (CHECK existente). Tipos propios usan normalización y código original en metadata.
+- Categorías: el esquema limpio usa familias; `listCategories/saveCategory/deleteCategory` necesitan integración explícita del host, no existen tablas duplicadas de categorías.
+- Sugerencias: catálogo en código, no tabla ni activación. Código de plan estable `SUG-*`, único por org. La UI exige confirmar frecuencia/activos; la primera fecha puede quedar NULL. No escribe al seleccionar.

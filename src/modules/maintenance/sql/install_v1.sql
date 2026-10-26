@@ -106,6 +106,36 @@ CREATE TABLE IF NOT EXISTS public.mnt_assets (
 CREATE INDEX IF NOT EXISTS mnt_assets_type_idx ON public.mnt_assets(org_id, asset_type_id);
 CREATE INDEX IF NOT EXISTS mnt_assets_site_idx ON public.mnt_assets(org_id, site_ref);
 
+CREATE OR REPLACE FUNCTION public.mnt_tg_asset_technical_guard()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+DECLARE t jsonb; k text; v jsonb;
+BEGIN
+  IF TG_TABLE_NAME = 'mnt_asset_types' THEN
+    IF NEW.metadata ? 'technical_profile' AND coalesce(jsonb_typeof(NEW.metadata->'technical_profile'),'x') NOT IN ('string','null') THEN
+      RAISE EXCEPTION 'technical_profile debe ser texto';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF NOT (NEW.metadata ? 'technical') OR jsonb_typeof(NEW.metadata->'technical') = 'null' THEN RETURN NEW; END IF;
+  t := NEW.metadata->'technical';
+  IF coalesce(jsonb_typeof(t),'x') <> 'object' OR coalesce(jsonb_typeof(t->'profile'),'x') <> 'string'
+     OR coalesce(jsonb_typeof(t->'version'),'x') <> 'number' OR coalesce(jsonb_typeof(t->'values'),'x') <> 'object' THEN
+    RAISE EXCEPTION 'Ficha técnica con formato no válido';
+  END IF;
+  FOR k, v IN SELECT * FROM jsonb_each(t->'values') LOOP
+    IF k !~ '^[a-z][a-z0-9_]{0,40}$' THEN RAISE EXCEPTION 'Clave de ficha técnica no válida: %', k; END IF;
+    IF jsonb_typeof(v) NOT IN ('number','string') THEN RAISE EXCEPTION 'Valor de ficha técnica no válido en %', k; END IF;
+    IF jsonb_typeof(v) = 'string' AND length(v #>> '{}') > 200 THEN RAISE EXCEPTION 'Valor demasiado largo en %', k; END IF;
+  END LOOP;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS mnt_assets_technical_sheet_guard ON public.mnt_assets;
+CREATE TRIGGER mnt_assets_technical_sheet_guard BEFORE INSERT OR UPDATE OF metadata ON public.mnt_assets
+ FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_asset_technical_guard();
+DROP TRIGGER IF EXISTS mnt_asset_types_technical_profile_guard ON public.mnt_asset_types;
+CREATE TRIGGER mnt_asset_types_technical_profile_guard BEFORE INSERT OR UPDATE OF metadata ON public.mnt_asset_types
+ FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_asset_technical_guard();
+
 CREATE TABLE IF NOT EXISTS public.mnt_kit_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id uuid NOT NULL, asset_id uuid NOT NULL,
@@ -183,6 +213,27 @@ CREATE TABLE IF NOT EXISTS public.mnt_plans (
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz,
   UNIQUE (org_id, id), UNIQUE (org_id, code),
   FOREIGN KEY (org_id, certificate_template_id) REFERENCES public.mnt_certificate_templates(org_id, id));
+-- Additive upgrade: safe for earlier independent installations; no existing plans reclassified.
+ALTER TABLE public.mnt_plans ADD COLUMN IF NOT EXISTS plan_nature text NOT NULL DEFAULT 'preventive';
+ALTER TABLE public.mnt_plans ADD COLUMN IF NOT EXISTS requirement_origin text NOT NULL DEFAULT 'unspecified';
+ALTER TABLE public.mnt_plans ADD COLUMN IF NOT EXISTS requirement_reference text;
+ALTER TABLE public.mnt_plans ADD COLUMN IF NOT EXISTS execution_mode text NOT NULL DEFAULT 'internal';
+ALTER TABLE public.mnt_plans ADD COLUMN IF NOT EXISTS default_provider text;
+DO $classification$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.mnt_plans'::regclass AND conname='mnt_plans_nature_check') THEN
+    ALTER TABLE public.mnt_plans ADD CONSTRAINT mnt_plans_nature_check CHECK (plan_nature IN ('preventive','predictive','calibration','other'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.mnt_plans'::regclass AND conname='mnt_plans_origin_check') THEN
+    ALTER TABLE public.mnt_plans ADD CONSTRAINT mnt_plans_origin_check CHECK (requirement_origin IN ('unspecified','legal','manufacturer','internal','contractual','other'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.mnt_plans'::regclass AND conname='mnt_plans_reference_check') THEN
+    ALTER TABLE public.mnt_plans ADD CONSTRAINT mnt_plans_reference_check CHECK (requirement_reference IS NULL OR length(requirement_reference) <= 500);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.mnt_plans'::regclass AND conname='mnt_plans_execution_check') THEN
+    ALTER TABLE public.mnt_plans ADD CONSTRAINT mnt_plans_execution_check CHECK (execution_mode IN ('internal','external'));
+  END IF;
+END $classification$;
+CREATE INDEX IF NOT EXISTS mnt_plans_origin_idx ON public.mnt_plans(org_id, requirement_origin);
 CREATE TABLE IF NOT EXISTS public.mnt_plan_sites (
   org_id uuid NOT NULL, plan_id uuid NOT NULL, site_ref uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
