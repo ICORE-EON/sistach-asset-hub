@@ -2,7 +2,9 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowLeft, Archive, Printer, RotateCcw, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Archive, Printer, RotateCcw, Trash2, Save, Pencil } from "lucide-react";
+import { buildSheet, profileOfType, readSheet, sheetToForm, type TechnicalProfile } from "../../domain/technical-profiles";
+import { TechnicalSheetFields, TechnicalSheetView } from "../components/technical-sheet";
 import { assetService, assetKeys } from "../../services/assets";
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
@@ -338,6 +340,11 @@ export function AssetDetailPage() {
           </CardContent>
         </Card>
 
+        <TechnicalSheetCard
+          orgId={activeCompanyId} assetId={id} canManage={canManage} metadata={asset.metadata}
+          profile={profileOfType(types.find((t) => t.id === asset.asset_type_id)?.metadata)}
+        />
+
         {asset.asset_types?.category === "first_aid_kit" && (
           <div className="lg:col-span-3">
             <FirstAidKitPanel assetId={id} canManage={canManage} />
@@ -359,6 +366,63 @@ export function AssetDetailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function TechnicalSheetCard({ orgId, assetId, canManage, metadata, profile }: {
+  orgId: string | null; assetId: string; canManage: boolean; metadata: unknown; profile: TechnicalProfile | null;
+}) {
+  const qc = useQueryClient();
+  const saved = readSheet(metadata);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!profile) return;
+      const r = buildSheet(profile, form);
+      if (!r.ok) { setErrors(r.errors); throw new Error("Revisa la ficha técnica"); }
+      await assetService.updateAsset(orgId, assetId, { technical: r.sheet });
+    },
+    onSuccess: () => {
+      toast.success("Ficha técnica guardada");
+      setEditing(false); setErrors({});
+      qc.invalidateQueries({ queryKey: assetKeys.detail(orgId, assetId) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  if (!profile) return null;
+  const mismatch = saved && saved.profile !== profile.code;
+  return (
+    <Card className="lg:col-span-3">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base">Ficha técnica · {profile.label}</CardTitle>
+        {canManage && !editing && (
+          <Button variant="outline" size="sm" onClick={() => { setForm(mismatch ? {} : sheetToForm(saved)); setEditing(true); }}>
+            <Pencil className="mr-2 h-4 w-4" />{saved ? "Editar" : "Completar"}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <div className="space-y-4">
+            <TechnicalSheetFields profile={profile} value={form} onChange={setForm} errors={errors} />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => { setEditing(false); setErrors({}); }}>Cancelar</Button>
+              <Button onClick={() => save.mutate()} disabled={save.isPending}>
+                <Save className="mr-2 h-4 w-4" />{save.isPending ? "Guardando…" : "Guardar ficha"}
+              </Button>
+            </div>
+          </div>
+        ) : mismatch ? (
+          <p className="text-sm text-muted-foreground">La ficha guardada corresponde a otro tipo de equipo. Edítala para adaptarla a {profile.label}.</p>
+        ) : saved ? (
+          <TechnicalSheetView profile={profile} values={saved.values} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Sin datos técnicos todavía.</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
