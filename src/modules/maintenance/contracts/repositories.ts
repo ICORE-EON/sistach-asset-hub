@@ -1,3 +1,4 @@
+import type { TechnicalSheet } from "../domain/technical-profiles";
 /**
  * Stable data contracts of the maintenance module (capabilities, not tables).
  *
@@ -27,6 +28,8 @@ export type NewAsset = {
   asset_type_id: string; location_id: string | null; name: string | null;
   manufacturer: string | null; model: string | null; serial_number: string | null;
   install_date: string | null; notes: string | null;
+  /** Ficha técnica tipada (domain/technical-profiles). null = quitar. */
+  technical?: TechnicalSheet | null;
 };
 export type AssetPatch = NewAsset & { warranty_until: string | null; status: string };
 export type KitItemInput = {
@@ -120,11 +123,11 @@ export interface AssetsRepository {
   deleteFamily(orgId: string, id: string): Promise<void>;
   listTypes(orgId: string): Promise<{ id: string; code: string; name_i18n: Json; category: string; is_system: boolean; family_id: string | null; }[]>;
   listTypesAdmin(orgId: string): Promise<{ active: boolean; category: string; code: string; company_id: string | null; created_at: string; family_id: string | null; id: string; is_system: boolean; metadata: Json; name_i18n: Json; updated_at: string; }[]>;
-  createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null; }): Promise<void>;
+  createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null; technical_profile?: string | null; }): Promise<void>;
   setTypeFamily(orgId: string, typeId: string, familyId: string | null): Promise<void>;
   deleteType(orgId: string, id: string): Promise<void>;
   updateFamily(orgId: string, id: string, v: { code: string; name: string; color: string; requires_certificate: boolean; }): Promise<void>;
-  updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null; }): Promise<void>;
+  updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null; technical_profile?: string | null; }): Promise<void>;
   listCategories(orgId: string): Promise<{ id: string; code: string; name: string; }[]>;
   saveCategory(orgId: string, v: { code: string; name: string; }): Promise<void>;
   deleteCategory(orgId: string, code: string): Promise<void>;

@@ -45,7 +45,7 @@ export const assetService = {
   listTypesAdmin: (orgId: string | null) => repo().listTypesAdmin(need(orgId)),
   createType: (orgId: string | null, v: { code: string; name: string; category: string; familyId: string }) => {
     if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
-    return repo().createType(need(orgId), { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null });
+    return repo().createType(need(orgId), { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null, technical_profile: v.technicalProfile });
   },
   setTypeFamily: (orgId: string | null, typeId: string, familyId: string | null) =>
     repo().setTypeFamily(need(orgId), typeId, familyId),
@@ -55,9 +55,9 @@ export const assetService = {
     if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
     return repo().updateFamily(need(orgId), id, { code: v.code.toLowerCase().replace(/\s+/g, "_"), name: v.name, color: v.color, requires_certificate: v.requiresCertificate });
   },
-  updateType: (orgId: string | null, id: string, v: { code: string; name: string; category: string; familyId: string }) => {
+  updateType: (orgId: string | null, id: string, v: { code: string; name: string; category: string; familyId: string; technicalProfile?: string | null }) => {
     if (!v.code || !v.name) throw new Error("Código y nombre son obligatorios");
-    return repo().updateType(need(orgId), id, { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null });
+    return repo().updateType(need(orgId), id, { code: v.code.toUpperCase(), name: v.name, category: v.category, family_id: v.familyId || null, technical_profile: v.technicalProfile });
   },
   listCategories: (orgId: string | null) => repo().listCategories(need(orgId)),
   saveCategory: (orgId: string | null, v: { code: string; name: string }) => {
