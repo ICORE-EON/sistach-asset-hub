@@ -399,7 +399,7 @@ function CreatePlanDialog({
   const [suggestionTypeCodes, setSuggestionTypeCodes] = useState<string[] | null>(null);
   const applySuggestion = (s: MaintenanceSuggestion) => {
     setCode(suggestionPlanCode(s)); setName(s.name); setNotes(s.description);
-    setNature(s.nature); setOrigin(s.origin); setReference(''); setFrequency('');
+    setNature(s.nature); setOrigin(s.origin); setReference(''); setFrequency(s.frequency ?? '');
     setInitialDue(null); setScopeMode('manual'); setManualPicked([]); setExcluded([]);
     setTypeTemplates({}); setSuggestionTypeCodes(s.typeCodes.map(c => c.toUpperCase()));
     const matched = allTypes.find(t => s.typeCodes.some(c => c.toUpperCase() === t.code.toUpperCase()));
