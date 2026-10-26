@@ -13,4 +13,6 @@ it('exports every portable runtime dependency and keeps standalone outside', () 
   expect(manifest.include.filter(p => p.includes('/standalone/'))).toEqual([]);
   expect(manifest.include).toContain(`${root}/domain/technical-profiles.ts`);
   expect(manifest.include).toContain(`${root}/domain/maintenance-suggestions.ts`);
+  expect(manifest.include).toContain(`${root}/domain/asset-search.ts`);
+  expect(manifest.include).toContain(`${root}/ui/components/asset-picker.tsx`);
 });

@@ -113,7 +113,14 @@ export function createPlansRepo(c: StandaloneClient) {
         .eq("company_id", orgId).is("deleted_at", null).neq("status", "retired");
       if (q.assetTypeIds.length) b = b.in("asset_type_id", q.assetTypeIds);
       if (expanded.length) b = b.in("location_id", expanded);
-      return (ok(await b.order("code")) ?? []) as unknown as ScopeAsset[];
+      // Fetch every eligible candidate; Data API default row caps must not hide search matches.
+      const assets: ScopeAsset[] = [];
+      for (let from = 0; ; from += 500) {
+        const rows = (ok(await b.order("code").order("id").range(from, from + 499)) ?? []) as unknown as ScopeAsset[];
+        assets.push(...rows);
+        if (rows.length < 500) break;
+      }
+      return assets;
     },
 
     async createPlan(orgId: string, v: NewPlan) {

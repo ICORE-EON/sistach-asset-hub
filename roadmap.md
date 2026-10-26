@@ -1,5 +1,10 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Selector de activos con búsqueda 2026-10-26 (COMPLETADO — alcance Planes)
+- [x] Selector portable en Planes → Añadir activos y Nuevo plan → Equipos concretos: código/nombre/tipo/centro sin acentos, contexto, resultados paginados y selección múltiple conservada al buscar; lectura completa mediante repositorio actual, sin cambiar permisos/datos/esquema.
+- [x] Vitest 269 PASS / 4 omitidas, 33 archivos: búsqueda, selección, lectura de 1201 candidatos, aislamiento/guardas, manifiesto y SQL ICORE temporal. Build observado OK; navegador autenticado desktop/móvil con datos existentes, dos seleccionados conservados al filtrar y Añadir activos abierto; cero errores, sin guardar/vincular/TEST. Typecheck separado no ejecutado por restricción del entorno.
+- [x] Exportados dominio/componente/pruebas y requisitos DTO documentados, sin nuevas dependencias ni contratos. Reparaciones/otros vínculos aplazados: DTO limitado a id/código/nombre y 500 filas con distinta elegibilidad, ampliación no simple. Host/adaptador ICORE real sigue pendiente; no integrado ni afirmado. Persistencia/cambio real de permisos en navegador no ejercidos; inventarios extremos no medidos.
+
 ## Corrección acotada de sugerencias 2026-10-26 (COMPLETADA)
 - [x] 37 intervenciones concretas, notas y seis propuestas trimestrales/anuales orientativas revisables; resto a definir por empresa. Aplicación explícita, 13 códigos antiguos conservados, ningún cambio en planes/datos.
 - [x] Vitest 257 PASS / 4 omitidas, incluida instalación SQL en PostgreSQL temporal y manifiesto. Build observado OK; typecheck manual separado no ejecutado por restricción del entorno. Navegador autenticado verifica nombre/notas/frecuencia y selección previa intacta hasta aplicar; formulario móvil sin desbordamiento, cero errores y sin guardar/TEST.

@@ -58,7 +58,7 @@ function fakeClient() {
     const b: Record<string, unknown> = {};
     const chain = (fn?: (...a: unknown[]) => void) => (...a: unknown[]) => { fn?.(...a); return b; };
     Object.assign(b, {
-      select: chain(), order: chain(), limit: chain(),
+      select: chain(), order: chain(), limit: chain(), range: chain(),
       eq: chain((k, v) => filters.push([k as string, v])),
       is: chain((k, v) => filters.push([k as string, v])),
       neq: chain((k, v) => neqs.push([k as string, v])),

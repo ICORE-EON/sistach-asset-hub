@@ -16,6 +16,11 @@
 El catálogo portable `domain/maintenance-suggestions.ts` contiene 37 intervenciones, consumidas por el mismo formulario del módulo. Copiar catálogo, selector, pantalla y pruebas mediante el manifiesto existente: no requiere migración ni seed SQL adicional y no crea planes. Mantiene los 13 códigos anteriores. Seis propuestas trimestrales/anuales son orientativas y editables; el resto queda a definir por empresa, sin origen legal automático. El usuario aplica explícitamente y revisa frecuencia/equipos antes de guardar. La corrección no cambia dependencias del host ni supone integración real.
 
 ## Configuración necesaria
+### Selector de activos
+`ui/components/asset-picker.tsx` y `domain/asset-search.ts` están incluidos en el manifiesto; no añaden dependencias ni SQL. Se usan en Planes → Añadir activos y Nuevo plan → Equipos concretos. El adaptador existente `plans.listScopeAssets(orgId, query)` debe devolver todos los candidatos elegibles del tenant, paginando internamente cuando la API limite filas; el selector pagina solo la presentación (40 por página) y busca sobre todo el conjunto recibido. Proveer `asset_types.code/name_i18n`, `locations.name` y la jerarquía existente de centros (`ScopeLocation`) para búsqueda/contexto; no cambiar contratos ni permisos. La búsqueda no amplía candidatos, no hace escrituras y no habilita activos retirados/borrados.
+
+Reparaciones y otros vínculos no se modifican: `incidents.listAssetOptions` devuelve solo id/código/nombre y está limitado a 500; ampliarlo a tipo/centro con cobertura total requiere trabajo adicional en contrato/adaptador. No sustituirlo por candidatos de planes, pues difiere la elegibilidad. Integración real ICORE sigue pendiente; el esqueleto permanece fail-closed.
+
 - Dependencias npm usadas por el paquete: `react`, `@tanstack/react-query`, `@tanstack/react-router` (solo en envoltorios del host), `pdf-lib`, `zod`, `lucide-react`, `sonner`, kit UI `@/components/ui/*` y `@/lib/utils` (alias `@`).
 - Variables de entorno: el paquete no lee ninguna; las credenciales de base y almacenamiento son del host.
 - PostgreSQL ≥ 15 (probado en 16/17), `gen_random_uuid()` disponible.
