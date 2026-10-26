@@ -55,3 +55,9 @@
 - [x] Contratos, servicios, repositorio standalone y pantallas (Mantenimientos > Reparaciones, ficha de activo, incidencia)
 - [ ] Prueba en navegador con datos TEST (pendiente decisión: los registros de reparación no se pueden borrar)
 - [ ] Repetir batería 1B; adaptador ICORE TypeScript de reparaciones; documentación EXPORT/specs
+
+## Reconducción ICORE (2026-10-26) — máximo 2 entregas
+### Hito 1 — Activos inteligentes
+- [x] **1A** Ficha técnica Climatización extremo a extremo: perfil en catálogo de sistema (código, declarativo), activado por empresa en cada tipo (Tipos de activo → Ficha técnica), campos en alta de activo y tarjeta ver/editar en la ficha del activo; valores tipados en `assets.metadata.technical`, guarda SQL de formato. Pendiente: aceptación del usuario y prueba en navegador con datos reales.
+- [ ] **1B** (tras aceptación) Perfiles electricidad, PCI, vehículos, medida; asistente inicial de inventario con familias/tipos sugeridos copiables por empresa. Límite: sin obligaciones legales predefinidas.
+### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.

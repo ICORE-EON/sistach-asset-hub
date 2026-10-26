@@ -1,4 +1,5 @@
 
+import { listProfiles, profileOfType } from "../../domain/technical-profiles";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag, Plus, Trash2, Lock, Pencil } from "lucide-react";
@@ -16,7 +17,7 @@ import { toast } from "sonner";
 import { i18nName } from "../../domain/i18n-name";
 
 type Cat = { code: string; name: string; saved: boolean };
-type TypeRow = { id: string; code: string; name_i18n: unknown; category: string; family_id: string | null; is_system: boolean };
+type TypeRow = { id: string; code: string; name_i18n: unknown; category: string; family_id: string | null; is_system: boolean; metadata?: unknown };
 
 const prettify = (c: string) => c.replace(/_/g, " ").replace(/^\w/, (x) => x.toUpperCase());
 
@@ -253,6 +254,8 @@ function TypeDialog({ initial, categories, onDone }: { initial: TypeRow | null; 
   const [name, setName] = useState(initial ? i18nName(initial.name_i18n, initial.code) : "");
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.code ?? "other");
   const [familyId, setFamilyId] = useState(initial?.family_id ?? "");
+  const initialProfile = profileOfType(initial?.metadata)?.code ?? "none";
+  const [profileCode, setProfileCode] = useState(initialProfile);
 
   const { data: families = [] } = useQuery({
     queryKey: assetKeys.families(activeCompanyId),
@@ -262,7 +265,7 @@ function TypeDialog({ initial, categories, onDone }: { initial: TypeRow | null; 
 
   const save = useMutation({
     mutationFn: async () => {
-      const v = { code, name, category, familyId };
+      const v = { code, name, category, familyId, technicalProfile: profileCode === "none" ? null : profileCode };
       if (initial) await assetService.updateType(activeCompanyId, initial.id, v);
       else await assetService.createType(activeCompanyId, v);
     },
@@ -289,6 +292,17 @@ function TypeDialog({ initial, categories, onDone }: { initial: TypeRow | null; 
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>{categories.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Ficha técnica</Label>
+          <Select value={profileCode} onValueChange={setProfileCode}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sin ficha técnica</SelectItem>
+              {listProfiles().map((p) => <SelectItem key={p.code} value={p.code}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Los equipos de este tipo mostrarán estos campos al darlos de alta.</p>
         </div>
       </div>
       <DialogFooter>

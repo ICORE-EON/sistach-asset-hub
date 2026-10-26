@@ -38,17 +38,18 @@ export function createAssetsRepo(c: StandaloneClient) {
 
     // ---- types ----
     async listTypes(orgId: string) {
-      return ok(await c.from("asset_types").select("id, code, name_i18n, category, is_system, family_id")
+      return ok(await c.from("asset_types").select("id, code, name_i18n, category, is_system, family_id, metadata")
         .or(orgOrSystem(orgId)).eq("active", true).order("code")) ?? [];
     },
     async listTypesAdmin(orgId: string) {
       return ok(await c.from("asset_types").select("*").or(orgOrSystem(orgId))
         .order("is_system", { ascending: false }).order("code")) ?? [];
     },
-    async createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null }) {
+    async createType(orgId: string, v: { code: string; name: string; category: string; family_id: string | null; technical_profile?: string | null }) {
       ok(await c.from("asset_types").insert({
         company_id: orgId, code: v.code, name_i18n: { es: v.name }, category: v.category,
         family_id: v.family_id, is_system: false,
+        metadata: v.technical_profile ? { technical_profile: v.technical_profile } : {},
       }));
     },
     async setTypeFamily(orgId: string, typeId: string, familyId: string | null) {
@@ -62,9 +63,14 @@ export function createAssetsRepo(c: StandaloneClient) {
       ok(await c.from("asset_families").update({ code: v.code, name_i18n: { es: v.name }, color: v.color, requires_certificate: v.requires_certificate })
         .eq("id", id).eq("company_id", orgId));
     },
-    async updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null }) {
-      ok(await c.from("asset_types").update({ code: v.code, name_i18n: { es: v.name }, category: v.category, family_id: v.family_id })
-        .eq("id", id).eq("company_id", orgId));
+    async updateType(orgId: string, id: string, v: { code: string; name: string; category: string; family_id: string | null; technical_profile?: string | null }) {
+      const patch: Record<string, unknown> = { code: v.code, name_i18n: { es: v.name }, category: v.category, family_id: v.family_id };
+      if (v.technical_profile !== undefined) {
+        const cur = ok(await c.from("asset_types").select("metadata").eq("id", id).eq("company_id", orgId).maybeSingle());
+        if (!cur) throw new Error("Tipo no encontrado en la organización activa");
+        patch.metadata = { ...((cur.metadata as Record<string, unknown>) ?? {}), technical_profile: v.technical_profile };
+      }
+      ok(await c.from("asset_types").update(patch as never).eq("id", id).eq("company_id", orgId));
     },
     // ---- categories (org catalog) ----
     async listCategories(orgId: string) {
@@ -114,10 +120,19 @@ export function createAssetsRepo(c: StandaloneClient) {
     },
     async createAsset(orgId: string, v: NewAsset) {
       const code = ok(await c.rpc("next_code", { p_company_id: orgId, p_scope: "assets", p_prefix: "AST" }));
-      ok(await c.from("assets").insert({ ...v, company_id: orgId, qr_token: "", code: code as string }));
+      const { technical, ...rest } = v;
+      ok(await c.from("assets").insert({ ...rest, company_id: orgId, qr_token: "", code: code as string,
+        metadata: (technical ? { technical } : {}) as never }));
     },
     async updateAsset(orgId: string, id: string, v: Partial<AssetPatch>) {
-      ok(await c.from("assets").update(v).eq("id", id).eq("company_id", orgId));
+      const { technical, ...rest } = v;
+      const patch: Record<string, unknown> = { ...rest };
+      if (technical !== undefined) {
+        const cur = ok(await c.from("assets").select("metadata").eq("id", id).eq("company_id", orgId).maybeSingle());
+        if (!cur) throw new Error("Activo no encontrado en la organización activa");
+        patch.metadata = { ...((cur.metadata as Record<string, unknown>) ?? {}), technical };
+      }
+      ok(await c.from("assets").update(patch as never).eq("id", id).eq("company_id", orgId));
     },
     async softDeleteAsset(orgId: string, id: string) {
       ok(await c.from("assets").update({ deleted_at: new Date().toISOString() }).eq("id", id).eq("company_id", orgId));
