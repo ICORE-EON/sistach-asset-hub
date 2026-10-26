@@ -1,5 +1,9 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Corrección acotada de sugerencias 2026-10-26 (EN CURSO)
+- [ ] Catálogo de intervenciones concretas, notas y propuestas orientativas revisables; aplicación explícita, códigos antiguos conservados.
+- [ ] Verificar Vitest, señales de compilación y navegador sin guardar; documentar portabilidad y límites del instalador/host ICORE.
+
 ## Entrega acotada 2026-10-26 — portabilidad y sugerencias (ENTREGADO con bloqueo de host/metrología)
 - [x] Sincronizados clasificación, ejecución, guarda técnica, catálogo v2 y manifiesto completo. SQL temporal 150 PASS/ALL_DONE, actualización con plan legado intacto. Host real NO integrado; portado SQL/adaptador metrología pendiente por alcance material, ver `spec/INSTALL_ICORE.md`.
 - [x] Sugerencias opcionales en Nuevo plan: 13 tareas prácticas, origen sin especificar, frecuencia y equipos confirmados; navegador autenticado sin escritura, cero errores. E2E de persistencia no ejecutado por restricción TEST. Vitest 237 PASS/4 omitidas, incluida completitud de manifiesto; build OK; typecheck separado no ejecutado por restricción del entorno.
