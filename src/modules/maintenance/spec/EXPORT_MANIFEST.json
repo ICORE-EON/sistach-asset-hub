@@ -143,6 +143,7 @@
     "src/modules/maintenance/adapters/standalone/repos/__tests__/checklists.integration.test.ts",
     "src/modules/maintenance/adapters/standalone/repos/__tests__/incidents.integration.test.ts",
     "src/modules/maintenance/adapters/standalone/repos/__tests__/plans.integration.test.ts",
+    "src/modules/maintenance/adapters/standalone/repos/__tests__/scope-pagination.test.ts",
     "src/modules/maintenance/adapters/standalone/repos/__tests__/sessions.integration.test.ts",
     "src/modules/maintenance/adapters/standalone/repos/assets.repo.ts",
     "src/modules/maintenance/adapters/standalone/repos/certificates.repo.ts",
