@@ -26,6 +26,9 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 | `signer_ip`, `signer_user_agent` | contexto de solicitud | lo aporta ICORE si lo exige | decisión ICORE |
 
 ## Actualización 2026-10-26
+### Reparaciones 2026-10-27
+- `CorrectiveEdit.expectedUpdatedAt` → token exacto `mnt_sessions.updated_at`; `corrective.update` llama `mnt_update_corrective`, nunca UPDATE directo. Error 40001 exige recargar, no reintentar automáticamente.
+- `technicianName` descriptivo → `technician_snapshot.name`; `cancellation_reason` → `metadata.cancel.reason`. No editar actuaciones ni autor autenticado. Estado operativo standalone out_of_service corresponde a inactive en el instalador actual; adaptar explícitamente antes de presentar opciones de reactivación.
 - `plan_nature`, `requirement_origin`, `requirement_reference`: mismas columnas/códigos en `mnt_plans`; el instalador conserva permiso `mnt.admin` de gestión de planes; el host debe mapear gestión sin conceder borrado administrativo a roles no administradores. Origen por defecto `unspecified`; nunca inferido.
 - `execution_mode` / `default_provider`: mismas columnas en `mnt_plans`; sesiones usan `is_external` / `external_provider`.
 - `active` / `archived_at` del DTO plan: mapear desde `status = active/paused/archived`, no crear dos autoridades de estado.
