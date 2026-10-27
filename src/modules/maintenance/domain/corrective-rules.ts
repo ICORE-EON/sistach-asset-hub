@@ -1,5 +1,5 @@
 /** Corrective (2B) labels and UX-only validations; the server is the authority. */
-import type { CorrectiveClose, CorrectiveOutcome, CorrectivePriority, NewCorrective } from "../contracts/corrective";
+import type { CorrectiveClose, CorrectiveEdit, CorrectiveOutcome, CorrectivePriority, NewCorrective } from "../contracts/corrective";
 
 export const PRIORITY_LABEL: Record<CorrectivePriority, string> = { low: "Baja", normal: "Normal", high: "Alta" };
 export const OUTCOME_LABEL: Record<CorrectiveOutcome, string> = { repaired: "Reparado", not_repaired: "No reparado", replaced: "Sustituido" };
@@ -15,6 +15,19 @@ export function correctiveStatusLabel(status: string): string {
   }
 }
 export const isCorrectiveOpen = (status: string) => status === "draft" || status === "in_progress";
+
+export const DEFAULT_REACTIVATE = false;
+export const shouldReactivate = (requested: boolean, outcome: CorrectiveOutcome, assetStatus: string | undefined, canManage: boolean) =>
+  requested && outcome === "repaired" && assetStatus === "out_of_service" && canManage;
+
+export function validateCorrectiveEdit(v: CorrectiveEdit): string[] {
+  const e: string[] = [];
+  if (!v.expectedUpdatedAt) e.push("Recarga la reparación antes de editar");
+  if (!v.description.trim()) e.push("Describe la avería");
+  if (!["low", "normal", "high"].includes(v.priority)) e.push("Prioridad no válida");
+  if (v.external && !v.provider?.trim()) e.push("Indica la empresa externa");
+  return e;
+}
 
 export function validateNewCorrective(v: NewCorrective, today: string): string[] {
   const e: string[] = [];

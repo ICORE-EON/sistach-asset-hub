@@ -1,5 +1,11 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Reparaciones correctivas 2026-10-27 (EN CURSO — solo bloque autorizado)
+- [ ] Edición descriptiva de abiertas con control de conflicto, sin modificar actuaciones/activos/incidencias/vencimientos.
+- [ ] Cancelación con motivo visible, borrado de borrador vacío por RPC existente y reactivación desmarcada.
+- [ ] Sincronizar contrato/SQL/manifiesto ICORE; ejecutar regresiones y navegación sin escrituras reales ni TEST permanentes.
+- Buscador de equipo aplazado: los candidatos actuales carecen de tipo/centro; ampliar su contrato excede la reutilización sencilla autorizada. Host ICORE real fuera de alcance.
+
 ## Selector de activos con búsqueda 2026-10-26 (COMPLETADO — alcance Planes)
 - [x] Selector portable en Planes → Añadir activos y Nuevo plan → Equipos concretos: código/nombre/tipo/centro sin acentos, contexto, resultados paginados y selección múltiple conservada al buscar; lectura completa mediante repositorio actual, sin cambiar permisos/datos/esquema.
 - [x] Vitest 269 PASS / 4 omitidas, 33 archivos: búsqueda, selección, lectura de 1201 candidatos, aislamiento/guardas, manifiesto y SQL ICORE temporal. Build observado OK; navegador autenticado desktop/móvil con datos existentes, dos seleccionados conservados al filtrar y Añadir activos abierto; cero errores, sin guardar/vincular/TEST. Typecheck separado no ejecutado por restricción del entorno.

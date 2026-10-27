@@ -8,7 +8,7 @@ import type { CorrectiveClose, CorrectiveEntry, CorrectiveRepository, Corrective
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 
 const SELECT = `id, code, status, priority, detected_on, fault_description, outcome, closed_at, is_external,
-  external_provider, technician_name, incident_id, metadata,
+  external_provider, technician_name, incident_id, metadata, updated_at, cancellation_reason,
   incidents!maintenance_sessions_incident_id_fkey(id, code, title, status),
   maintenance_items(completed_at, observations, assets(id, code, name, status))`;
 
@@ -16,6 +16,7 @@ type Raw = {
   id: string; code: string; status: string; priority: string | null; detected_on: string | null; fault_description: string | null;
   outcome: string | null; closed_at: string | null; is_external: boolean; external_provider: string | null; technician_name: string | null;
   incident_id: string | null; metadata: unknown;
+  updated_at: string; cancellation_reason: string | null;
   incidents: { id: string; code: string; title: string; status: string } | null;
   maintenance_items: { completed_at: string | null; observations: string | null; assets: { id: string; code: string; name: string | null; status: string } | null }[];
 };
@@ -29,6 +30,7 @@ const map = (r: Raw): CorrectiveRow => {
     is_external: r.is_external, external_provider: r.external_provider, technician_name: r.technician_name, incident_id: r.incident_id,
     asset: it?.assets ?? null, incident: r.incidents ?? null, completed_at: it?.completed_at ?? null,
     observations: it?.observations ?? null, closed_by_name: meta.corrective_close?.by_name ?? null,
+    updated_at: r.updated_at, cancellation_reason: r.cancellation_reason,
   };
 };
 
@@ -60,6 +62,15 @@ export function createCorrectiveRepo(c: StandaloneClient): CorrectiveRepository 
     },
     async addEntry(orgId, id, performedOn, text) {
       ok(await c.rpc("mnt_sa_add_entry", { p_company: orgId, p_session: id, p_performed_on: performedOn, p_text: text }));
+    },
+    async update(orgId, id, v) {
+      // The new additive RPC is intentionally typed locally until generated host types refresh.
+      const rpc = c.rpc.bind(c) as unknown as (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+      ok(await rpc("mnt_sa_update_corrective", {
+        p_company: orgId, p_session: id, p_expected_updated_at: v.expectedUpdatedAt,
+        p_description: v.description.trim(), p_priority: v.priority, p_external: v.external,
+        p_provider: v.provider?.trim() || null, p_technician_name: v.technicianName?.trim() || null,
+      }));
     },
     async linkIncident(orgId, id, incidentId) {
       ok(await c.rpc("mnt_sa_link_incident", { p_company: orgId, p_session: id, p_incident: incidentId as string }));

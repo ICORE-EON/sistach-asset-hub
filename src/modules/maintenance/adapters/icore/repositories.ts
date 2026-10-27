@@ -145,6 +145,7 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       list: nc('corrective.list'),
       get: nc('corrective.get'),
       create: nc('corrective.create'),
+      update: nc('corrective.update'),
       listEntries: nc('corrective.listEntries'),
       addEntry: nc('corrective.addEntry'),
       linkIncident: nc('corrective.linkIncident'),
