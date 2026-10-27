@@ -8,7 +8,7 @@ import type { CorrectiveClose, CorrectiveEntry, CorrectiveRepository, Corrective
 const ok = <T>(r: { data: T; error: unknown }): T => { if (r.error) throw r.error; return r.data; };
 
 const SELECT = `id, code, status, priority, detected_on, fault_description, outcome, closed_at, is_external,
-  external_provider, technician_name, incident_id, metadata, updated_at, cancellation_reason,
+  external_provider, technician_name, incident_id, metadata, updated_at,
   incidents!maintenance_sessions_incident_id_fkey(id, code, title, status),
   maintenance_items(completed_at, observations, assets(id, code, name, status))`;
 
@@ -16,21 +16,21 @@ type Raw = {
   id: string; code: string; status: string; priority: string | null; detected_on: string | null; fault_description: string | null;
   outcome: string | null; closed_at: string | null; is_external: boolean; external_provider: string | null; technician_name: string | null;
   incident_id: string | null; metadata: unknown;
-  updated_at: string; cancellation_reason: string | null;
+  updated_at: string;
   incidents: { id: string; code: string; title: string; status: string } | null;
   maintenance_items: { completed_at: string | null; observations: string | null; assets: { id: string; code: string; name: string | null; status: string } | null }[];
 };
 
 const map = (r: Raw): CorrectiveRow => {
   const it = r.maintenance_items?.[0];
-  const meta = (r.metadata ?? {}) as { corrective_close?: { by_name?: string | null } };
+  const meta = (r.metadata ?? {}) as { corrective_close?: { by_name?: string | null }; cancel?: { reason?: string } };
   return {
     id: r.id, code: r.code, status: r.status, priority: (r.priority ?? "normal") as CorrectiveRow["priority"],
     detected_on: r.detected_on ?? "", fault_description: r.fault_description ?? "", outcome: r.outcome, closed_at: r.closed_at,
     is_external: r.is_external, external_provider: r.external_provider, technician_name: r.technician_name, incident_id: r.incident_id,
     asset: it?.assets ?? null, incident: r.incidents ?? null, completed_at: it?.completed_at ?? null,
     observations: it?.observations ?? null, closed_by_name: meta.corrective_close?.by_name ?? null,
-    updated_at: r.updated_at, cancellation_reason: r.cancellation_reason,
+    updated_at: r.updated_at, cancellation_reason: meta.cancel?.reason ?? null,
   };
 };
 
