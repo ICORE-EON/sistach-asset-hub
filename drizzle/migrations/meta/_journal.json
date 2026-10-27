@@ -85,6 +85,13 @@
       "when": 1793049427228,
       "tag": "0011_mnt_plan_nature_origin",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793082249548,
+      "tag": "0012_mnt_corrective_safe_edit",
+      "breakpoints": true
     }
   ]
 }

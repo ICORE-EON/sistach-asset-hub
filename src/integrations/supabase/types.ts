@@ -4497,6 +4497,19 @@ export type Database = {
         Args: { p_company: string; p_link: string; p_reason: string }
         Returns: Json
       }
+      mnt_sa_update_corrective: {
+        Args: {
+          p_company: string
+          p_description: string
+          p_expected_updated_at: string
+          p_external: boolean
+          p_priority: string
+          p_provider?: string
+          p_session: string
+          p_technician_name?: string
+        }
+        Returns: undefined
+      }
       mtr_calc_next_due: {
         Args: { p_from: string; p_unit: string; p_value: number }
         Returns: string
