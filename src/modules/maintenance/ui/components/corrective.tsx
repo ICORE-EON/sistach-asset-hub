@@ -8,7 +8,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Hammer, Plus } from "lucide-react";
+import { Hammer, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import { incidentKeys, incidentService } from "../../services/incidents";
 import { assetKeys } from "../../services/assets";
 import { sessionKeys, sessionService } from "../../services/sessions";
 import type { CorrectiveOutcome, CorrectivePriority, CorrectiveRow } from "../../contracts/corrective";
-import { OUTCOME_LABEL, PRIORITY_LABEL, correctiveStatusLabel, isCorrectiveOpen } from "../../domain/corrective-rules";
+import { DEFAULT_REACTIVATE, OUTCOME_LABEL, PRIORITY_LABEL, correctiveStatusLabel, isCorrectiveOpen, shouldReactivate } from "../../domain/corrective-rules";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 const fdate = (d: string | null | undefined) => (d ? format(new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00` : d), "dd/MM/yyyy") : "—");
@@ -164,7 +164,7 @@ export function RepairsList({ assetId, openOnly = false, showAsset = true }: { a
               : data.map((r) => (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r.id)}>
                   <TableCell><Badge variant={statusVariant(r.status)}>{correctiveStatusLabel(r.status)}</Badge></TableCell>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                  <TableCell className="font-mono text-xs"><Button variant="link" size="sm" onClick={() => setSelected(r.id)}>{r.code}</Button></TableCell>
                   {showAsset && <TableCell>{r.asset ? `${r.asset.code} · ${r.asset.name ?? ""}` : "—"}</TableCell>}
                   <TableCell className="max-w-[260px] truncate">{r.fault_description}</TableCell>
                   <TableCell><PriorityBadge p={r.priority} /></TableCell>
@@ -182,11 +182,11 @@ export function RepairsList({ assetId, openOnly = false, showAsset = true }: { a
 
 function RepairSheet({ id, onClose }: { id: string | null; onClose: () => void }) {
   const { orgId } = useMaintenanceRequest();
-  const { data: r } = useQuery({ queryKey: correctiveKeys.detail(orgId, id ?? ""), enabled: !!orgId && !!id, queryFn: () => correctiveService.get(orgId, id!) });
+  const { data: r } = useQuery({ queryKey: correctiveKeys.detail(orgId, id ?? ""), enabled: !!orgId && !!id, queryFn: () => id ? correctiveService.get(orgId, id) : Promise.resolve(null) });
   return (
     <Sheet open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        {r ? <RepairDetail r={r} onClose={onClose} /> : <p className="p-4 text-sm text-muted-foreground">Cargando…</p>}
+        {r ? <RepairDetail key={`${orgId}:${r.id}`} r={r} onClose={onClose} /> : <p className="p-4 text-sm text-muted-foreground">Cargando…</p>}
       </SheetContent>
     </Sheet>
   );
@@ -207,7 +207,7 @@ function RepairDetail({ r, onClose }: { r: CorrectiveRow; onClose: () => void })
   const { data: entries = [] } = useQuery({ queryKey: correctiveKeys.entries(orgId, r.id), enabled: !!orgId, queryFn: () => correctiveService.listEntries(orgId, r.id) });
   const { data: incidents = [] } = useQuery({
     queryKey: incidentKeys.byAsset(orgId, r.asset?.id ?? ""), enabled: !!orgId && !!r.asset && open && canRun,
-    queryFn: () => incidentService.listAssetIncidents(orgId, r.asset!.id),
+     queryFn: () => r.asset ? incidentService.listAssetIncidents(orgId, r.asset.id) : Promise.resolve([]),
   });
 
   const [entryDate, setEntryDate] = useState(todayStr());
@@ -229,6 +229,8 @@ function RepairDetail({ r, onClose }: { r: CorrectiveRow; onClose: () => void })
         <SheetTitle className="flex items-center gap-2"><span className="font-mono">{r.code}</span><Badge variant={statusVariant(r.status)}>{correctiveStatusLabel(r.status)}</Badge></SheetTitle>
         <SheetDescription>Reparación · no modifica el mantenimiento preventivo ni la incidencia vinculada</SheetDescription>
       </SheetHeader>
+      {open && canRun && <EditRepairButton r={r} onDone={refresh} />}
+      {r.status === "cancelled" && <p className="border-l-2 border-destructive pl-3 text-sm">Motivo de cancelación: {r.cancellation_reason ?? "No disponible"}</p>}
       <dl className="grid grid-cols-2 gap-3 text-sm">
         <div className="col-span-2"><dt className="text-xs text-muted-foreground">Equipo</dt><dd>{r.asset ? <Link to="/assets/$id" params={{ id: r.asset.id }} className="hover:underline">{r.asset.code} · {r.asset.name ?? ""}</Link> : "—"}{r.asset?.status === "out_of_service" && <Badge variant="destructive" className="ml-2">Fuera de servicio</Badge>}</dd></div>
         <div className="col-span-2"><dt className="text-xs text-muted-foreground">Avería</dt><dd className="whitespace-pre-wrap">{r.fault_description}</dd></div>
@@ -251,7 +253,7 @@ function RepairDetail({ r, onClose }: { r: CorrectiveRow; onClose: () => void })
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Sin incidencia</SelectItem>
-              {r.incident && !incidents.some((i) => i.id === r.incident!.id) && <SelectItem value={r.incident.id}>{r.incident.code} · {r.incident.title}</SelectItem>}
+              {r.incident && !incidents.some((i) => i.id === r.incident?.id) && <SelectItem value={r.incident.id}>{r.incident.code} · {r.incident.title}</SelectItem>}
               {incidents.map((i) => <SelectItem key={i.id} value={i.id}>{i.code} · {i.title}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -288,12 +290,69 @@ function RepairDetail({ r, onClose }: { r: CorrectiveRow; onClose: () => void })
 
       {open && canRun && (
         <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-          <CancelRepairButton r={r} onDone={() => { refresh(); onClose(); }} />
+          {r.status === "draft" && <DeleteRepairDraftButton r={r} onDone={() => { refresh(); onClose(); }} />}
+          <CancelRepairButton r={r} onDone={refresh} />
           <CloseRepairButton r={r} canManageAssets={canManageAssets} onDone={refresh} />
         </div>
       )}
     </div>
   );
+}
+
+function EditRepairButton({ r, onDone }: { r: CorrectiveRow; onDone: () => void }) {
+  const { orgId } = useMaintenanceRequest();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<CorrectivePriority>("normal");
+  const [external, setExternal] = useState(false);
+  const [provider, setProvider] = useState("");
+  const [technician, setTechnician] = useState("");
+  const [token, setToken] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const m = useMutation({
+    mutationFn: () => correctiveService.update(orgId, r.id, { expectedUpdatedAt: token, description, priority, external,
+      provider: external ? provider.trim() || null : null, technicianName: technician.trim() || null }),
+    onSuccess: () => { setOpen(false); onDone(); toast.success("Reparación actualizada"); },
+    onError: (e) => { setError(errMsg(e)); qc.invalidateQueries({ queryKey: correctiveKeys.detail(orgId, r.id) }); },
+  });
+  const begin = () => {
+    setDescription(r.fault_description); setPriority(r.priority); setExternal(r.is_external);
+    setProvider(r.external_provider ?? ""); setTechnician(r.technician_name ?? ""); setToken(r.updated_at); setError(null); setOpen(true);
+  };
+  return <>
+    <Button variant="outline" size="sm" onClick={begin}><Pencil className="mr-2 h-4 w-4" />Editar reparación</Button>
+    <Dialog open={open} onOpenChange={(v) => { if (!m.isPending) setOpen(v); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Editar {r.code}</DialogTitle><DialogDescription>{r.asset?.code} · {r.asset?.name ?? "Reparación abierta"}</DialogDescription></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5"><Label htmlFor="repair-edit-description">Qué le pasa *</Label><Textarea id="repair-edit-description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="repair-edit-priority">Prioridad</Label><Select value={priority} onValueChange={(v) => setPriority(v as CorrectivePriority)}><SelectTrigger id="repair-edit-priority"><SelectValue /></SelectTrigger><SelectContent>{(["low", "normal", "high"] as const).map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}</SelectContent></Select></div>
+          <div className="flex items-center gap-2"><Switch id="repair-edit-external" checked={external} onCheckedChange={setExternal} /><Label htmlFor="repair-edit-external">La hace una empresa externa</Label></div>
+          {external && <div className="space-y-1.5"><Label htmlFor="repair-edit-provider">Empresa *</Label><Input id="repair-edit-provider" value={provider} onChange={(e) => setProvider(e.target.value)} /></div>}
+          <div className="space-y-1.5"><Label htmlFor="repair-edit-technician">Responsable (opcional)</Label><Input id="repair-edit-technician" value={technician} onChange={(e) => setTechnician(e.target.value)} /></div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        </div>
+        <DialogFooter><Button variant="outline" disabled={m.isPending} onClick={() => setOpen(false)}>Volver</Button><Button disabled={m.isPending || !description.trim() || (external && !provider.trim())} onClick={() => { setError(null); m.mutate(); }}>{m.isPending ? "Guardando…" : "Guardar cambios"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
+}
+
+function DeleteRepairDraftButton({ r, onDone }: { r: CorrectiveRow; onDone: () => void }) {
+  const { orgId } = useMaintenanceRequest();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const m = useMutation({ mutationFn: () => sessionService.deleteDraftSession(orgId, r.id),
+    onSuccess: () => { setOpen(false); toast.success("Borrador eliminado"); onDone(); }, onError: (e) => setError(errMsg(e)) });
+  return <>
+    <Button variant="outline" onClick={() => { setError(null); setOpen(true); }}><Trash2 className="mr-2 h-4 w-4" />Eliminar borrador</Button>
+    <Dialog open={open} onOpenChange={(v) => { if (!m.isPending) setOpen(v); }}><DialogContent>
+      <DialogHeader><DialogTitle>Eliminar borrador {r.code}</DialogTitle><DialogDescription>Solo se permite si nunca se ha iniciado y no tiene actuaciones, resultados, documentos ni otra evidencia. Si tiene actividad, conserva el registro y cancela la reparación.</DialogDescription></DialogHeader>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <DialogFooter><Button variant="outline" disabled={m.isPending} onClick={() => setOpen(false)}>Volver</Button><Button variant="destructive" disabled={m.isPending} onClick={() => m.mutate()}>Eliminar borrador vacío</Button></DialogFooter>
+    </DialogContent></Dialog>
+  </>;
 }
 
 function CancelRepairButton({ r, onDone }: { r: CorrectiveRow; onDone: () => void }) {
@@ -311,7 +370,7 @@ function CancelRepairButton({ r, onDone }: { r: CorrectiveRow; onDone: () => voi
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Cancelar {r.code}</DialogTitle><DialogDescription>Se conserva el registro y sus actuaciones. La incidencia vinculada no cambia.</DialogDescription></DialogHeader>
-          <div className="space-y-1.5"><Label>Motivo *</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="repair-cancel-reason">Motivo *</Label><Textarea id="repair-cancel-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} /></div>
           <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Volver</Button><Button variant="destructive" onClick={() => m.mutate()} disabled={!reason.trim() || m.isPending}>Cancelar reparación</Button></DialogFooter>
         </DialogContent>
       </Dialog>
@@ -327,8 +386,8 @@ function CloseRepairButton({ r, canManageAssets, onDone }: { r: CorrectiveRow; c
   const [obs, setObs] = useState("");
   const [reference, setReference] = useState("");
   const outOfService = r.asset?.status === "out_of_service";
-  const [reactivate, setReactivate] = useState(true);
-  const willReactivate = outcome === "repaired" && outOfService && canManageAssets && reactivate;
+  const [reactivate, setReactivate] = useState(DEFAULT_REACTIVATE);
+  const willReactivate = shouldReactivate(reactivate, outcome, r.asset?.status, canManageAssets);
   const m = useMutation({
     mutationFn: () => correctiveService.close(orgId, r.id, {
       performedOn, outcome, observations: obs.trim() || null, provider: null, reference: reference.trim() || null, reactivate: willReactivate,
@@ -346,8 +405,8 @@ function CloseRepairButton({ r, canManageAssets, onDone }: { r: CorrectiveRow; c
   }, [outcome, outOfService]);
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Finalizar reparación</Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Button onClick={() => { setReactivate(DEFAULT_REACTIVATE); setOpen(true); }}>Finalizar reparación</Button>
+      <Dialog open={open} onOpenChange={(v) => { setReactivate(DEFAULT_REACTIVATE); setOpen(v); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Finalizar {r.code}</DialogTitle><DialogDescription>No cambia las fechas del mantenimiento preventivo ni la incidencia vinculada.</DialogDescription></DialogHeader>
           <div className="space-y-3">
@@ -355,7 +414,7 @@ function CloseRepairButton({ r, canManageAssets, onDone }: { r: CorrectiveRow; c
               <div className="space-y-1.5"><Label>Trabajo terminado el *</Label><Input type="date" min={r.detected_on} max={todayStr()} value={performedOn} onChange={(e) => setPerformedOn(e.target.value)} /></div>
               <div className="space-y-1.5">
                 <Label>Resultado *</Label>
-                <Select value={outcome} onValueChange={(v) => setOutcome(v as CorrectiveOutcome)}>
+                <Select value={outcome} onValueChange={(v) => { setOutcome(v as CorrectiveOutcome); setReactivate(DEFAULT_REACTIVATE); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{(["repaired", "not_repaired", "replaced"] as const).map((o) => <SelectItem key={o} value={o}>{OUTCOME_LABEL[o]}</SelectItem>)}</SelectContent>
                 </Select>

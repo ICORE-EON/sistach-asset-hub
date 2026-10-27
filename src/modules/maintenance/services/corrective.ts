@@ -1,7 +1,7 @@
 /** Corrective (2B) use-cases and org-scoped query keys. */
 import { getRepositories } from "../contracts/registry";
-import type { CorrectiveClose, NewCorrective } from "../contracts/corrective";
-import { validateCorrectiveClose, validateNewCorrective } from "../domain/corrective-rules";
+import type { CorrectiveClose, CorrectiveEdit, NewCorrective } from "../contracts/corrective";
+import { validateCorrectiveClose, validateCorrectiveEdit, validateNewCorrective } from "../domain/corrective-rules";
 
 const repo = () => {
   const r = getRepositories().corrective;
@@ -33,6 +33,10 @@ export const correctiveService = {
   addEntry: (orgId: string | null, id: string, performedOn: string, text: string) => {
     if (!text.trim()) throw new Error("Describe la actuación");
     return repo().addEntry(need(orgId), id, performedOn, text.trim());
+  },
+  update: (orgId: string | null, id: string, v: CorrectiveEdit) => {
+    fail(validateCorrectiveEdit(v));
+    return repo().update(need(orgId), id, v);
   },
   linkIncident: (orgId: string | null, id: string, incidentId: string | null) => repo().linkIncident(need(orgId), id, incidentId),
   close: (orgId: string | null, id: string, v: CorrectiveClose, detectedOn: string, today: string) => {

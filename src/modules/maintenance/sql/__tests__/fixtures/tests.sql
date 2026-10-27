@@ -362,6 +362,18 @@ SELECT t.ok('2B: actuacion registrada', public.mnt_add_entry(:orgA, :'r1', curre
   AND public.mnt_add_entry(:orgA, :'r1', current_date - 1, 'Recarga') IS NOT NULL);
 SELECT t.fails('2B: actuacion anterior a deteccion', format('SELECT public.mnt_add_entry(%L, %L, current_date - 9, ''x'')', :orgA, :'r1'), '23514');
 SELECT t.fails('2B: actuaciones inmutables', format('UPDATE mnt_session_entries SET body = ''x'' WHERE session_id = %L', :'r1'), NULL);
+SELECT updated_at AS edit_token FROM mnt_sessions WHERE id=:'r1' \gset
+SELECT public.mnt_update_corrective(:orgA, :'r1', :'edit_token', 'Fuga revisada', 'normal', true, 'Proveedor confirmado', 'Responsable');
+SELECT t.ok('edicion: guarda descripción y responsable sin cambiar fecha ni actuaciones',
+  (SELECT fault_description='Fuga revisada' AND priority='normal' AND technician_snapshot->>'name'='Responsable' AND detected_on=current_date-3 FROM mnt_sessions WHERE id=:'r1')
+  AND (SELECT count(*) FROM mnt_session_entries WHERE session_id=:'r1')=2);
+SELECT t.fails('edicion: conflicto no sobrescribe', format('SELECT mnt_update_corrective(%L,%L,%L,''Conflicto'',''normal'',false)', :orgA, :'r1', :'edit_token'), '40001');
+SELECT t.fails('edicion: no permite escritura directa', format('UPDATE mnt_sessions SET fault_description=''Directa'' WHERE id=%L', :'r1'), '42501');
+SELECT t.login(:viewA);
+SELECT t.fails('edicion: lector rechazado', format('SELECT mnt_update_corrective(%L,%L,now(),''x'',''normal'',false)', :orgA, :'r1'), '42501');
+SELECT t.login(:adminB);
+SELECT t.fails('edicion: otra organización rechazada', format('SELECT mnt_update_corrective(%L,%L,now(),''x'',''normal'',false)', :orgA, :'r1'), '42501');
+SELECT t.login(:runA);
 SELECT t.fails('2B: cliente no inserta actuaciones directas', format('INSERT INTO mnt_session_entries(org_id, session_id, performed_on, body, author_snapshot) VALUES (%L, %L, current_date, ''x'', ''{}'')', :orgA, :'r1'), '42501');
 SELECT t.fails('2B: cierre preventivo rechaza reparaciones', format('SELECT public.mnt_close_session(%L, %L)', :orgA, :'r1'), '42501');
 SELECT t.login(:adminA);
@@ -386,6 +398,10 @@ SELECT t.ok('2B: sin cambios de fecha ni certificados', (SELECT count(*) FROM mn
 SELECT t.fails('2B: no se reabre una reparacion', format('SELECT public.mnt_reopen_session(%L, %L, ''x'')', :orgA, :'r1'), '23514');
 SELECT t.fails('2B: actuacion en reparacion cerrada', format('SELECT public.mnt_add_entry(%L, %L, current_date, ''x'')', :orgA, :'r1'), '23514');
 SELECT t.ok('2B: cancelar reparacion reutiliza 2A', (public.mnt_cancel_session(:orgA, :'r2', 'TEST error de alta')->>'cancelled_now')::boolean);
+SELECT t.ok('cancelacion: conserva motivo', (SELECT metadata->'cancel'->>'reason'='TEST error de alta' FROM mnt_sessions WHERE id=:'r2'));
+SELECT t.fails('edicion: cancelada rechazada', format('SELECT mnt_update_corrective(%L,%L,now(),''x'',''normal'',false)', :orgA, :'r2'), '23514');
+SELECT t.fails('edicion: cerrada rechazada', format('SELECT mnt_update_corrective(%L,%L,now(),''x'',''normal'',false)', :orgA, :'r1'), '23514');
+SELECT t.fails('borrado: reparación iniciada rechazada', format('SELECT mnt_delete_draft_session(%L,%L)', :orgA, :'r1'), '23514');
 SELECT t.login(:adminB);
 SELECT t.fails('2B: otra organizacion no crea', format('SELECT public.mnt_create_corrective(%L, ''a0000000-0000-4000-8000-0000000a5e21'', current_date, ''low'', ''x'')', :orgA), '42501');
 SELECT t.fails('2B: otra organizacion no finaliza', format('SELECT public.mnt_close_corrective(%L, %L, current_date, ''repaired'')', :orgA, :'r2'), '42501');

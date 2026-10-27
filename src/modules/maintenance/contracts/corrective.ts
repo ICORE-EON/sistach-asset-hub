@@ -31,6 +31,16 @@ export type CorrectiveClose = {
   reactivate: boolean;
 };
 
+/** Editable description only; optimistic token prevents overwriting another user's changes. */
+export type CorrectiveEdit = {
+  expectedUpdatedAt: string;
+  description: string;
+  priority: CorrectivePriority;
+  external: boolean;
+  provider: string | null;
+  technicianName: string | null;
+};
+
 export type CorrectiveRow = {
   id: string; code: string; status: string; priority: CorrectivePriority; detected_on: string;
   fault_description: string; outcome: string | null; closed_at: string | null; is_external: boolean;
@@ -38,6 +48,8 @@ export type CorrectiveRow = {
   asset: { id: string; code: string; name: string | null; status: string } | null;
   incident: { id: string; code: string; title: string; status: string } | null;
   completed_at: string | null; observations: string | null; closed_by_name: string | null;
+  updated_at: string;
+  cancellation_reason: string | null;
 };
 
 export type CorrectiveEntry = { id: string; performed_on: string; body: string; author_name: string | null; created_at: string };
@@ -47,6 +59,7 @@ export interface CorrectiveRepository {
   get(orgId: string, sessionId: string): Promise<CorrectiveRow | null>;
   listEntries(orgId: string, sessionId: string): Promise<CorrectiveEntry[]>;
   create(orgId: string, v: NewCorrective): Promise<{ id: string; code: string }>;
+  update(orgId: string, sessionId: string, v: CorrectiveEdit): Promise<void>;
   addEntry(orgId: string, sessionId: string, performedOn: string, text: string): Promise<void>;
   linkIncident(orgId: string, sessionId: string, incidentId: string | null): Promise<void>;
   close(orgId: string, sessionId: string, v: CorrectiveClose): Promise<{ closedNow: boolean; reactivated: boolean }>;

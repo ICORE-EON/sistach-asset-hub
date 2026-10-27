@@ -57,6 +57,7 @@
     "src/modules/maintenance/manifest/index.ts",
     "src/modules/maintenance/render/certificate-pdf.ts",
     "src/modules/maintenance/services/__tests__/certificates-tenant.test.ts",
+    "src/modules/maintenance/services/__tests__/corrective-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/checklists-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/incidents-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/metrology-tenant.test.ts",
