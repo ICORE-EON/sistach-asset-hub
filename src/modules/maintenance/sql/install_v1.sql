@@ -1316,6 +1316,38 @@ BEGIN
   UPDATE public.mnt_sessions SET incident_id = p_incident WHERE id = p_session;
 END $$;
 
+-- Descriptive editing only. No dates, asset, incident, entries or preventive links are writable here.
+CREATE OR REPLACE FUNCTION public.mnt_update_corrective(p_org uuid, p_session uuid, p_expected_updated_at timestamptz,
+  p_description text, p_priority text, p_external boolean, p_provider text DEFAULT NULL, p_technician_name text DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE s public.mnt_sessions%ROWTYPE;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.run');
+  SELECT * INTO s FROM public.mnt_sessions WHERE org_id=p_org AND id=p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: reparación no encontrada' USING ERRCODE='P0002'; END IF;
+  IF s.kind <> 'corrective' OR s.status NOT IN ('draft','in_progress') THEN RAISE EXCEPTION 'mnt: solo se editan reparaciones abiertas' USING ERRCODE='23514'; END IF;
+  IF p_expected_updated_at IS NULL OR p_expected_updated_at IS DISTINCT FROM s.updated_at THEN RAISE EXCEPTION 'La reparación ha cambiado. Cierra este formulario y vuelve a abrirlo antes de guardar.' USING ERRCODE='40001'; END IF;
+  IF nullif(btrim(coalesce(p_description,'')),'') IS NULL THEN RAISE EXCEPTION 'mnt: describe la avería' USING ERRCODE='23514'; END IF;
+  IF coalesce(p_priority,'') NOT IN ('low','normal','high') THEN RAISE EXCEPTION 'mnt: prioridad no válida' USING ERRCODE='22023'; END IF;
+  IF p_external IS NULL OR (p_external AND nullif(btrim(coalesce(p_provider,'')),'') IS NULL) THEN RAISE EXCEPTION 'mnt: indica la empresa externa' USING ERRCODE='23514'; END IF;
+  UPDATE public.mnt_sessions SET fault_description=btrim(p_description), priority=p_priority, is_external=p_external,
+    external_provider=CASE WHEN p_external THEN btrim(p_provider) ELSE NULL END,
+    technician_snapshot=jsonb_build_object('name',nullif(btrim(coalesce(p_technician_name,'')),'')) WHERE org_id=p_org AND id=p_session;
+  PERFORM public.mnt_emit(p_org,'corrective.updated','session',p_session,jsonb_build_object('by',public.host_person_ref(),'actor',public.mnt_actor_snapshot()));
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_tg_corrective_edit_guard() RETURNS trigger LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
+BEGIN
+  IF OLD.kind='corrective' AND (NEW.fault_description,NEW.priority,NEW.is_external,NEW.external_provider,NEW.technician_snapshot)
+    IS DISTINCT FROM (OLD.fault_description,OLD.priority,OLD.is_external,OLD.external_provider,OLD.technician_snapshot) THEN
+    IF public.mnt_is_client() THEN RAISE EXCEPTION 'mnt: usa la edición segura de reparaciones' USING ERRCODE='42501'; END IF;
+    NEW.updated_at := greatest(clock_timestamp(),OLD.updated_at + interval '1 microsecond');
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS zz_mnt_corrective_edit_guard ON public.mnt_sessions;
+CREATE TRIGGER zz_mnt_corrective_edit_guard BEFORE UPDATE ON public.mnt_sessions FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_corrective_edit_guard();
+
 CREATE OR REPLACE FUNCTION public.mnt_close_corrective(p_org uuid, p_session uuid, p_performed_on date, p_outcome text,
   p_observations text DEFAULT NULL, p_provider text DEFAULT NULL, p_reference text DEFAULT NULL, p_reactivate boolean DEFAULT false) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -1431,7 +1463,8 @@ BEGIN
     'mnt_cancel_session(uuid,uuid,text)','mnt_delete_draft_session(uuid,uuid)','mnt_unlink_plan_asset(uuid,uuid,uuid,text)',
     'mnt_delete_asset(uuid,uuid,boolean)','mnt_delete_plan(uuid,uuid,boolean)',
     'mnt_create_corrective(uuid,uuid,date,text,text,uuid,boolean,text,boolean,uuid)','mnt_add_entry(uuid,uuid,date,text)',
-    'mnt_link_incident(uuid,uuid,uuid)','mnt_close_corrective(uuid,uuid,date,text,text,text,text,boolean)'] LOOP
+    'mnt_link_incident(uuid,uuid,uuid)','mnt_close_corrective(uuid,uuid,date,text,text,text,text,boolean)',
+    'mnt_update_corrective(uuid,uuid,timestamptz,text,text,boolean,text,text)'] LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO authenticated', p);
   END LOOP;
   EXECUTE 'GRANT EXECUTE ON FUNCTION public.mnt_register_org(uuid) TO service_role';

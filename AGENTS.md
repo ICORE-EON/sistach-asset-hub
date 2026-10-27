@@ -1,4 +1,5 @@
 # Agent rules
+- Corrective descriptive edits use a tenant-scoped locked RPC with expected updated_at; only existing descriptive fields are writable, preserving entries, detection/completion dates, incidents and preventive schedules. Reactivation is an explicit independent authorized choice.
 - Suggested maintenance is a shared versioned declarative catalog; applying only fills the existing plan form with editable values and requires asset selection and frequency review, preserving stable plan codes across revisions for duplicate checks — avoids automatic scheduling and parallel plan engines. No SQL seed of suggestions: the portable domain catalog is the single source for both hosts.
 - Maintenance screens live in `src/modules/maintenance/ui/pages`; route files are thin wrappers (path/head/component) — keeps the module portable to ICORE.
 - Maintenance services get data only via `getRepositories()` (contracts/registry); the host registers one adapter at startup (`src/router.tsx`) — lets ICORE plug its adapter without touching services/UI.
