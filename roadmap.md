@@ -1,5 +1,12 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Unificación Activos–Metrología 2026-10-28 (BLOQUEADA antes de implementación)
+- [ ] Vinculación mínima de identidad y navegación bidireccional, sin duplicados, cambios históricos ni limpieza automática.
+- Bloqueo material comprobado: el instalador independiente no contiene ninguna de las ocho tablas metrológicas ni sus operaciones atómicas; el adaptador ICORE no ofrece metrología. Añadir solo asset_id en Sistach no entrega la unificación portable autorizada. Portar el motor completo requiere resolver org/company, site, personas, permisos, documentos y snapshots, y comprobar instalación limpia/upgrade; excede una corrección pequeña. Se detiene antes de migrar o cambiar contratos/UI/datos.
+- Alternativa A: vínculo primero en Sistach, conservando motor y entregando contrato/documentación portable, pero dejando instalación metrológica ICORE pendiente (coste relativo bajo; requiere aceptar esa excepción de alcance).
+- Alternativa B: portar primero el motor metrológico existente al instalador independiente, sin reescribirlo, y añadir vínculo/UX/pruebas en ambos esquemas (coste relativo alto, varias veces A; requiere autorizar ese prerrequisito).
+- En esta solicitud solo documentación y preferencias: ninguna migración, escritura de registros, TEST ni cambio funcional; pruebas de unificación no ejecutadas porque no se implementó. Host ICORE real no integrado.
+
 ## Reparaciones correctivas 2026-10-27 (EN CURSO — solo bloque autorizado)
 - [ ] Edición descriptiva de abiertas con control de conflicto, sin modificar actuaciones/activos/incidencias/vencimientos.
 - [ ] Cancelación con motivo visible, borrado de borrador vacío por RPC existente y reactivación desmarcada.
