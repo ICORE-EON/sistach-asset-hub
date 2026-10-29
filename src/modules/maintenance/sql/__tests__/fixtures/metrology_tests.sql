@@ -58,12 +58,12 @@ RESET ROLE;
 SELECT t.ok('mtr: outbox recibe validaciones', (SELECT count(*) FROM mnt_outbox WHERE event_type='mnt.mtr.record_validated') = 3);
 -- Phase 2: optional asset link (same org, unique, set-once, no cascade)
 RESET ROLE;
-INSERT INTO mnt_asset_types(id,org_id,code,name_i18n) SELECT 'e0000000-0000-4000-8000-0000000000a0','a0000000-0000-4000-8000-000000000001','mtr_t','{"es":"t"}' WHERE NOT EXISTS (SELECT 1 FROM mnt_asset_types WHERE id='e0000000-0000-4000-8000-0000000000a0');
-INSERT INTO mnt_assets(id,org_id,asset_type_id,code,name) VALUES
- ('e0000000-0000-4000-8000-0000000000a1','a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a0','ACT-1','Calibre físico'),
- ('e0000000-0000-4000-8000-0000000000a2','a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a0','ACT-2','Otro');
-INSERT INTO mnt_asset_types(id,org_id,code,name_i18n) VALUES ('e0000000-0000-4000-8000-0000000000b0','b0000000-0000-4000-8000-000000000001','mtr_t','{"es":"t"}');
-INSERT INTO mnt_assets(id,org_id,asset_type_id,code,name) VALUES ('e0000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000b0','ACT-B','Ajeno');
+INSERT INTO mnt_org_asset_types(org_id, asset_type_id) SELECT o, (SELECT id FROM mnt_asset_types WHERE code='extinguisher_co2')
+  FROM unnest(ARRAY['a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001']::uuid[]) o ON CONFLICT DO NOTHING;
+INSERT INTO mnt_assets(id,org_id,asset_type_id,code,name) SELECT v.id::uuid, v.org::uuid, (SELECT id FROM mnt_asset_types WHERE code='extinguisher_co2'), v.code, v.name FROM (VALUES
+ ('e0000000-0000-4000-8000-0000000000a1','a0000000-0000-4000-8000-000000000001','ACT-M1','Calibre físico'),
+ ('e0000000-0000-4000-8000-0000000000a2','a0000000-0000-4000-8000-000000000001','ACT-M2','Otro'),
+ ('e0000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-000000000001','ACT-MB','Ajeno')) v(id,org,code,name);
 SET ROLE authenticated;
 SELECT t.login('c0000000-0000-4000-8000-0000000000c1');
 SELECT t.ok('mtr2: equipo sin activo sigue válido', (SELECT asset_id IS NULL FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000001'));
