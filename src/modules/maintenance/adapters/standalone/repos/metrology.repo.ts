@@ -18,9 +18,9 @@ const toEq = (r: R): MtrEquipment => ({
   brand: r.brand, model: r.model, serialNumber: r.serial_number, rangeMin: r.range_min, rangeMax: r.range_max, unit: r.unit,
   resolution: r.resolution, declaredAccuracy: r.declared_accuracy, restrictions: r.restrictions, allowedUses: r.allowed_uses,
   registeredOn: r.registered_on, status: r.status, assetId: r.asset_id ?? null,
-  asset: r.asset ? { id: r.asset.id, code: r.asset.code, name: r.asset.name, typeName: r.asset.asset_types?.name ?? null, locationName: r.asset.locations?.name ?? null } : null,
+  asset: r.asset ? { id: r.asset.id, code: r.asset.code, name: r.asset.name, typeName: r.asset.asset_types?.name_i18n?.es ?? null, locationName: r.asset.locations?.name ?? null } : null,
 });
-const EQ_SEL = "*, asset:assets!mnt_mtr_equipment_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name),locations!assets_location_id_fkey(name))";
+const EQ_SEL = "*, asset:assets!mnt_mtr_equipment_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name))";
 const fromEq = (v: Partial<MtrEquipmentInput>): R => {
   const m: R = {
     name: v.name, equipment_type: v.equipmentType, magnitude: v.magnitude, intended_use: v.intendedUse, site_id: v.siteId,
@@ -108,11 +108,11 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
     },
     async listLinkableAssets(orgId) {
       const [as, used] = await Promise.all([
-        db.from("assets").select("id,code,name,asset_types!assets_asset_type_id_fkey(name),locations!assets_location_id_fkey(name)").eq("company_id", orgId).is("deleted_at", null).neq("status", "retired").order("code").limit(2000),
+        db.from("assets").select("id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name)").eq("company_id", orgId).is("deleted_at", null).neq("status", "retired").order("code").limit(2000),
         db.from("mnt_mtr_equipment").select("asset_id").eq("company_id", orgId).is("deleted_at", null).not("asset_id", "is", null),
       ]);
       const taken = new Set((ok(used) as R[]).map((r) => r.asset_id));
-      return (ok(as) as R[]).filter((a) => !taken.has(a.id)).map((a) => ({ id: a.id, code: a.code, name: a.name, typeName: a.asset_types?.name ?? null, locationName: a.locations?.name ?? null }));
+      return (ok(as) as R[]).filter((a) => !taken.has(a.id)).map((a) => ({ id: a.id, code: a.code, name: a.name, typeName: a.asset_types?.name_i18n?.es ?? null, locationName: a.locations?.name ?? null }));
     },
     async linkAsset(orgId, equipmentId, assetId) {
       await owned("mnt_mtr_equipment", orgId, equipmentId);
