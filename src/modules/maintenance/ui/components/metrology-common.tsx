@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { displayStatus, daysUntil, type MtrStoredStatus } from "../../domain/metrology";
+import { classifyInstrumentType, INSTRUMENT_TYPE_CATALOG } from "../../domain/metrology-instrument-types";
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -46,6 +49,24 @@ export function PersonSelect({ people, value, onChange }: { people: { id: string
     </Select>
   );
 }
+const OTHER = "__other__";
+/** Structured instrument type: catalog choice or «Otro» with free text; legacy free values are kept and editable. */
+export function InstrumentTypeField({ value, onChange, id }: { value: string; onChange: (v: string) => void; id?: string }) {
+  const [other, setOther] = useState(false);
+  const kind = classifyInstrumentType(value);
+  const sel = kind === "catalog" ? value : kind === "other" || other ? OTHER : "";
+  return (
+    <div className="space-y-2">
+      <Select value={sel} onValueChange={(v) => { if (v === OTHER) { setOther(true); if (kind === "catalog") onChange(""); } else { setOther(false); onChange(v); } }}>
+        <SelectTrigger id={id} aria-label="Tipo de instrumento"><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
+        <SelectContent>{INSTRUMENT_TYPE_CATALOG.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}<SelectItem value={OTHER}>Otro…</SelectItem></SelectContent>
+      </Select>
+      {sel === OTHER && <Input aria-label="Descripción del tipo" placeholder="Describe el tipo de instrumento" value={value} onChange={(e) => onChange(e.target.value)} />}
+      {kind === "other" && !other && <p className="text-xs text-muted-foreground">Valor actual fuera del catálogo; se conserva. Puedes elegir un tipo de la lista para corregirlo.</p>}
+    </div>
+  );
+}
+
 export const DECISION_LABEL: Record<string, string> = {
   restrict: "Restringir uso", repair: "Reparar / ajustar", retire: "Retirar", repeat: "Repetir control",
 };
