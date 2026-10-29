@@ -147,6 +147,6 @@ BEGIN
     IF ok THEN passed := passed + 1; ELSE fails := fails || format(' [%s %s: esperado %s, obtenido %s]', j->>'n', j->>'name', j->>'expected', j->>'actual'); END IF;
     results := results || format(E'\n%s %s %s', CASE WHEN ok THEN 'PASS' ELSE 'FAIL' END, j->>'n', j->>'name');
   END LOOP;
-  RAISE EXCEPTION 'MNT_QR_E2E RESULTADO %/% %% SUMMARY=% %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END, summary::text, results;
+  RAISE EXCEPTION 'MNT_QR_E2E RESULTADO %/% % SUMMARY=% %', passed, total, CASE WHEN fails = '' THEN '' ELSE ' FALLOS:' || fails END, summary::text, results;
 END
 $run$;
