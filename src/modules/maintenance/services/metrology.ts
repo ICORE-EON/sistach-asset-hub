@@ -42,6 +42,9 @@ export const metrologyService = {
     return repo().createEquipment(need(orgId), { ...v, name: v.name.trim(), equipmentType: v.equipmentType.trim() });
   },
   updateEquipment: (orgId: string | null, id: string, v: Partial<MtrEquipmentInput>) => repo().updateEquipment(need(orgId), id, v),
+  findByAsset: (orgId: string | null, assetId: string) => repo().findByAsset(need(orgId), assetId),
+  listLinkableAssets: (orgId: string | null) => repo().listLinkableAssets(need(orgId)),
+  linkAsset: (orgId: string | null, equipmentId: string, assetId: string) => repo().linkAsset(need(orgId), equipmentId, assetId),
   listPlans: (orgId: string | null, equipmentId: string) => repo().listPlans(need(orgId), equipmentId),
   savePlan: (orgId: string | null, equipmentId: string, planId: string | null, v: MtrControlPlanInput) => {
     fail(v.frequencyUnit !== "before_use" && !(v.frequencyValue && v.frequencyValue > 0) ? ["La frecuencia debe ser mayor que 0"] : []);
