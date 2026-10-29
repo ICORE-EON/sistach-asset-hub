@@ -23,7 +23,7 @@ DECLARE
   TOK1 constant text := 'e2e0000000000000000000000000000000000001';
   T uuid; F uuid; P uuid; TPL uuid;
   total int := 0; passed int := 0; fails text := ''; results text := '';
-  j jsonb; n bigint; ok boolean; summary jsonb;
+  j jsonb; ok boolean; summary jsonb;
 BEGIN
   -- ---------- fixture (propietario, sin RLS) ----------
   INSERT INTO public.companies(id, name, cif) VALUES (CA, 'E2E QR Empresa A (sintética)', 'E2EQRA'), (CB, 'E2E QR Empresa B (sintética)', 'E2EQRB');
