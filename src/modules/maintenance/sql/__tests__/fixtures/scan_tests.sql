@@ -125,7 +125,7 @@ SELECT public.mnt_close_session(:orgA, :'s1');
 RESET ROLE;
 SELECT t.ok('qr: cierre con excepcion motivada permitido', (SELECT status || '/' || outcome FROM mnt_sessions WHERE id = :'s1') = 'closed/partial');
 SELECT t.ok('qr: historial de cierre con ejecutores y excepciones', (SELECT jsonb_array_length(summary->'exceptions') = 1
-         AND summary->'exceptions'->0->>'code' = 'inaccessible' AND summary->'executors'->0->>'ref' = :'runA'
+         AND summary->'exceptions'->0->>'code' = 'inaccessible' AND summary->'executors'->0->>'ref' = :runA
          FROM mnt_session_closure_events WHERE session_id = :'s1'));
 SELECT t.fails('qr: excepciones inmutables', format('UPDATE mnt_session_item_exceptions SET reason_text = ''x'' WHERE item_id = %L', :'i2'), '55000');
 SET ROLE authenticated;
