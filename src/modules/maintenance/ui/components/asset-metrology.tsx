@@ -103,7 +103,7 @@ export function AssetMetrologyCard({ orgId, asset, typeName, canManage }: { orgI
       </Dialog>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Activar metrología · {asset.code}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Añadir control metrológico · {asset.code}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Control metrológico opcional para este equipo ya registrado. Su nombre y ubicación se gestionan en Activos.</p>
           <div className="space-y-3">
             <div><Label>Tipo de instrumento</Label><InstrumentTypeField value={eqType} onChange={setEqType} /></div>
