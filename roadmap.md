@@ -91,3 +91,5 @@
 - [x] **Biblioteca maestra**: 9 familias, 51 tipos (15 opcionales, no premarcados), 30 perfiles; vehículo v2 sin kilometraje, medida v2 con exactitud/uso/control; sugerencias de Equipos de medida alineadas. Sin migración (guard SQL solo valida forma). Vitest 216/15 omitidas.
 - [ ] Pendiente: E2E con escritura (importar tipo + crear/editar activo) — requiere autorización para crear tipos en una empresa. Limpieza de datos ficticios: requiere alcance exacto.
 ### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.
+
+- [x] Metrología opción B Fase 1 (2026-10-29): `src/modules/maintenance/sql/install_metrology_v1.sql` — 8 tablas, 15 funciones; PostgreSQL temporal 185 PASS/ALL_DONE. Pendiente: adaptador TS ICORE, host real, código MTR automático en ICORE. Fase 2 (vínculo activo↔metrología) sin autorizar.

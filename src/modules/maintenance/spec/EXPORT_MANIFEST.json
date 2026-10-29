@@ -57,8 +57,8 @@
     "src/modules/maintenance/manifest/index.ts",
     "src/modules/maintenance/render/certificate-pdf.ts",
     "src/modules/maintenance/services/__tests__/certificates-tenant.test.ts",
-    "src/modules/maintenance/services/__tests__/corrective-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/checklists-tenant.test.ts",
+    "src/modules/maintenance/services/__tests__/corrective-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/incidents-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/metrology-tenant.test.ts",
     "src/modules/maintenance/services/__tests__/org-propagation.test.ts",
@@ -85,9 +85,11 @@
     "src/modules/maintenance/sql/__tests__/fixtures/concurrency_setup.sql",
     "src/modules/maintenance/sql/__tests__/fixtures/current_delivery.sql",
     "src/modules/maintenance/sql/__tests__/fixtures/host_stub.sql",
+    "src/modules/maintenance/sql/__tests__/fixtures/metrology_tests.sql",
     "src/modules/maintenance/sql/__tests__/fixtures/tests.sql",
     "src/modules/maintenance/sql/__tests__/install.pg.test.ts",
     "src/modules/maintenance/sql/__tests__/run.sh",
+    "src/modules/maintenance/sql/install_metrology_v1.sql",
     "src/modules/maintenance/sql/install_v1.sql",
     "src/modules/maintenance/sql/seed_catalog_v1.sql",
     "src/modules/maintenance/sql/seed_inventory_v2.sql",
@@ -188,6 +190,6 @@
   "env": [],
   "limitations": [
     "ICORE host adapter remains fail-closed skeleton; real integration untested",
-    "Metrology code included as optional capability; clean SQL/adaptor not implemented"
+    "Metrology: clean SQL add-on sql/install_metrology_v1.sql (8 tables, RLS, guards, atomic RPC) tested on throwaway PostgreSQL; ICORE TS metrology adapter and real host connection NOT implemented (capability must stay disabled)"
   ]
 }

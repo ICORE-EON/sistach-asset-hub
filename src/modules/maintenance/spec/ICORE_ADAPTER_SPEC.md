@@ -177,3 +177,6 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 - `mnt_due_changes` es de solo inserción (quién —identidad del servidor—, cuándo, fecha anterior, nueva, tipo y motivo).
 - Permisos: reprogramar libremente = `mnt.admin`; confirmar o ajustar fechas al cerrar = `mnt.close`.
 - `listUpcoming` excluye equipos retirados/borrados y vínculos con `end_on` pasado (no los averiados ni en mantenimiento); lee por bloques sin truncado silencioso. Un vínculo con inicio futuro aparece como «Desde …» y nunca vencido; no entra en sesiones hasta su inicio.
+
+## Metrología
+SQL disponible en `sql/install_metrology_v1.sql` (RPC `mnt_mtr_*`). El adaptador ICORE de metrología **no existe todavía**: `capabilities.metrology` debe seguir desactivado y cualquier llamada debe fallar con error claro.
