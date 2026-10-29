@@ -46,6 +46,9 @@ import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './rou
 import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
 import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
 import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
+import { Route as AuthenticatedAppQrTokenRouteImport } from './routes/_authenticated/_app.qr.$token'
+import { Route as AuthenticatedAppRunIndexRouteImport } from './routes/_authenticated/_app.run.index'
+import { Route as AuthenticatedAppRunIdRouteImport } from './routes/_authenticated/_app.run.$id'
 import { Route as AuthenticatedAppMetrologyEquipmentIndexRouteImport } from './routes/_authenticated/_app.metrology.equipment.index'
 import { Route as AuthenticatedAppMetrologyEquipmentIdRouteImport } from './routes/_authenticated/_app.metrology.equipment.$id'
 
@@ -261,6 +264,22 @@ const AuthenticatedAppMaintenanceIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAppMaintenanceRoute,
   } as any)
+const AuthenticatedAppQrTokenRoute = AuthenticatedAppQrTokenRouteImport.update({
+  id: '/qr/$token',
+  path: '/qr/$token',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
+const AuthenticatedAppRunIndexRoute =
+  AuthenticatedAppRunIndexRouteImport.update({
+    id: '/run/',
+    path: '/run/',
+    getParentRoute: () => AuthenticatedAppRoute,
+  } as any)
+const AuthenticatedAppRunIdRoute = AuthenticatedAppRunIdRouteImport.update({
+  id: '/run/$id',
+  path: '/run/$id',
+  getParentRoute: () => AuthenticatedAppRoute,
+} as any)
 const AuthenticatedAppMetrologyEquipmentIndexRoute =
   AuthenticatedAppMetrologyEquipmentIndexRouteImport.update({
     id: '/metrology/equipment/',
@@ -303,6 +322,8 @@ export interface FileRoutesByFullPath {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/qr/$token': typeof AuthenticatedAppQrTokenRoute
+  '/run/$id': typeof AuthenticatedAppRunIdRoute
   '/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
@@ -310,6 +331,7 @@ export interface FileRoutesByFullPath {
   '/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/run/': typeof AuthenticatedAppRunIndexRoute
   '/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
   '/metrology/equipment/': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
@@ -335,6 +357,8 @@ export interface FileRoutesByTo {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/qr/$token': typeof AuthenticatedAppQrTokenRoute
+  '/run/$id': typeof AuthenticatedAppRunIdRoute
   '/assets': typeof AuthenticatedAppAssetsIndexRoute
   '/certificate-templates': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates': typeof AuthenticatedAppCertificatesIndexRoute
@@ -342,6 +366,7 @@ export interface FileRoutesByTo {
   '/incidents': typeof AuthenticatedAppIncidentsIndexRoute
   '/maintenance-plans': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/maintenance': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/run': typeof AuthenticatedAppRunIndexRoute
   '/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
   '/metrology/equipment': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
@@ -377,6 +402,8 @@ export interface FileRoutesById {
   '/_authenticated/_app/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/_authenticated/_app/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/_authenticated/_app/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
+  '/_authenticated/_app/qr/$token': typeof AuthenticatedAppQrTokenRoute
+  '/_authenticated/_app/run/$id': typeof AuthenticatedAppRunIdRoute
   '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/_authenticated/_app/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/_authenticated/_app/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
@@ -384,6 +411,7 @@ export interface FileRoutesById {
   '/_authenticated/_app/incidents/': typeof AuthenticatedAppIncidentsIndexRoute
   '/_authenticated/_app/maintenance-plans/': typeof AuthenticatedAppMaintenancePlansIndexRoute
   '/_authenticated/_app/maintenance/': typeof AuthenticatedAppMaintenanceIndexRoute
+  '/_authenticated/_app/run/': typeof AuthenticatedAppRunIndexRoute
   '/_authenticated/_app/metrology/equipment/$id': typeof AuthenticatedAppMetrologyEquipmentIdRoute
   '/_authenticated/_app/metrology/equipment/': typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
@@ -418,6 +446,8 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
+    | '/qr/$token'
+    | '/run/$id'
     | '/assets/'
     | '/certificate-templates/'
     | '/certificates/'
@@ -425,6 +455,7 @@ export interface FileRouteTypes {
     | '/incidents/'
     | '/maintenance-plans/'
     | '/maintenance/'
+    | '/run/'
     | '/metrology/equipment/$id'
     | '/metrology/equipment/'
   fileRoutesByTo: FileRoutesByTo
@@ -450,6 +481,8 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
+    | '/qr/$token'
+    | '/run/$id'
     | '/assets'
     | '/certificate-templates'
     | '/certificates'
@@ -457,6 +490,7 @@ export interface FileRouteTypes {
     | '/incidents'
     | '/maintenance-plans'
     | '/maintenance'
+    | '/run'
     | '/metrology/equipment/$id'
     | '/metrology/equipment'
   id:
@@ -491,6 +525,8 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/incidents/$id'
     | '/_authenticated/_app/maintenance-plans/$id'
     | '/_authenticated/_app/maintenance/$id'
+    | '/_authenticated/_app/qr/$token'
+    | '/_authenticated/_app/run/$id'
     | '/_authenticated/_app/assets/'
     | '/_authenticated/_app/certificate-templates/'
     | '/_authenticated/_app/certificates/'
@@ -498,6 +534,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/incidents/'
     | '/_authenticated/_app/maintenance-plans/'
     | '/_authenticated/_app/maintenance/'
+    | '/_authenticated/_app/run/'
     | '/_authenticated/_app/metrology/equipment/$id'
     | '/_authenticated/_app/metrology/equipment/'
   fileRoutesById: FileRoutesById
@@ -771,6 +808,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMaintenanceIdRouteImport
       parentRoute: typeof AuthenticatedAppMaintenanceRoute
     }
+    '/_authenticated/_app/qr/$token': {
+      id: '/_authenticated/_app/qr/$token'
+      path: '/qr/$token'
+      fullPath: '/qr/$token'
+      preLoaderRoute: typeof AuthenticatedAppQrTokenRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/run/': {
+      id: '/_authenticated/_app/run/'
+      path: '/run'
+      fullPath: '/run/'
+      preLoaderRoute: typeof AuthenticatedAppRunIndexRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
+    '/_authenticated/_app/run/$id': {
+      id: '/_authenticated/_app/run/$id'
+      path: '/run/$id'
+      fullPath: '/run/$id'
+      preLoaderRoute: typeof AuthenticatedAppRunIdRouteImport
+      parentRoute: typeof AuthenticatedAppRoute
+    }
     '/_authenticated/_app/metrology/equipment/': {
       id: '/_authenticated/_app/metrology/equipment/'
       path: '/metrology/equipment'
@@ -924,6 +982,9 @@ interface AuthenticatedAppRouteChildren {
   AuthenticatedAppMaintenancePlansRoute: typeof AuthenticatedAppMaintenancePlansRouteWithChildren
   AuthenticatedAppNotificationsRoute: typeof AuthenticatedAppNotificationsRoute
   AuthenticatedAppSettingsRoute: typeof AuthenticatedAppSettingsRoute
+  AuthenticatedAppQrTokenRoute: typeof AuthenticatedAppQrTokenRoute
+  AuthenticatedAppRunIdRoute: typeof AuthenticatedAppRunIdRoute
+  AuthenticatedAppRunIndexRoute: typeof AuthenticatedAppRunIndexRoute
   AuthenticatedAppMetrologyEquipmentIdRoute: typeof AuthenticatedAppMetrologyEquipmentIdRoute
   AuthenticatedAppMetrologyEquipmentIndexRoute: typeof AuthenticatedAppMetrologyEquipmentIndexRoute
 }
@@ -949,6 +1010,9 @@ const AuthenticatedAppRouteChildren: AuthenticatedAppRouteChildren = {
     AuthenticatedAppMaintenancePlansRouteWithChildren,
   AuthenticatedAppNotificationsRoute: AuthenticatedAppNotificationsRoute,
   AuthenticatedAppSettingsRoute: AuthenticatedAppSettingsRoute,
+  AuthenticatedAppQrTokenRoute: AuthenticatedAppQrTokenRoute,
+  AuthenticatedAppRunIdRoute: AuthenticatedAppRunIdRoute,
+  AuthenticatedAppRunIndexRoute: AuthenticatedAppRunIndexRoute,
   AuthenticatedAppMetrologyEquipmentIdRoute:
     AuthenticatedAppMetrologyEquipmentIdRoute,
   AuthenticatedAppMetrologyEquipmentIndexRoute:
