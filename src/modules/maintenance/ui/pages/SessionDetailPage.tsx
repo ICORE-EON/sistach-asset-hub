@@ -203,6 +203,16 @@ export function SessionDetailPage() {
       {session.status === "cancelled" && (session.metadata as { cancel?: { reason?: string } } | null)?.cancel?.reason && (
         <p className="rounded-md border p-3 text-sm">Cancelada: {(session.metadata as { cancel: { reason: string } }).cancel.reason}</p>
       )}
+      <SessionExecutionPanel
+        orgId={orgId}
+        sessionId={id}
+        status={session.status}
+        isExternal={session.is_external}
+        items={items.map((i) => ({ id: i.id, result: i.result, code: i.assets?.code ?? "", name: i.assets?.name ?? null }))}
+        closeSummary={(session.metadata as { close_summary?: unknown } | null)?.close_summary ?? null}
+        onOpenRun={() => navigate({ to: "/run/$id", params: { id } })}
+        onChanged={() => qc.invalidateQueries({ queryKey: sessionKeys.items(orgId, id), exact: true })}
+      />
       <ReasonDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
@@ -358,6 +368,7 @@ function ItemStatusIcon({ result }: { result: string }) {
   if (result === "ok") return <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />;
   if (result === "with_incident" || result === "fail")
     return <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />;
+  if (result === "excepted") return <Ban className="mt-0.5 h-4 w-4 text-amber-600" />;
   if (result === "not_applicable" || result === "na" || result === "skipped")
     return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
   return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
@@ -454,7 +465,7 @@ export function ItemChecklist({
             </p>
           </div>
           <Badge variant={item.result === "pending" ? "outline" : item.result === "fail" ? "destructive" : "default"}>
-            {item.result === "pending" ? "Pendiente" : item.result === "ok" ? "OK" : item.result === "fail" ? "Falla" : "N/A"}
+            {item.result === "pending" ? "Pendiente" : item.result === "ok" ? "OK" : item.result === "fail" || item.result === "with_incident" ? "Con incidencia" : item.result === "excepted" ? "Excepción" : "N/A"}
           </Badge>
         </div>
       </CardHeader>
@@ -488,13 +499,13 @@ export function ItemChecklist({
 
         {editable && (
           <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
-            <Button variant="outline" onClick={() => completeItem.mutate("na")}>
+            <Button variant="outline" onClick={() => completeItem.mutate("na")} disabled={completeItem.isPending}>
               Marcar N/A
             </Button>
             <Button
               variant={anyFail ? "destructive" : "default"}
               onClick={() => completeItem.mutate("complete")}
-              disabled={!allRequiredAnswered}
+              disabled={!allRequiredAnswered || completeItem.isPending}
             >
               {anyFail ? "Guardar con fallos" : "Marcar OK"}
             </Button>
@@ -725,8 +736,8 @@ function CloseSessionDialog({
         <div className="space-y-4">
           {pendingCount > 0 && (
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-              Quedan {pendingCount} equipo(s) sin revisar. Se marcarán como no revisados y
-              constarán así en el certificado.
+              Quedan {pendingCount} equipo(s) pendientes. No se puede cerrar hasta revisarlos o registrar
+              una excepción justificada para cada uno (apartado «Ejecución y cierre»).
             </p>
           )}
           {preview.some((r) => r.months_source === "plan") && <p className="text-xs text-muted-foreground">Sesión anterior al registro de periodicidad: la propuesta usa la frecuencia actual del plan.</p>}
@@ -765,7 +776,7 @@ function CloseSessionDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => close.mutate()} disabled={close.isPending}>
+          <Button onClick={() => close.mutate()} disabled={close.isPending || pendingCount > 0}>
             {close.isPending ? "Cerrando…" : "Cerrar sesión"}
           </Button>
         </DialogFooter>
