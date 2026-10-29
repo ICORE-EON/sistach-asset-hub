@@ -108,21 +108,22 @@ export function MetrologyEquipmentListPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Select value={parentFilter} onValueChange={setParentFilter}><SelectTrigger className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los activos principales</SelectItem>{Array.from(new Map(items.filter((e) => e.parentAsset).map((e) => [e.parentAssetId, e.parentAsset])).values()).map((a) => a && <SelectItem key={a.id} value={a.id}>{a.code} · {a.name ?? "—"}</SelectItem>)}</SelectContent></Select>
-        <Select value={instrumentType} onValueChange={setInstrumentType}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los instrumentos</SelectItem>{[...new Set(items.map((e) => e.equipmentType))].sort().map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
-        <Select value={assetType} onValueChange={setAssetType}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los tipos de activo</SelectItem>{[...new Set(items.map((e) => e.parentAsset?.typeName ?? e.asset?.typeName).filter((t): t is string => !!t))].sort().map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+        <Select value={parentFilter} onValueChange={setParentFilter}><SelectTrigger className="w-72 max-w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los activos principales</SelectItem>{Array.from(new Map(items.filter((e) => e.parentAsset).map((e) => [e.parentAssetId, e.parentAsset])).values()).map((a) => a && <SelectItem key={a.id} value={a.id}>{a.code} · {a.name ?? "—"}</SelectItem>)}</SelectContent></Select>
+        <Select value={instrumentType} onValueChange={setInstrumentType}><SelectTrigger className="w-64 max-w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los instrumentos</SelectItem>{[...new Set(items.map((e) => e.equipmentType))].sort().map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
+        <Select value={assetType} onValueChange={setAssetType}><SelectTrigger className="w-64 max-w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los tipos de activo</SelectItem>{[...new Set(items.map((e) => e.parentAsset?.typeName ?? e.asset?.typeName).filter((t): t is string => !!t))].sort().map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select>
         <Input placeholder="Buscar código, nombre o tipo" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         <Select value={site} onValueChange={setSite}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-64 max-w-full"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="all">Todos los sites</SelectItem>{sites.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-64 max-w-full"><SelectValue /></SelectTrigger>
           <SelectContent><SelectItem value="all">Todos los estados</SelectItem>
             {Object.entries(STATUS_LABEL).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
         </Select>
       </div>
 
+      {!isLoading && !items.length && <p className="text-sm text-muted-foreground">Sin equipos de medida registrados.</p>}
       <Card><CardContent className="p-0">
         <Table>
           <TableHeader><TableRow>

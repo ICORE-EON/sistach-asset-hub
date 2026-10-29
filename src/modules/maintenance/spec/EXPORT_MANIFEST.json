@@ -165,7 +165,8 @@
     "supabase/migrations/** (23+ migraciones heredadas)",
     "tests/sql/** (huellas/RLS del esquema heredado)",
     "datos de la base de esta app (ficticios)",
-    ".env y secretos"
+    ".env y secretos",
+    "src/modules/maintenance/adapters/standalone/repos/__tests__/metrology-names.test.ts"
   ],
   "hostProvides": [
     "@/components/ui/*",
