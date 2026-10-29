@@ -7,6 +7,7 @@ import { ArrowLeft, Archive, Printer, RotateCcw, Trash2, Save, Pencil } from "lu
 import { buildSheet, profileOfType, readSheet, sheetToForm, type TechnicalProfile } from "../../domain/technical-profiles";
 import { TechnicalSheetFields, TechnicalSheetView } from "../components/technical-sheet";
 import { assetService, assetKeys } from "../../services/assets";
+import { makeContext, scanService } from "../../services/scan";
 import { useMaintenanceRequest, useMaintenanceUi } from "../host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -338,6 +339,7 @@ export function AssetDetailPage() {
               Imprimir etiqueta
             </Button>
             <p className="text-center text-xs text-muted-foreground break-all">{qrUrl}</p>
+            <RegenerateQrButton orgId={activeCompanyId} assetId={id} onDone={() => qc.invalidateQueries({ queryKey: assetKeys.detail(activeCompanyId, id) })} />
           </CardContent>
         </Card>
 
@@ -438,5 +440,37 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label>{label}</Label>
       {children}
     </div>
+  );
+}
+
+/** Admin only (server-checked): invalidates the current label at once and shows the new QR to print. */
+function RegenerateQrButton({ orgId, assetId, onDone }: { orgId: string | null; assetId: string; onDone: () => void }) {
+  const { userId, role } = useMaintenanceRequest();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!orgId || role !== "administrator" || !scanService.available()) return null;
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="w-full" onClick={() => setOpen(true)}>
+        <RotateCcw className="mr-2 h-4 w-4" />Regenerar QR
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Regenerar el QR de este activo?</AlertDialogTitle>
+            <AlertDialogDescription>La etiqueta actual dejará de funcionar inmediatamente. Tendrás que imprimir y colocar la nueva.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction disabled={busy} onClick={async (e) => {
+              e.preventDefault(); setBusy(true);
+              try { await scanService.regenerateQr(makeContext(orgId, userId, role), assetId); toast.success("QR regenerado: imprime la nueva etiqueta"); onDone(); setOpen(false); }
+              catch (err) { toast.error(err instanceof Error ? err.message : (err as { message?: string }).message ?? "No se pudo regenerar"); }
+              finally { setBusy(false); }
+            }}>Regenerar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

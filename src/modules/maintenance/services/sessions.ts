@@ -67,7 +67,7 @@ export const sessionService = {
   /** Saves the item result; opens incidents for failed answers flagged creates_incident (block-5 residual). */
   completeItem: async (orgId: string | null, a: {
     sessionId: string; item: { id: string; asset_id: string }; intent: "complete" | "na";
-    observations: string; questions: Question[];
+    observations: string; questions: Question[]; idempotencyKey?: string;
   }) => {
     const org = need(orgId);
     const it = await repo().assertItemWritable(org, a.sessionId, a.item.id);
@@ -93,7 +93,7 @@ export const sessionService = {
       }
     }
     const dbResult = itemResultFor(a.intent, failCount);
-    await repo().setItemResult(org, a.sessionId, a.item.id, dbResult, a.observations || null, failCount);
+    await repo().setItemResult(org, a.sessionId, a.item.id, dbResult, a.observations || null, failCount, a.idempotencyKey);
     return { dbResult, createdIncidents, failsWithoutIncident };
   },
 

@@ -46,6 +46,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { sessionKeys, sessionService } from "../../services/sessions";
+import { newIdempotencyKey } from "../../services/scan";
+import { SessionExecutionPanel } from "../components/session-execution";
+import { ItemChecklist } from "../components/item-checklist";
 
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -201,6 +204,16 @@ export function SessionDetailPage() {
       {session.status === "cancelled" && (session.metadata as { cancel?: { reason?: string } } | null)?.cancel?.reason && (
         <p className="rounded-md border p-3 text-sm">Cancelada: {(session.metadata as { cancel: { reason: string } }).cancel.reason}</p>
       )}
+      <SessionExecutionPanel
+        orgId={orgId}
+        sessionId={id}
+        status={session.status}
+        isExternal={session.is_external}
+        items={items.map((i) => ({ id: i.id, result: i.result, code: i.assets?.code ?? "", name: i.assets?.name ?? null }))}
+        closeSummary={(session.metadata as { close_summary?: unknown } | null)?.close_summary ?? null}
+        onOpenRun={() => navigate({ to: "/run/$id", params: { id } })}
+        onChanged={() => qc.invalidateQueries({ queryKey: sessionKeys.items(orgId, id), exact: true })}
+      />
       <ReasonDialog
         open={cancelOpen}
         onOpenChange={setCancelOpen}
@@ -356,272 +369,10 @@ function ItemStatusIcon({ result }: { result: string }) {
   if (result === "ok") return <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />;
   if (result === "with_incident" || result === "fail")
     return <AlertTriangle className="mt-0.5 h-4 w-4 text-destructive" />;
+  if (result === "excepted") return <Ban className="mt-0.5 h-4 w-4 text-amber-600" />;
   if (result === "not_applicable" || result === "na" || result === "skipped")
     return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
   return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
-}
-
-function ItemChecklist({
-  item,
-  editable,
-  companyId,
-  sessionId,
-}: {
-  item: { id: string; asset_id: string; checklist_template_version_id: string; result: string; observations: string | null; assets: { code: string; name: string | null; manufacturer: string | null; model: string | null } | null };
-  editable: boolean;
-  companyId: string;
-  sessionId: string;
-}) {
-  const qc = useQueryClient();
-  const [observations, setObservations] = useState(item.observations ?? "");
-
-  const { data: questions = [] } = useQuery({
-    queryKey: checklistKeys.itemQuestions(companyId, item.checklist_template_version_id),
-    queryFn: () => checklistService.listQuestions(companyId, item.checklist_template_version_id),
-  });
-
-  const { data: responses = [] } = useQuery({
-    queryKey: checklistKeys.itemResponses(companyId, item.id),
-    queryFn: () => checklistService.listResponses(companyId, item.id),
-  });
-
-  const responseMap = useMemo(() => {
-    const m = new Map<string, typeof responses[number]>();
-    responses.forEach((r) => m.set(r.question_id, r));
-    return m;
-  }, [responses]);
-
-  const saveResponse = useMutation({
-    mutationFn: async (args: { question: typeof questions[number]; answer: unknown; isFail: boolean; observations?: string }) => {
-      await checklistService.saveResponse(companyId, item.id, item.checklist_template_version_id, {
-        question_id: args.question.id,
-        answer: args.answer,
-        is_fail: args.isFail,
-        observations: args.observations ?? null,
-      });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const completeItem = useMutation({
-    mutationFn: (intent: "complete" | "na") =>
-      sessionService.completeItem(companyId, {
-        sessionId, item: { id: item.id, asset_id: item.asset_id }, intent, observations, questions,
-      }),
-    onSuccess: ({ dbResult, createdIncidents, failsWithoutIncident }) => {
-      if (dbResult === "not_applicable") {
-        toast.success("Activo marcado como N/A");
-      } else if (createdIncidents > 0) {
-        toast.success(
-          `Activo guardado con ${createdIncidents} incidencia${createdIncidents === 1 ? "" : "s"} abierta${createdIncidents === 1 ? "" : "s"}.`,
-        );
-      } else if (failsWithoutIncident > 0) {
-        toast.warning(
-          "Activo guardado con fallos. Ninguna pregunta del checklist está configurada para abrir incidencia.",
-        );
-      } else {
-        toast.success("Activo guardado");
-      }
-      qc.invalidateQueries({ queryKey: sessionKeys.items(companyId, sessionId), exact: true });
-      qc.invalidateQueries({ queryKey: checklistKeys.itemResponses(companyId, item.id) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const allRequiredAnswered = questions
-    .filter((q) => q.required)
-    .every((q) => responseMap.has(q.id));
-  const anyFail = responses.some((r) => r.is_fail);
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">
-              {item.assets?.name ?? item.assets?.code}
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              {item.assets?.code}
-              {item.assets?.manufacturer ? ` · ${item.assets.manufacturer}` : ""}
-              {item.assets?.model ? ` ${item.assets.model}` : ""}
-            </p>
-          </div>
-          <Badge variant={item.result === "pending" ? "outline" : item.result === "fail" ? "destructive" : "default"}>
-            {item.result === "pending" ? "Pendiente" : item.result === "ok" ? "OK" : item.result === "fail" ? "Falla" : "N/A"}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {questions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">La plantilla no tiene preguntas.</p>
-        ) : (
-          questions.map((q, idx) => (
-            <QuestionInput
-              key={q.id}
-              index={idx}
-              question={q}
-              response={responseMap.get(q.id)}
-              disabled={!editable}
-              onSave={(answer, isFail, obs) =>
-                saveResponse.mutate({ question: q, answer, isFail, observations: obs })
-              }
-            />
-          ))
-        )}
-
-        <div className="space-y-2 border-t pt-4">
-          <Label>Observaciones del activo</Label>
-          <Textarea
-            value={observations}
-            onChange={(e) => setObservations(e.target.value)}
-            disabled={!editable}
-            rows={2}
-          />
-        </div>
-
-        {editable && (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4">
-            <Button variant="outline" onClick={() => completeItem.mutate("na")}>
-              Marcar N/A
-            </Button>
-            <Button
-              variant={anyFail ? "destructive" : "default"}
-              onClick={() => completeItem.mutate("complete")}
-              disabled={!allRequiredAnswered}
-            >
-              {anyFail ? "Guardar con fallos" : "Marcar OK"}
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function QuestionInput({
-  index,
-  question,
-  response,
-  disabled,
-  onSave,
-}: {
-  index: number;
-  question: { id: string; prompt: string; help_text: string | null; response_type: string; options: unknown; required: boolean; creates_incident: boolean };
-  response?: { answer: unknown; is_fail: boolean; observations: string | null };
-  disabled: boolean;
-  onSave: (answer: unknown, isFail: boolean, observations?: string) => void;
-}) {
-  const current = (response?.answer as { value?: unknown } | null | undefined)?.value;
-  const [obs, setObs] = useState(response?.observations ?? "");
-
-  const handleBoolean = (value: boolean) => {
-    onSave(value, !value, obs);
-  };
-  const handleChoice = (value: string) => {
-    const opts = (question.options as { choices?: string[]; failOn?: string[] } | null) ?? {};
-    const failOn = opts.failOn ?? [];
-    onSave(value, failOn.includes(value), obs);
-  };
-
-  return (
-    <div className="space-y-2 rounded-md border bg-card p-3">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-          {index + 1}
-        </div>
-        <div className="flex-1 space-y-1">
-          <p className="text-sm font-medium">
-            {question.prompt}
-            {question.required && <span className="text-destructive"> *</span>}
-          </p>
-          {question.help_text && (
-            <p className="text-xs text-muted-foreground">{question.help_text}</p>
-          )}
-        </div>
-        {response?.is_fail && (
-          <div className="flex flex-col items-end gap-1">
-            <Badge variant="destructive" className="text-xs">Falla</Badge>
-            {!question.creates_incident && (
-              <span className="text-[10px] text-muted-foreground">
-                No abre incidencia automática
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="pl-9">
-        {question.response_type === "boolean" && (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={current === true ? "default" : "outline"}
-              onClick={() => handleBoolean(true)}
-              disabled={disabled}
-            >
-              Sí
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={current === false ? "destructive" : "outline"}
-              onClick={() => handleBoolean(false)}
-              disabled={disabled}
-            >
-              No
-            </Button>
-          </div>
-        )}
-        {question.response_type === "text" && (
-          <Input
-            defaultValue={typeof current === "string" ? current : ""}
-            disabled={disabled}
-            onBlur={(e) => onSave(e.target.value, false, obs)}
-            placeholder="Respuesta"
-          />
-        )}
-        {question.response_type === "number" && (
-          <Input
-            type="number"
-            defaultValue={typeof current === "number" ? current : ""}
-            disabled={disabled}
-            onBlur={(e) => onSave(Number(e.target.value), false, obs)}
-          />
-        )}
-        {question.response_type === "choice" && (
-          <Select
-            value={typeof current === "string" ? current : ""}
-            onValueChange={handleChoice}
-            disabled={disabled}
-          >
-            <SelectTrigger className="w-[260px]">
-              <SelectValue placeholder="Selecciona…" />
-            </SelectTrigger>
-            <SelectContent>
-              {((question.options as { choices?: string[] } | null)?.choices ?? []).map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {(response?.is_fail || obs) && (
-          <Textarea
-            value={obs}
-            onChange={(e) => setObs(e.target.value)}
-            onBlur={() => onSave(current, response?.is_fail ?? false, obs)}
-            disabled={disabled}
-            rows={2}
-            placeholder="Observaciones / motivo del fallo"
-            className="mt-2"
-          />
-        )}
-      </div>
-    </div>
-  );
 }
 
 function CloseSessionDialog({
@@ -720,8 +471,8 @@ function CloseSessionDialog({
         <div className="space-y-4">
           {pendingCount > 0 && (
             <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-              Quedan {pendingCount} equipo(s) sin revisar. Se marcarán como no revisados y
-              constarán así en el certificado.
+              Quedan {pendingCount} equipo(s) pendientes. No se puede cerrar hasta revisarlos o registrar
+              una excepción justificada para cada uno (apartado «Ejecución y cierre»).
             </p>
           )}
           {preview.some((r) => r.months_source === "plan") && <p className="text-xs text-muted-foreground">Sesión anterior al registro de periodicidad: la propuesta usa la frecuencia actual del plan.</p>}
@@ -760,7 +511,7 @@ function CloseSessionDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => close.mutate()} disabled={close.isPending}>
+          <Button onClick={() => close.mutate()} disabled={close.isPending || pendingCount > 0}>
             {close.isPending ? "Cerrando…" : "Cerrar sesión"}
           </Button>
         </DialogFooter>

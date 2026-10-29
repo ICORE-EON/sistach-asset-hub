@@ -828,7 +828,7 @@ BEGIN
     v_action := coalesce(d->>'action', CASE WHEN it.result IN ('ok','failed') THEN 'advance' WHEN it.result = 'not_applicable' THEN NULL ELSE 'keep' END);
     IF v_action IS NULL THEN RAISE EXCEPTION 'mnt: decide la próxima fecha de los equipos «No aplica»' USING ERRCODE = '23514'; END IF;
     IF v_action NOT IN ('advance','keep') THEN RAISE EXCEPTION 'mnt: decisión no válida' USING ERRCODE = '22023'; END IF;
-    IF it.result = 'skipped' AND v_action = 'advance' THEN RAISE EXCEPTION 'mnt: un equipo no realizado no avanza' USING ERRCODE = '23514'; END IF;
+    IF it.result IN ('skipped','excepted') AND v_action = 'advance' THEN RAISE EXCEPTION 'mnt: un equipo no realizado no avanza' USING ERRCODE = '23514'; END IF;
     v_reason := nullif(btrim(coalesce(d->>'reason', '')), '');
     v_due := CASE WHEN v_action = 'advance' THEN coalesce(nullif(d->>'due', '')::date, v_prop) END;
     IF v_action = 'advance' AND v_due IS NULL THEN RAISE EXCEPTION 'mnt: indica la próxima fecha' USING ERRCODE = '23514'; END IF;
@@ -877,13 +877,24 @@ BEGIN
     RAISE EXCEPTION 'mnt: hay equipos pendientes' USING ERRCODE = '23514';
   END IF;
   v_outcome := CASE WHEN EXISTS (SELECT 1 FROM public.mnt_session_items WHERE session_id = p_session AND result = 'failed')
-                    THEN 'with_incidents' ELSE 'ok' END;
+                    THEN 'with_incidents'
+                    WHEN EXISTS (SELECT 1 FROM public.mnt_session_items WHERE session_id = p_session AND result = 'excepted')
+                    THEN 'partial' ELSE 'ok' END;
   PERFORM public.mnt_apply_due(p_org, p_session, s.plan_id, p_decisions);
   UPDATE public.mnt_sessions SET status = 'closed', closed_at = now(), closed_by_ref = me,
          closed_by_snapshot = snap, outcome = v_outcome
    WHERE id = p_session;
   INSERT INTO public.mnt_session_history(org_id, session_id, event, actor_ref, actor_snapshot)
   VALUES (p_org, p_session, 'closed', me, snap);
+  -- QR flow: closing summary with executors and justified exceptions (append-only).
+  INSERT INTO public.mnt_session_closure_events(org_id, session_id, closed_by_ref, closed_by_snapshot, summary)
+  VALUES (p_org, p_session, me, snap, jsonb_build_object('outcome', v_outcome,
+    'executors', (SELECT coalesce(jsonb_agg(jsonb_build_object('ref', e.completed_by_ref, 'snapshot', e.snap, 'items', e.n)), '[]')
+                    FROM (SELECT completed_by_ref, min(completed_by_snapshot::text)::jsonb snap, count(*) n FROM public.mnt_session_items
+                           WHERE session_id = p_session AND completed_by_ref IS NOT NULL GROUP BY completed_by_ref) e),
+    'exceptions', (SELECT coalesce(jsonb_agg(jsonb_build_object('item_id', x.item_id, 'asset_id', x.asset_id, 'code', x.reason_code,
+                      'text', x.reason_text, 'by_ref', x.person_ref, 'by', x.person_snapshot, 'at', x.recorded_at) ORDER BY x.recorded_at), '[]')
+                     FROM public.mnt_session_item_exceptions x WHERE x.session_id = p_session)));
 
   WITH failed AS (
     SELECT r.id AS response_id, i.asset_id, q.prompt
@@ -1389,6 +1400,179 @@ BEGIN
   RETURN jsonb_build_object('closed_now', true, 'outcome', p_outcome, 'reactivated', v_react);
 END $$;
 
+
+-- ======================================================= QR execution flow --
+-- Authenticated scan → assigned session → checklist → idempotent execution → justified exceptions → close.
+DO $qrcheck$ BEGIN
+  ALTER TABLE public.mnt_session_items DROP CONSTRAINT IF EXISTS mnt_session_items_result_check;
+  ALTER TABLE public.mnt_session_items ADD CONSTRAINT mnt_session_items_result_check
+    CHECK (result IN ('pending','ok','failed','not_applicable','skipped','excepted'));
+END $qrcheck$;
+
+CREATE TABLE IF NOT EXISTS public.mnt_session_assignees (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL, session_id uuid NOT NULL, person_ref uuid NOT NULL, person_snapshot jsonb,
+  assigned_by_ref uuid, assigned_at timestamptz NOT NULL DEFAULT now(), revoked_by_ref uuid, revoked_at timestamptz,
+  FOREIGN KEY (org_id, session_id) REFERENCES public.mnt_sessions(org_id, id));
+CREATE UNIQUE INDEX IF NOT EXISTS mnt_session_assignees_active_uq ON public.mnt_session_assignees(session_id, person_ref) WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS public.mnt_item_execution_keys (
+  org_id uuid NOT NULL, item_id uuid NOT NULL, idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 8 AND 100),
+  result text NOT NULL, executed_by_ref uuid, created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (item_id, idempotency_key),
+  FOREIGN KEY (org_id, item_id) REFERENCES public.mnt_session_items(org_id, id));
+
+CREATE TABLE IF NOT EXISTS public.mnt_session_item_exceptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL, session_id uuid NOT NULL, item_id uuid NOT NULL UNIQUE, asset_id uuid NOT NULL,
+  reason_code text NOT NULL CHECK (reason_code IN ('not_applicable','inaccessible','other')),
+  reason_text text NOT NULL CHECK (length(btrim(reason_text)) >= 3),
+  person_ref uuid NOT NULL, person_snapshot jsonb, recorded_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (org_id, session_id) REFERENCES public.mnt_sessions(org_id, id),
+  FOREIGN KEY (org_id, item_id) REFERENCES public.mnt_session_items(org_id, id));
+
+CREATE TABLE IF NOT EXISTS public.mnt_session_closure_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL, session_id uuid NOT NULL, closed_by_ref uuid, closed_by_snapshot jsonb,
+  closed_at timestamptz NOT NULL DEFAULT now(), summary jsonb NOT NULL DEFAULT '{}',
+  FOREIGN KEY (org_id, session_id) REFERENCES public.mnt_sessions(org_id, id));
+
+CREATE TABLE IF NOT EXISTS public.mnt_qr_token_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id uuid NOT NULL, asset_id uuid NOT NULL, person_ref uuid, regenerated_at timestamptz NOT NULL DEFAULT now(),
+  old_token_sha256 text NOT NULL,
+  FOREIGN KEY (org_id, asset_id) REFERENCES public.mnt_assets(org_id, id));
+
+DROP TRIGGER IF EXISTS mnt_append_only ON public.mnt_item_execution_keys;
+CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_item_execution_keys FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only();
+DROP TRIGGER IF EXISTS mnt_append_only ON public.mnt_session_item_exceptions;
+CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_session_item_exceptions FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only();
+DROP TRIGGER IF EXISTS mnt_append_only ON public.mnt_session_closure_events;
+CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_session_closure_events FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only();
+DROP TRIGGER IF EXISTS mnt_append_only ON public.mnt_qr_token_events;
+CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_qr_token_events FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only();
+
+-- run permission AND (assigned OR technician OR close permission). Status is checked by each RPC.
+CREATE OR REPLACE FUNCTION public.mnt_can_execute_session(p_session uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT public.host_person_ref() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.mnt_sessions s
+     WHERE s.id = p_session AND public.mnt_can(s.org_id, 'mnt.run')
+       AND (public.mnt_can(s.org_id, 'mnt.close') OR s.technician_ref = public.host_person_ref()
+            OR EXISTS (SELECT 1 FROM public.mnt_session_assignees a WHERE a.session_id = s.id
+                        AND a.person_ref = public.host_person_ref() AND a.revoked_at IS NULL)))
+$$;
+
+CREATE OR REPLACE FUNCTION public.mnt_resolve_scan(p_token text, p_session uuid DEFAULT NULL) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE na constant jsonb := '{"status":"not_available"}'; a record; r record; v jsonb;
+BEGIN
+  IF public.host_person_ref() IS NULL OR p_token IS NULL OR length(p_token) NOT BETWEEN 16 AND 128 THEN RETURN na; END IF;
+  SELECT id, code, name, org_id INTO a FROM public.mnt_assets WHERE qr_token = p_token AND deleted_at IS NULL;
+  IF NOT FOUND OR NOT public.mnt_can(a.org_id, 'mnt.run') THEN RETURN na; END IF;
+  IF p_session IS NOT NULL THEN
+    SELECT s.id sid, s.code scode, i.id iid, i.result, i.checklist_version_id ver INTO r
+      FROM public.mnt_sessions s JOIN public.mnt_session_items i ON i.session_id = s.id AND i.asset_id = a.id
+     WHERE s.id = p_session AND s.org_id = a.org_id AND s.status IN ('in_progress','reopened') AND s.kind = 'preventive'
+       AND NOT s.is_external AND public.mnt_can_execute_session(s.id);
+    IF NOT FOUND THEN RETURN na; END IF;
+    RETURN jsonb_build_object('status','ok','kind','maintenance_asset','asset', jsonb_build_object('id',a.id,'code',a.code,'name',a.name),
+      'session_id', r.sid, 'session_code', r.scode, 'item_id', r.iid, 'item_result', r.result, 'checklist_version_id', r.ver);
+  END IF;
+  SELECT coalesce(jsonb_agg(jsonb_build_object('session_id', s.id, 'session_code', s.code, 'item_id', i.id, 'item_result', i.result,
+           'plan_name', p.name) ORDER BY s.scheduled_for NULLS LAST, s.code), '[]') INTO v
+    FROM public.mnt_sessions s JOIN public.mnt_session_items i ON i.session_id = s.id AND i.asset_id = a.id
+    LEFT JOIN public.mnt_plans p ON p.id = s.plan_id
+   WHERE s.org_id = a.org_id AND s.status IN ('in_progress','reopened') AND s.kind = 'preventive' AND NOT s.is_external
+     AND public.mnt_can_execute_session(s.id);
+  IF jsonb_array_length(v) = 0 THEN RETURN na; END IF;
+  RETURN jsonb_build_object('status','choose','kind','maintenance_asset','asset', jsonb_build_object('id',a.id,'code',a.code,'name',a.name),'sessions', v);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_list_my_runnable_sessions(p_org uuid) RETURNS jsonb
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT coalesce(jsonb_agg(x ORDER BY x->>'scheduled_for' NULLS LAST, x->>'code'), '[]') FROM (
+    SELECT jsonb_build_object('id', s.id, 'code', s.code, 'scheduled_for', s.scheduled_for, 'plan_name', p.name,
+      'total', (SELECT count(*) FROM public.mnt_session_items i WHERE i.session_id = s.id),
+      'done', (SELECT count(*) FROM public.mnt_session_items i WHERE i.session_id = s.id AND i.result IN ('ok','failed','not_applicable')),
+      'excepted', (SELECT count(*) FROM public.mnt_session_items i WHERE i.session_id = s.id AND i.result = 'excepted')) x
+      FROM public.mnt_sessions s LEFT JOIN public.mnt_plans p ON p.id = s.plan_id
+     WHERE s.org_id = p_org AND s.status IN ('in_progress','reopened') AND s.kind = 'preventive' AND NOT s.is_external
+       AND public.mnt_can_execute_session(s.id)) q
+$$;
+
+CREATE OR REPLACE FUNCTION public.mnt_record_item_execution(p_org uuid, p_item uuid, p_result text, p_observations text, p_key text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); i record; st text; prev text;
+BEGIN
+  IF p_key IS NULL OR length(p_key) NOT BETWEEN 8 AND 100 THEN RAISE EXCEPTION 'mnt: clave de envío no válida' USING ERRCODE = '22023'; END IF;
+  SELECT * INTO i FROM public.mnt_session_items WHERE org_id = p_org AND id = p_item FOR UPDATE;
+  IF NOT FOUND OR NOT public.mnt_can_execute_session(i.session_id) THEN RAISE EXCEPTION 'mnt: equipo no disponible' USING ERRCODE = '42501'; END IF;
+  SELECT result INTO prev FROM public.mnt_item_execution_keys WHERE item_id = p_item AND idempotency_key = p_key;
+  IF FOUND THEN RETURN jsonb_build_object('replayed', true, 'result', prev); END IF;
+  SELECT status INTO st FROM public.mnt_sessions WHERE id = i.session_id;
+  IF st NOT IN ('in_progress','reopened') THEN RAISE EXCEPTION 'mnt: la sesión no está en curso' USING ERRCODE = '55000'; END IF;
+  IF p_result NOT IN ('ok','failed','not_applicable') THEN RAISE EXCEPTION 'mnt: resultado no válido' USING ERRCODE = '22023'; END IF;
+  IF i.result = 'excepted' THEN RAISE EXCEPTION 'mnt: el equipo tiene una excepción de cierre' USING ERRCODE = '55000'; END IF;
+  UPDATE public.mnt_session_items SET result = p_result, observations = nullif(btrim(coalesce(p_observations, '')), ''),
+         completed_at = now(), completed_by_ref = me, completed_by_snapshot = snap WHERE id = p_item;
+  INSERT INTO public.mnt_item_execution_keys(org_id, item_id, idempotency_key, result, executed_by_ref) VALUES (p_org, p_item, p_key, p_result, me);
+  IF p_result = 'failed' THEN
+    PERFORM public.mnt_emit(p_org, 'mnt.session.item_anomaly', 'session_item', p_item,
+      jsonb_build_object('session_id', i.session_id, 'asset_id', i.asset_id, 'checklist_version_id', i.checklist_version_id));
+  END IF;
+  RETURN jsonb_build_object('replayed', false, 'result', p_result);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_record_closure_exception(p_org uuid, p_item uuid, p_code text, p_text text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); snap jsonb := public.mnt_actor_snapshot(); i record; st text;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.close');
+  SELECT * INTO i FROM public.mnt_session_items WHERE org_id = p_org AND id = p_item FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: equipo no disponible' USING ERRCODE = '42501'; END IF;
+  SELECT status INTO st FROM public.mnt_sessions WHERE id = i.session_id;
+  IF st NOT IN ('in_progress','reopened') THEN RAISE EXCEPTION 'mnt: la sesión no está en curso' USING ERRCODE = '55000'; END IF;
+  IF p_code NOT IN ('not_applicable','inaccessible','other') THEN RAISE EXCEPTION 'mnt: motivo no válido' USING ERRCODE = '22023'; END IF;
+  IF length(btrim(coalesce(p_text, ''))) < 3 THEN RAISE EXCEPTION 'mnt: explica el motivo' USING ERRCODE = '23514'; END IF;
+  IF i.result = 'excepted' THEN RETURN jsonb_build_object('recorded_now', false); END IF;
+  IF i.result <> 'pending' THEN RAISE EXCEPTION 'mnt: solo los equipos pendientes admiten excepción' USING ERRCODE = '55000'; END IF;
+  INSERT INTO public.mnt_session_item_exceptions(org_id, session_id, item_id, asset_id, reason_code, reason_text, person_ref, person_snapshot)
+  VALUES (p_org, i.session_id, p_item, i.asset_id, p_code, btrim(p_text), me, snap);
+  UPDATE public.mnt_session_items SET result = 'excepted' WHERE id = p_item;
+  RETURN jsonb_build_object('recorded_now', true);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_assign_session_people(p_org uuid, p_session uuid, p_people uuid[]) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE me uuid := public.host_person_ref(); st text; n int;
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.close');
+  SELECT status INTO st FROM public.mnt_sessions WHERE org_id = p_org AND id = p_session FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: sesión no encontrada' USING ERRCODE = 'P0002'; END IF;
+  IF st NOT IN ('draft','in_progress','reopened') THEN RAISE EXCEPTION 'mnt: la sesión no admite asignaciones' USING ERRCODE = '55000'; END IF;
+  UPDATE public.mnt_session_assignees SET revoked_at = now(), revoked_by_ref = me
+   WHERE session_id = p_session AND revoked_at IS NULL AND NOT (person_ref = ANY (coalesce(p_people, '{}')));
+  INSERT INTO public.mnt_session_assignees(org_id, session_id, person_ref, person_snapshot, assigned_by_ref)
+  SELECT p_org, p_session, u, public.host_person_snapshot(u), me FROM (SELECT DISTINCT unnest(coalesce(p_people, '{}')) u) x
+   WHERE NOT EXISTS (SELECT 1 FROM public.mnt_session_assignees a WHERE a.session_id = p_session AND a.person_ref = x.u AND a.revoked_at IS NULL);
+  SELECT count(*) INTO n FROM public.mnt_session_assignees WHERE session_id = p_session AND revoked_at IS NULL;
+  RETURN n;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.mnt_regenerate_asset_qr(p_org uuid, p_asset uuid) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE old text; v_new text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+BEGIN
+  PERFORM public.mnt_assert_perm(p_org, 'mnt.admin');
+  SELECT qr_token INTO old FROM public.mnt_assets WHERE org_id = p_org AND id = p_asset AND deleted_at IS NULL FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'mnt: activo no encontrado' USING ERRCODE = 'P0002'; END IF;
+  UPDATE public.mnt_assets SET qr_token = v_new WHERE id = p_asset;
+  INSERT INTO public.mnt_qr_token_events(org_id, asset_id, person_ref, old_token_sha256)
+  VALUES (p_org, p_asset, public.host_person_ref(), encode(sha256(convert_to(old, 'UTF8')), 'hex'));
+  RETURN v_new;
+END $$;
+
 DO $security$
 DECLARE
   t text; p text; f regprocedure;
@@ -1397,17 +1581,18 @@ DECLARE
     'mnt_checklist_template_sites','mnt_checklist_versions','mnt_checklist_questions','mnt_certificate_templates',
     'mnt_plans','mnt_plan_sites','mnt_plan_assets','mnt_plan_type_templates','mnt_sessions','mnt_session_items',
     'mnt_responses','mnt_session_history','mnt_incidents','mnt_incident_history','mnt_certificates',
-    'mnt_certificate_items','mnt_counters','mnt_outbox','mnt_due_changes','mnt_session_entries'];
+    'mnt_certificate_items','mnt_counters','mnt_outbox','mnt_due_changes','mnt_session_entries',
+    'mnt_session_assignees','mnt_item_execution_keys','mnt_session_item_exceptions','mnt_session_closure_events','mnt_qr_token_events'];
   -- table => permission required to write (clients); reads always need mnt.view
   writable jsonb := '{
     "mnt_org_asset_types":"mnt.admin", "mnt_assets":"mnt.manage_assets", "mnt_kit_items":"mnt.manage_assets",
     "mnt_checklist_templates":"mnt.admin", "mnt_checklist_template_types":"mnt.admin",
     "mnt_checklist_template_sites":"mnt.admin", "mnt_checklist_versions":"mnt.admin",
     "mnt_checklist_questions":"mnt.admin", "mnt_certificate_templates":"mnt.admin", "mnt_plans":"mnt.admin",
-    "mnt_plan_sites":"mnt.admin", "mnt_plan_assets":"mnt.admin", "mnt_plan_type_templates":"mnt.admin",
-    "mnt_session_items":"mnt.run", "mnt_responses":"mnt.run"}';
+    "mnt_plan_sites":"mnt.admin", "mnt_plan_assets":"mnt.admin", "mnt_plan_type_templates":"mnt.admin"}';
   update_only jsonb := '{"mnt_sessions":"mnt.run", "mnt_incidents":"mnt.run"}';
-  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items','mnt_due_changes','mnt_session_entries'];
+  read_only text[] := ARRAY['mnt_session_history','mnt_incident_history','mnt_certificates','mnt_certificate_items','mnt_due_changes','mnt_session_entries',
+    'mnt_session_assignees','mnt_item_execution_keys','mnt_session_item_exceptions','mnt_session_closure_events'];
 BEGIN
   FOREACH t IN ARRAY all_tables LOOP
     EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon, authenticated', t);
@@ -1446,6 +1631,16 @@ BEGIN
     EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view''))', t);
     EXECUTE format('CREATE POLICY mnt_upd ON public.%I FOR UPDATE TO authenticated USING (public.mnt_can(org_id, %L)) WITH CHECK (public.mnt_can(org_id, %L))', t, p, p);
   END LOOP;
+  -- Session items/answers: writable only by people authorized for THAT session (QR flow).
+  EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON public.mnt_session_items, public.mnt_responses TO authenticated';
+  EXECUTE 'CREATE POLICY mnt_read ON public.mnt_session_items FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view''))';
+  EXECUTE 'CREATE POLICY mnt_ins ON public.mnt_session_items FOR INSERT TO authenticated WITH CHECK (public.mnt_can(org_id, ''mnt.run''))';
+  EXECUTE 'CREATE POLICY mnt_upd ON public.mnt_session_items FOR UPDATE TO authenticated USING (public.mnt_can_execute_session(session_id)) WITH CHECK (public.mnt_can_execute_session(session_id) AND result <> ''excepted'')';
+  EXECUTE 'CREATE POLICY mnt_del ON public.mnt_session_items FOR DELETE TO authenticated USING (public.mnt_can(org_id, ''mnt.run''))';
+  EXECUTE 'CREATE POLICY mnt_read ON public.mnt_responses FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view''))';
+  EXECUTE 'CREATE POLICY mnt_write ON public.mnt_responses FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.mnt_session_items i WHERE i.id = item_id AND public.mnt_can_execute_session(i.session_id))) WITH CHECK (EXISTS (SELECT 1 FROM public.mnt_session_items i WHERE i.id = item_id AND public.mnt_can_execute_session(i.session_id)))';
+  EXECUTE 'GRANT SELECT ON public.mnt_qr_token_events TO authenticated';
+  EXECUTE 'CREATE POLICY mnt_read ON public.mnt_qr_token_events FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.admin''))';
   FOREACH t IN ARRAY read_only LOOP
     EXECUTE format('GRANT SELECT ON public.%I TO authenticated', t);
     EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view''))', t);
@@ -1464,7 +1659,10 @@ BEGIN
     'mnt_delete_asset(uuid,uuid,boolean)','mnt_delete_plan(uuid,uuid,boolean)',
     'mnt_create_corrective(uuid,uuid,date,text,text,uuid,boolean,text,boolean,uuid)','mnt_add_entry(uuid,uuid,date,text)',
     'mnt_link_incident(uuid,uuid,uuid)','mnt_close_corrective(uuid,uuid,date,text,text,text,text,boolean)',
-    'mnt_update_corrective(uuid,uuid,timestamptz,text,text,boolean,text,text)'] LOOP
+    'mnt_update_corrective(uuid,uuid,timestamptz,text,text,boolean,text,text)',
+    'mnt_can_execute_session(uuid)','mnt_resolve_scan(text,uuid)','mnt_list_my_runnable_sessions(uuid)',
+    'mnt_record_item_execution(uuid,uuid,text,text,text)','mnt_record_closure_exception(uuid,uuid,text,text)',
+    'mnt_assign_session_people(uuid,uuid,uuid[])','mnt_regenerate_asset_qr(uuid,uuid)'] LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO authenticated', p);
   END LOOP;
   EXECUTE 'GRANT EXECUTE ON FUNCTION public.mnt_register_org(uuid) TO service_role';

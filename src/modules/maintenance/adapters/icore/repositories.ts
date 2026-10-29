@@ -151,6 +151,16 @@ export function createIcoreRepositoriesSkeleton(): MaintenanceRepositories {
       linkIncident: nc('corrective.linkIncident'),
       close: nc('corrective.close'),
     },
+    scan: {
+      resolveScan: nc('scan.resolveScan'),
+      listMyRunnableSessions: nc('scan.listMyRunnableSessions'),
+      recordExecution: nc('scan.recordExecution'),
+      recordClosureException: nc('scan.recordClosureException'),
+      listSessionExceptions: nc('scan.listSessionExceptions'),
+      listSessionPeople: nc('scan.listSessionPeople'),
+      assignSessionPeople: nc('scan.assignSessionPeople'),
+      regenerateQr: nc('scan.regenerateQr'),
+    },
     metrology: {
       listSites: nc('metrology.listSites'),
       listPeople: nc('metrology.listPeople'),

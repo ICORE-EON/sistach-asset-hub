@@ -320,13 +320,13 @@ export function createSessionsRepo(c: StandaloneClient) {
       if (!it) throw new Error(`Equipo de sesión ${DENY.replace("encontrada", "encontrado")}`);
       return it;
     },
-    async setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number) {
-      const it = await this.assertItemWritable(orgId, sessionId, itemId);
-      const now = new Date().toISOString();
-      ok(await c.from("maintenance_items").update({
-        result, observations, completed_at: now,
-        metadata: { ...meta(it.metadata), completion: { result, fail_count: failCount, at: now } } as unknown as Json,
-      }).eq("id", itemId).eq("session_id", sessionId));
+    async setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number, idempotencyKey?: string) {
+      await this.assertItemWritable(orgId, sessionId, itemId);
+      const key = idempotencyKey ?? (globalThis.crypto?.randomUUID?.() ?? `k${Date.now()}${Math.random().toString(36).slice(2)}`);
+      ok(await c.rpc("mnt_sa_record_item_execution", {
+        p_company: orgId, p_session: sessionId, p_item: itemId, p_result: result,
+        p_observations: observations ?? "", p_fail_count: failCount, p_key: key,
+      }));
     },
 
     /**

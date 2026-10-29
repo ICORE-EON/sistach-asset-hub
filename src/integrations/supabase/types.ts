@@ -2780,6 +2780,55 @@ export type Database = {
           },
         ]
       }
+      mnt_item_execution_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          executed_by: string | null
+          idempotency_key: string
+          item_id: string
+          result: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          executed_by?: string | null
+          idempotency_key: string
+          item_id: string
+          result: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          executed_by?: string | null
+          idempotency_key?: string
+          item_id?: string
+          result?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_item_execution_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_item_execution_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_item_execution_keys_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mnt_migration_runs: {
         Row: {
           error: string | null
@@ -3689,6 +3738,159 @@ export type Database = {
           },
         ]
       }
+      mnt_qr_token_events: {
+        Row: {
+          asset_id: string
+          company_id: string
+          id: string
+          old_token_sha256: string
+          regenerated_at: string
+          regenerated_by: string
+        }
+        Insert: {
+          asset_id: string
+          company_id: string
+          id?: string
+          old_token_sha256: string
+          regenerated_at?: string
+          regenerated_by: string
+        }
+        Update: {
+          asset_id?: string
+          company_id?: string
+          id?: string
+          old_token_sha256?: string
+          regenerated_at?: string
+          regenerated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_qr_token_events_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_qr_token_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_qr_token_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      mnt_session_assignees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          company_id: string
+          id: string
+          revoked_at: string | null
+          revoked_by: string | null
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id: string
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          company_id?: string
+          id?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_session_assignees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_session_assignees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_session_assignees_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mnt_session_closure_events: {
+        Row: {
+          closed_at: string
+          closed_by: string
+          company_id: string
+          id: string
+          session_id: string
+          summary: Json
+        }
+        Insert: {
+          closed_at?: string
+          closed_by: string
+          company_id: string
+          id?: string
+          session_id: string
+          summary?: Json
+        }
+        Update: {
+          closed_at?: string
+          closed_by?: string
+          company_id?: string
+          id?: string
+          session_id?: string
+          summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_session_closure_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_session_closure_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_session_closure_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mnt_session_entries: {
         Row: {
           author_id: string | null
@@ -3737,6 +3939,74 @@ export type Database = {
           },
           {
             foreignKeyName: "mnt_session_entries_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mnt_session_item_exceptions: {
+        Row: {
+          asset_id: string
+          company_id: string
+          id: string
+          item_id: string
+          reason_code: string
+          reason_text: string
+          recorded_at: string
+          recorded_by: string
+          recorded_by_name: string | null
+          session_id: string
+        }
+        Insert: {
+          asset_id: string
+          company_id: string
+          id?: string
+          item_id: string
+          reason_code: string
+          reason_text: string
+          recorded_at?: string
+          recorded_by: string
+          recorded_by_name?: string | null
+          session_id: string
+        }
+        Update: {
+          asset_id?: string
+          company_id?: string
+          id?: string
+          item_id?: string
+          reason_code?: string
+          reason_text?: string
+          recorded_at?: string
+          recorded_by?: string
+          recorded_by_name?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mnt_session_item_exceptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_session_item_exceptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_kpis"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "mnt_session_item_exceptions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "maintenance_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mnt_session_item_exceptions_session_id_fkey"
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "maintenance_sessions"
@@ -4410,6 +4680,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      mnt_sa_assign_session_people: {
+        Args: { p_company: string; p_session: string; p_users: string[] }
+        Returns: number
+      }
+      mnt_sa_can_execute_session: {
+        Args: { p_session: string }
+        Returns: boolean
+      }
       mnt_sa_cancel_session: {
         Args: { p_company: string; p_reason: string; p_session: string }
         Returns: Json
@@ -4483,9 +4761,26 @@ export type Database = {
         Args: { p_company: string; p_incident: string; p_session: string }
         Returns: undefined
       }
+      mnt_sa_list_my_runnable_sessions: {
+        Args: { p_company: string }
+        Returns: Json
+      }
+      mnt_sa_list_session_people: {
+        Args: { p_company: string; p_session: string }
+        Returns: Json
+      }
       mnt_sa_org_tz: { Args: { p_company: string }; Returns: string }
       mnt_sa_outcome: { Args: { p_session: string }; Returns: string }
       mnt_sa_plan_months: { Args: { p_plan: string }; Returns: number }
+      mnt_sa_record_closure_exception: {
+        Args: {
+          p_code: string
+          p_company: string
+          p_item: string
+          p_text: string
+        }
+        Returns: Json
+      }
       mnt_sa_record_external: {
         Args: {
           p_company: string
@@ -4498,6 +4793,26 @@ export type Database = {
           p_result: string
           p_session: string
         }
+        Returns: Json
+      }
+      mnt_sa_record_item_execution: {
+        Args: {
+          p_company: string
+          p_fail_count: number
+          p_item: string
+          p_key: string
+          p_observations: string
+          p_result: string
+          p_session: string
+        }
+        Returns: Json
+      }
+      mnt_sa_regenerate_asset_qr: {
+        Args: { p_asset: string; p_company: string }
+        Returns: string
+      }
+      mnt_sa_resolve_scan: {
+        Args: { p_session?: string; p_token: string }
         Returns: Json
       }
       mnt_sa_session_activity: {
