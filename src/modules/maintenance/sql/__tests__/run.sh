@@ -71,7 +71,16 @@ if P -d mtrnohost -f "$SQL/install_metrology_v1.sql" >"$TMP/mtrno.out" 2>&1; the
 grep -q "MNT metrology preflight failed" "$TMP/mtrno.out" && [ "$(P -d mtrnohost -Atc "SELECT count(*) FROM pg_tables WHERE tablename LIKE 'mnt_mtr_%'")" = "0" ] || { cat "$TMP/mtrno.out"; echo "FAIL mtr preflight msg"; exit 1; }
 echo "PASS mtr preflight: sin install_v1 falla y no deja tablas"
 PRE="$(P -d mnt -Atc "SELECT md5(coalesce(string_agg(row(p.*)::text, '|' ORDER BY p.id),'')) FROM mnt_plans p")"
+# Previous add-on shape -> additive upgrade, with a real populated legacy row in the throwaway DB.
+awk '/-- Operational association \(separate/{skip=1} /-- ------------------------------------------------------------ RLS\/grants --/{skip=0} !skip {print}' "$SQL/install_metrology_v1.sql" > "$TMP/previous-metrology.sql"
+P -d mnt -f "$TMP/previous-metrology.sql" >/dev/null
+P -d mnt -c "INSERT INTO host_stub.sites VALUES ('a0000000-0000-4000-8000-000000000001','c0000000-0000-4000-8000-0000000005a1') ON CONFLICT DO NOTHING; INSERT INTO mnt_mtr_equipment(org_id,code,name,equipment_type,site_id) VALUES ('a0000000-0000-4000-8000-000000000001','MTR-LEGACY','Original','extintor','c0000000-0000-4000-8000-0000000005a1');" >/dev/null
+LEGACY="$(P -d mnt -Atc "SELECT md5(row(id,org_id,code,name,equipment_type,created_at)::text) FROM mnt_mtr_equipment WHERE code='MTR-LEGACY'")"
 P -d mnt -f "$SQL/install_metrology_v1.sql" >/dev/null
+[ "$LEGACY" = "$(P -d mnt -Atc "SELECT md5(row(id,org_id,code,name,equipment_type,created_at)::text) FROM mnt_mtr_equipment WHERE code='MTR-LEGACY'")" ] && [ "$(P -d mnt -Atc "SELECT parent_asset_id IS NULL FROM mnt_mtr_equipment WHERE code='MTR-LEGACY'")" = "t" ] || { echo "FAIL metrology populated upgrade"; exit 1; }
+echo "PASS mtr upgrade con equipo legado: huella intacta, principal NULL"
+# Remove only this disposable, activity-free fixture to keep existing isolation counts stable.
+P -d mnt -c "DELETE FROM mnt_mtr_equipment WHERE code='MTR-LEGACY'" >/dev/null
 M1="$(P -d mnt -Atc "$FP")"
 P -d mnt -f "$SQL/install_metrology_v1.sql" >/dev/null
 M2="$(P -d mnt -Atc "$FP")"
