@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import { displayStatus } from "../../domain/metrology";
 import { normalizeAssetSearch } from "../../domain/asset-search";
-import { PersonSelect, STATUS_LABEL, StatusBadge, TYPE_SUGGESTIONS, daysLeft, today } from "../components/metrology-common";
+import { PersonSelect, STATUS_LABEL, StatusBadge, InstrumentTypeField, daysLeft, today } from "../components/metrology-common";
 
 const LAST: Record<string, string> = { fit: "Apto", unfit: "No apto", restricted: "Apto con restricciones" };
 const EMPTY = { name: "", equipmentType: "", siteId: "", locationDetail: "", magnitude: "", brand: "", model: "", serialNumber: "", responsibleRef: null as string | null };
@@ -87,8 +87,7 @@ export function MetrologyEquipmentListPage() {
               {origin.parentAssetId && <div className="text-sm">Activo principal asociado: {parent.data ? <Link to="/assets/$id" params={{ id: parent.data.id }} className="font-medium hover:underline">{parent.data.code} · {parent.data.name ?? "—"}</Link> : parent.isError ? <span className="text-destructive">No disponible</span> : "Cargando…"}</div>}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="sm:col-span-2"><Label>Nombre *</Label><Input value={f.name} onChange={set("name")} /></div>
-                <div><Label>Tipo de instrumento *</Label><Input placeholder="Por ejemplo: manómetro" list="mtr-types" value={f.equipmentType} onChange={set("equipmentType")} />
-                  <datalist id="mtr-types">{TYPE_SUGGESTIONS.map((t) => <option key={t} value={t} />)}</datalist></div>
+                <div><Label>Tipo de instrumento *</Label><InstrumentTypeField value={f.equipmentType} onChange={(v) => setF({ ...f, equipmentType: v })} /></div>
                 <div><Label>Magnitud</Label><Input value={f.magnitude} onChange={set("magnitude")} /></div>
                 <div><Label>Site *</Label>
                   <Select value={f.siteId} onValueChange={(v) => setF({ ...f, siteId: v })}>
