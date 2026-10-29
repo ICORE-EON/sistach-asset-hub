@@ -259,17 +259,22 @@ export function createCertificatesRepo(c: StandaloneClient) {
       type S = { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null };
       let session = null as S | null;
       let mItems: Array<{ id: string; asset_id: string; result: string; metadata: unknown }> = [];
+      let closureSummary: unknown = null;
       if (sessionId) {
         session = ok(await c.from("maintenance_sessions").select("plan_id, status, metadata, maintenance_plans(name), locations(name)")
           .eq("id", sessionId).eq("company_id", orgId).maybeSingle()) as unknown as S | null;
         if (!session) throw new Error(CROSS);
         mItems = (ok(await c.from("maintenance_items").select("id, asset_id, result, metadata").eq("session_id", sessionId)) ?? []) as typeof mItems;
+        // Latest append-only closure summary (executors + justified exceptions) for traceability.
+        const ev = ok(await (c as any).from("mnt_session_closure_events").select("summary")
+          .eq("session_id", sessionId).eq("company_id", orgId).order("closed_at", { ascending: false }).limit(1)) as Array<{ summary: unknown }> | null;
+        closureSummary = ev?.[0]?.summary ?? null;
       }
       const [company, incs] = await Promise.all([
         c.from("companies").select("name, cif, address, logo_url").eq("id", orgId).maybeSingle().then(ok),
         incidentsForItems(orgId, mItems.map((m) => m.id)),
       ]);
-      return { cert, certItems, sessionId, session, mItems, company, incidents: incs };
+      return { cert, certItems, sessionId, session, mItems, company, incidents: incs, closureSummary };
     },
     resolveTemplateForSession: async (orgId: string, planId: string | null) => resolveTemplate(orgId, planId),
 

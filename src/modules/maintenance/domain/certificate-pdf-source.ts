@@ -11,6 +11,7 @@ import {
 } from "./certificate-rules";
 import { historicalSession } from "./session-history";
 import { normalizeCertificateResult, resolveCertificateItemResult } from "./certificate-results";
+import { parseClosureSummary, type SessionTrace } from "./session-trace";
 
 export function formatDateEs(d: string | null | undefined): string {
   if (!d) return "";
@@ -28,6 +29,8 @@ export type PdfData = {
   source: PdfSource; templateFrozen: boolean; templateSource: TemplateSourceKind;
   template: CertificateTemplate | null; vars: Partial<TemplateVariables>; rows: RowSource[];
   incidents: FrozenIncident[]; signature: string | null;
+  /** Executors and justified exceptions from the closure summary (empty when not recorded). */
+  trace: SessionTrace;
   /** Snapshot certificates: frozen logo or explicit "missing". Legacy: the current logo, flagged by source. */
   logo: LogoPlan | { kind: "current"; path: string };
 };
@@ -41,7 +44,7 @@ export function composePdfData(a: {
   orgId: string; cert: Cert; certItems: CertItem[]; sessionId: string | null;
   session: { plan_id: string | null; status: string; metadata: unknown; maintenance_plans: { name: string } | null; locations: { name: string } | null } | null;
   mItems: Array<{ id: string; asset_id: string; result?: string | null; metadata: unknown }>;
-  company: Company; incidents: Incident[];
+  company: Company; incidents: Incident[]; closureSummary?: unknown;
   currentTemplate: { source: TemplateSourceKind; template: CertificateTemplate | null };
 }): PdfData {
   const base = {
@@ -49,6 +52,10 @@ export function composePdfData(a: {
     issued_on: formatDateEs(a.cert.issued_on), valid_until: a.cert.valid_until ? formatDateEs(a.cert.valid_until) : "",
     cert_code: a.cert.code,
   };
+  const liveAssets = new Map<string, { code?: string | null; name?: string | null }>();
+  for (const it of a.certItems) if (it.asset_id && it.assets) liveAssets.set(it.asset_id, it.assets as { code?: string; name?: string });
+  const trace = parseClosureSummary(a.closureSummary, liveAssets);
+  const exceptedAssets = new Set(((a.closureSummary as { exceptions?: Array<{ asset_id?: string }> } | null)?.exceptions ?? []).map((x) => x?.asset_id).filter(Boolean));
   const snap = readCertificateSnapshot(a.cert.metadata, a.sessionId);
   if (snap) {
     const tpl = snap.template.data;
@@ -56,8 +63,12 @@ export function composePdfData(a: {
       source: "snapshot", templateFrozen: true, templateSource: snap.template.source, template: tpl,
       vars: { ...base, company_name: snap.company.name, company_cif: snap.company.cif, company_address: snap.company.address,
         location_name: snap.location_name, plan_name: snap.plan?.name ?? "" },
-      rows: snap.items.map((i) => ({ asset: i.asset, result: normalizeCertificateResult(i.result), notes: i.notes })),
-      incidents: snap.incidents,
+      rows: snap.items.map((i) => {
+        const id = (i as { asset_id?: string }).asset_id ?? (i.asset as { id?: string } | null)?.id;
+        const n = normalizeCertificateResult(i.result);
+        return { asset: i.asset, result: id && exceptedAssets.has(id) && (n === "skipped" || n === "na") ? "excepted" as const : n, notes: i.notes };
+      }),
+      incidents: snap.incidents, trace,
       logo: planSnapshotLogo(a.orgId, snap.logo), signature: a.cert.signature_image_url ?? null,
     };
   }
@@ -89,7 +100,7 @@ export function composePdfData(a: {
     vars: { ...base, company_name: a.company?.name ?? "", company_cif: a.company?.cif ?? "", company_address: a.company?.address ?? "",
       location_name: a.session?.locations?.name || mostCommonLocation(rows),
       plan_name: (hs?.maintenance_plans as { name?: string } | null | undefined)?.name ?? "" },
-    rows, incidents,
+    rows, incidents, trace,
     logo: (() => { const p = tpl?.logo_url ?? a.company?.logo_url ?? null; return p ? { kind: "current" as const, path: p } : { kind: "none" as const }; })(),
     signature: a.cert.signature_image_url ?? null,
   };
