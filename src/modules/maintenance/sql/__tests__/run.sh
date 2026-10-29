@@ -64,6 +64,25 @@ echo "PASS upgrade aditivo de plan legado poblado: huella preservada y defaults 
 # 3. behaviour tests (RLS, triggers, RPC, rollback)
 PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /TESTS_DONE/p; /FAIL/p; /ERROR/p; /LINE/p'
 
+# 3b. metrology add-on: preflight without install_v1, clean install, idempotence, behaviour, preventive untouched
+P -c "CREATE DATABASE mtrnohost" >/dev/null
+P -d mtrnohost -f "$HERE/fixtures/host_stub.sql" >/dev/null
+if P -d mtrnohost -f "$SQL/install_metrology_v1.sql" >"$TMP/mtrno.out" 2>&1; then echo "FAIL mtr preflight"; exit 1; fi
+grep -q "MNT metrology preflight failed" "$TMP/mtrno.out" && [ "$(P -d mtrnohost -Atc "SELECT count(*) FROM pg_tables WHERE tablename LIKE 'mnt_mtr_%'")" = "0" ] || { cat "$TMP/mtrno.out"; echo "FAIL mtr preflight msg"; exit 1; }
+echo "PASS mtr preflight: sin install_v1 falla y no deja tablas"
+PRE="$(P -d mnt -Atc "SELECT md5(coalesce(string_agg(row(p.*)::text, '|' ORDER BY p.id),'')) FROM mnt_plans p")"
+P -d mnt -f "$SQL/install_metrology_v1.sql" >/dev/null
+M1="$(P -d mnt -Atc "$FP")"
+P -d mnt -f "$SQL/install_metrology_v1.sql" >/dev/null
+M2="$(P -d mnt -Atc "$FP")"
+[ "$M1" = "$M2" ] || { echo "FAIL mtr idempotencia"; exit 1; }
+[ "$(P -d mnt -Atc "SELECT count(*) FROM pg_tables WHERE tablename LIKE 'mnt_mtr_%'")" = "8" ] || { echo "FAIL mtr 8 tablas"; exit 1; }
+echo "PASS mtr instalacion limpia (8 tablas) + reinstalacion idempotente"
+PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/metrology_tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /FAIL/p; /ERROR/p; /LINE/p'
+POST="$(P -d mnt -Atc "SELECT md5(coalesce(string_agg(row(p.*)::text, '|' ORDER BY p.id),'')) FROM mnt_plans p")"
+[ "$PRE" = "$POST" ] || { echo "FAIL mtr altera planes preventivos"; exit 1; }
+echo "PASS mtr no altera planes preventivos"
+
 # Current optional inventory catalog; preserve legacy seed and test idempotence.
 P -d mnt -f "$SQL/seed_inventory_v2.sql" >/dev/null
 V1="$(P -d mnt -Atc "$FP")"
