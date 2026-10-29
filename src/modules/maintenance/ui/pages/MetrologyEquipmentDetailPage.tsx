@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Printer, Trash2 } from "lucide-react";
 import { MetrologyLabelDialog } from "../components/metrology-label";
+import { LinkAssetDialog } from "../components/asset-metrology";
 import { toast } from "sonner";
 import { useMaintenanceRequest } from "../host";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ export function MetrologyEquipmentDetailPage() {
   const { data: people = [] } = useQuery({ queryKey: metrologyKeys.people(orgId), enabled: !!orgId, queryFn: () => metrologyService.listPeople(orgId) });
   const [edit, setEdit] = useState<Partial<MtrEquipmentInput> | null>(null);
   const [labelOpen, setLabelOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
   const saveEdit = useMutation({
     mutationFn: () => metrologyService.updateEquipment(orgId, id, edit!),
     onSuccess: () => { toast.success("Equipo actualizado"); setEdit(null); refresh(); },
@@ -81,11 +83,22 @@ export function MetrologyEquipmentDetailPage() {
     <div className="space-y-4 p-6">
       <Link to="/metrology/equipment" className="inline-flex items-center text-sm text-muted-foreground hover:underline"><ArrowLeft className="mr-1 h-4 w-4" />Equipos de medida</Link>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{e.code} · {e.name}</h1>
+        <h1 className="text-2xl font-semibold">{e.asset ? `${e.asset.code} · ${e.asset.name ?? e.name}` : `${e.code} · ${e.name}`}</h1>
         <StatusBadge stored={e.status} nextDue={nextDue} />
         <Button variant="outline" size="sm" className="ml-auto" onClick={() => setLabelOpen(true)}><Printer className="mr-1 h-4 w-4" />Imprimir etiqueta</Button>
-        <MetrologyLabelDialog open={labelOpen} onOpenChange={setLabelOpen} equipment={e} nextDue={nextDue} />
+        <MetrologyLabelDialog open={labelOpen} onOpenChange={setLabelOpen} equipment={e.asset ? { ...e, code: e.asset.code, name: e.asset.name ?? e.name } : e} nextDue={nextDue} />
       </div>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {e.asset ? (<>
+          <span className="text-muted-foreground">Activo del inventario:</span>
+          <Link to="/assets/$id" params={{ id: e.asset.id }} className="font-medium underline-offset-2 hover:underline">{e.asset.code} · {e.asset.name ?? "—"}</Link>
+          <span className="text-muted-foreground">· Ficha metrológica {e.code}</span>
+        </>) : (<>
+          <span className="text-muted-foreground">Sin activo vinculado en el inventario.</span>
+          {canManage && <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>Vincular a activo</Button>}
+        </>)}
+      </div>
+      <LinkAssetDialog orgId={orgId!} equipmentId={id} open={linkOpen} onOpenChange={setLinkOpen} />
       {pending && <ImpactBanner />}
 
       <Tabs defaultValue="summary">
@@ -100,7 +113,7 @@ export function MetrologyEquipmentDetailPage() {
         <TabsContent value="summary">
           <Card><CardContent className="grid gap-4 pt-6 sm:grid-cols-3">
             {field("Tipo", e.equipmentType)}{field("Magnitud", e.magnitude)}{field("Uso previsto", e.intendedUse)}
-            {field("Site", siteName(e.siteId))}{field("Ubicación", e.locationDetail)}{field("Alta", e.registeredOn)}
+            {field("Site", siteName(e.siteId))}{e.asset ? field("Ubicación (Activos)", e.asset.locationName) : field("Ubicación", e.locationDetail)}{field("Alta", e.registeredOn)}
             {field("Marca", e.brand)}{field("Modelo", e.model)}{field("Nº de serie", e.serialNumber)}
             {field("Rango", e.rangeMin != null || e.rangeMax != null ? `${e.rangeMin ?? ""} – ${e.rangeMax ?? ""} ${e.unit ?? ""}` : null)}
             {field("Resolución", e.resolution)}{field("Exactitud declarada", e.declaredAccuracy)}

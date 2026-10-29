@@ -2901,6 +2901,7 @@ export type Database = {
       mnt_mtr_equipment: {
         Row: {
           allowed_uses: string | null
+          asset_id: string | null
           brand: string | null
           code: string
           company_id: string
@@ -2931,6 +2932,7 @@ export type Database = {
         }
         Insert: {
           allowed_uses?: string | null
+          asset_id?: string | null
           brand?: string | null
           code: string
           company_id: string
@@ -2961,6 +2963,7 @@ export type Database = {
         }
         Update: {
           allowed_uses?: string | null
+          asset_id?: string | null
           brand?: string | null
           code?: string
           company_id?: string
@@ -2990,6 +2993,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mnt_mtr_equipment_asset_fkey"
+            columns: ["company_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["company_id", "id"]
+          },
           {
             foreignKeyName: "mnt_mtr_equipment_company_id_fkey"
             columns: ["company_id"]

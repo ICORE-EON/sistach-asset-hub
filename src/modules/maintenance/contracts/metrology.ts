@@ -21,8 +21,13 @@ export type MtrEquipment = {
   rangeMin: number | null; rangeMax: number | null; unit: string | null; resolution: string | null;
   declaredAccuracy: string | null; restrictions: string | null; allowedUses: string | null;
   registeredOn: string; status: MtrStoredStatus;
+  /** Optional physical identity in the asset inventory (same org, set once). */
+  assetId: string | null;
+  /** When linked, code/name/location come from the asset (source of truth). */
+  asset: MtrLinkedAsset | null;
 };
-export type MtrEquipmentInput = Omit<MtrEquipment, "id" | "orgId" | "code" | "status" | "registeredOn"> & { registeredOn?: string };
+export type MtrLinkedAsset = { id: string; code: string; name: string | null; typeName: string | null; locationName: string | null };
+export type MtrEquipmentInput = Omit<MtrEquipment, "id" | "orgId" | "code" | "status" | "registeredOn" | "assetId" | "asset"> & { registeredOn?: string; assetId?: string | null };
 
 export type MtrControlPlan = {
   id: string; equipmentId: string; kind: MtrControlKind; method: MtrMethod; procedure: string | null;
@@ -90,4 +95,10 @@ export interface MetrologyContract {
   moveSite(orgId: string, equipmentId: string, siteId: string, locationDetail: string | null, note: string | null): Promise<void>;
   setStatus(orgId: string, equipmentId: string, status: MtrStoredStatus, reason: string): Promise<void>;
   listHistory(orgId: string, equipmentId: string): Promise<MtrHistoryEntry[]>;
+  /** Metrology equipment id linked to the asset, or null. */
+  findByAsset(orgId: string, assetId: string): Promise<string | null>;
+  /** Assets of the org not yet linked to any metrology equipment. */
+  listLinkableAssets(orgId: string): Promise<MtrLinkedAsset[]>;
+  /** Links an unlinked equipment to an asset (same org; set once, enforced by the database). */
+  linkAsset(orgId: string, equipmentId: string, assetId: string): Promise<void>;
 }

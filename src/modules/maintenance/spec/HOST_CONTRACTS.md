@@ -42,3 +42,7 @@ Reutiliza los contratos SQL existentes; no añade ninguno nuevo:
 - `host_document_version_sha(org, ref)` — `document_ref` de un registro debe resolver dentro de la org al validar; NULL ⇒ rechazo 23514 (fail-closed).
 - `host_has_perm(org, perm)` vía `mnt_can`: `mnt.view`, `mnt.manage_assets` (equipos/planes/traslado/estado), `mnt.run` (borradores y líneas), `mnt.close` (validar, rectificar, decidir No apto, cerrar impacto).
 TypeScript: el adaptador ICORE de `MetrologyRepository` sigue **sin implementar**.
+
+
+### Metrología Fase 2
+No requiere nuevos contratos de host: el vínculo usa `mnt_assets` del propio paquete. La ubicación mostrada para equipos vinculados procede del activo (`site_ref`, resuelto por el host).

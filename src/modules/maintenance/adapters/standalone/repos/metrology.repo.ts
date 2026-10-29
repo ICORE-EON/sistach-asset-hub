@@ -17,14 +17,16 @@ const toEq = (r: R): MtrEquipment => ({
   intendedUse: r.intended_use, siteId: r.site_id, locationDetail: r.location_detail, responsibleRef: r.responsible_ref,
   brand: r.brand, model: r.model, serialNumber: r.serial_number, rangeMin: r.range_min, rangeMax: r.range_max, unit: r.unit,
   resolution: r.resolution, declaredAccuracy: r.declared_accuracy, restrictions: r.restrictions, allowedUses: r.allowed_uses,
-  registeredOn: r.registered_on, status: r.status,
+  registeredOn: r.registered_on, status: r.status, assetId: r.asset_id ?? null,
+  asset: r.asset ? { id: r.asset.id, code: r.asset.code, name: r.asset.name, typeName: r.asset.asset_types?.name_i18n?.es ?? null, locationName: r.asset.locations?.name ?? null } : null,
 });
+const EQ_SEL = "*, asset:assets!mnt_mtr_equipment_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name))";
 const fromEq = (v: Partial<MtrEquipmentInput>): R => {
   const m: R = {
     name: v.name, equipment_type: v.equipmentType, magnitude: v.magnitude, intended_use: v.intendedUse, site_id: v.siteId,
     location_detail: v.locationDetail, responsible_ref: v.responsibleRef, brand: v.brand, model: v.model,
     serial_number: v.serialNumber, range_min: v.rangeMin, range_max: v.rangeMax, unit: v.unit, resolution: v.resolution,
-    declared_accuracy: v.declaredAccuracy, restrictions: v.restrictions, registered_on: v.registeredOn,
+    declared_accuracy: v.declaredAccuracy, restrictions: v.restrictions, registered_on: v.registeredOn, asset_id: v.assetId,
   };
   Object.keys(m).forEach((k) => m[k] === undefined && delete m[k]);
   return m;
@@ -72,7 +74,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
     },
     async listEquipment(orgId) {
       const [eq, pl, im, rc] = await Promise.all([
-        db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).is("deleted_at", null).order("code"),
+        db.from("mnt_mtr_equipment").select(EQ_SEL).eq("company_id", orgId).is("deleted_at", null).order("code"),
         db.from("mnt_mtr_control_plans").select("equipment_id,next_due_on").eq("company_id", orgId).eq("active", true).not("next_due_on", "is", null),
         db.from("mnt_mtr_impact_reviews").select("equipment_id").eq("company_id", orgId).eq("status", "pending"),
         db.from("mnt_mtr_records").select("equipment_id,result,performed_on,version").eq("company_id", orgId).eq("status", "validated").order("performed_on", { ascending: false }).order("version", { ascending: false }),
@@ -85,7 +87,7 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       return (ok(eq) as R[]).map((r) => ({ ...toEq(r), nextDueOn: due.get(r.id) ?? null, pendingImpact: pend.has(r.id), lastResult: (last.get(r.id) ?? null) as never }));
     },
     async getEquipment(orgId, id) {
-      const r = ok(await db.from("mnt_mtr_equipment").select("*").eq("company_id", orgId).eq("id", id).maybeSingle());
+      const r = ok(await db.from("mnt_mtr_equipment").select(EQ_SEL).eq("company_id", orgId).eq("id", id).maybeSingle());
       if (!r) throw new Error("Equipo no encontrado");
       return toEq(r);
     },
@@ -97,7 +99,25 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
     async updateEquipment(orgId, id, v) {
       const patch = fromEq(v);
       delete patch.site_id; // site changes go through moveSite (traced)
+      delete patch.asset_id; // linking goes through linkAsset
       ok(await db.from("mnt_mtr_equipment").update(patch).eq("company_id", orgId).eq("id", id));
+    },
+    async findByAsset(orgId, assetId) {
+      const r = ok(await db.from("mnt_mtr_equipment").select("id").eq("company_id", orgId).eq("asset_id", assetId).is("deleted_at", null).maybeSingle());
+      return r?.id ?? null;
+    },
+    async listLinkableAssets(orgId) {
+      const [as, used] = await Promise.all([
+        db.from("assets").select("id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name)").eq("company_id", orgId).is("deleted_at", null).neq("status", "retired").order("code").limit(2000),
+        db.from("mnt_mtr_equipment").select("asset_id").eq("company_id", orgId).is("deleted_at", null).not("asset_id", "is", null),
+      ]);
+      const taken = new Set((ok(used) as R[]).map((r) => r.asset_id));
+      return (ok(as) as R[]).filter((a) => !taken.has(a.id)).map((a) => ({ id: a.id, code: a.code, name: a.name, typeName: a.asset_types?.name_i18n?.es ?? null, locationName: a.locations?.name ?? null }));
+    },
+    async linkAsset(orgId, equipmentId, assetId) {
+      await owned("mnt_mtr_equipment", orgId, equipmentId);
+      const r = ok(await db.from("mnt_mtr_equipment").update({ asset_id: assetId }).eq("company_id", orgId).eq("id", equipmentId).is("asset_id", null).select("id"));
+      if (!(r as R[]).length) throw new Error("El equipo ya está vinculado a un activo");
     },
     async listPlans(orgId, equipmentId) {
       return (ok(await db.from("mnt_mtr_control_plans").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("created_at")) as R[]).map(toPlan);

@@ -5,7 +5,8 @@
 -- mnt_emit, mnt_actor_snapshot, mnt_is_client and host contracts host_person_ref(),
 -- host_site_in_org(uuid,uuid), host_document_version_sha(uuid,uuid).
 -- Idempotent: IF NOT EXISTS / OR REPLACE / DROP ... IF EXISTS + CREATE.
--- Not included (Phase 2): link mnt_mtr_equipment <-> assets, TS adapter, UI.
+-- Phase 2 (schema only): optional mnt_mtr_equipment.asset_id -> mnt_assets (same org, set-once).
+-- Not included: ICORE TS adapter / host UI wiring.
 -- =============================================================================
 \set ON_ERROR_STOP on
 BEGIN;
@@ -653,6 +654,34 @@ DROP TRIGGER IF EXISTS mtr_status_immutable ON public.mnt_mtr_status_history;
 CREATE TRIGGER mtr_status_immutable BEFORE UPDATE OR DELETE ON public.mnt_mtr_status_history FOR EACH ROW EXECUTE FUNCTION public.mnt_mtr_tg_append_only();
 DROP TRIGGER IF EXISTS mtr_impact_guard ON public.mnt_mtr_impact_reviews;
 CREATE TRIGGER mtr_impact_guard BEFORE UPDATE OR DELETE ON public.mnt_mtr_impact_reviews FOR EACH ROW EXECUTE FUNCTION public.mnt_mtr_tg_impact_guard();
+
+-- ---------------------------------------------- Phase 2: asset link ------
+ALTER TABLE public.mnt_mtr_equipment ADD COLUMN IF NOT EXISTS asset_id uuid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'mnt_mtr_equipment_asset_fkey') THEN
+    ALTER TABLE public.mnt_mtr_equipment ADD CONSTRAINT mnt_mtr_equipment_asset_fkey
+      FOREIGN KEY (org_id, asset_id) REFERENCES public.mnt_assets(org_id, id) ON DELETE RESTRICT;
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS mnt_mtr_equipment_asset_uk ON public.mnt_mtr_equipment(org_id, asset_id)
+  WHERE asset_id IS NOT NULL AND deleted_at IS NULL;
+CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_asset_link_guard()
+ RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.asset_id IS NOT NULL AND NEW.asset_id IS DISTINCT FROM OLD.asset_id THEN
+    RAISE EXCEPTION 'El vínculo con el activo no se puede cambiar' USING ERRCODE = '42501';
+  END IF;
+  IF NEW.asset_id IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.asset_id IS NULL) THEN
+    IF NOT EXISTS (SELECT 1 FROM public.mnt_assets a WHERE a.org_id = NEW.org_id AND a.id = NEW.asset_id AND a.deleted_at IS NULL) THEN
+      RAISE EXCEPTION 'El activo no existe en la organización' USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $function$;
+DROP TRIGGER IF EXISTS mtr_equipment_asset_link_guard ON public.mnt_mtr_equipment;
+CREATE TRIGGER mtr_equipment_asset_link_guard BEFORE INSERT OR UPDATE OF asset_id ON public.mnt_mtr_equipment
+  FOR EACH ROW EXECUTE FUNCTION public.mnt_mtr_tg_asset_link_guard();
 
 -- ------------------------------------------------------------ RLS/grants --
 ALTER TABLE public.mnt_mtr_equipment ENABLE ROW LEVEL SECURITY;

@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
+import { AssetMetrologyCard } from "../components/asset-metrology";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
@@ -343,6 +344,11 @@ export function AssetDetailPage() {
         <TechnicalSheetCard
           orgId={activeCompanyId} assetId={id} canManage={canManage} metadata={asset.metadata}
           profile={profileOfType(types.find((t) => t.id === asset.asset_type_id)?.metadata)}
+        />
+
+        <AssetMetrologyCard
+          orgId={activeCompanyId!} asset={asset} canManage={canManage}
+          typeName={((types.find((t) => t.id === asset.asset_type_id)?.name_i18n as Record<string, string> | undefined)?.es) ?? null}
         />
 
         {asset.asset_types?.category === "first_aid_kit" && (
