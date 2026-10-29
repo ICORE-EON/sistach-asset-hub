@@ -48,3 +48,13 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 | `mtr_validate_record` etc. | `mnt_mtr_validate_record` etc. | misma firma y semántica |
 | `can_view/can_manage_assets/can_run_maintenance/can_close_session` | `mnt.view/manage_assets/run/close` | |
 DTOs de `contracts/metrology.ts` sin cambios; el mapeo TS→SQL ICORE queda pendiente.
+
+
+### Fase 2 — vínculo con activo
+| DTO | Sistach | ICORE |
+|---|---|---|
+| `MtrEquipment.assetId` | `mnt_mtr_equipment.asset_id` → `assets(company_id,id)` | `mnt_mtr_equipment.asset_id` → `mnt_assets(org_id,id)` |
+| `MtrEquipment.asset` (code/name/typeName/locationName) | lectura de `assets` + `asset_types.name` + `locations.name` | `mnt_assets` + `mnt_asset_types.name_i18n` + sitio del host |
+| `findByAsset` / `listLinkableAssets` / `linkAsset` | consultas filtradas por `company_id` + UPDATE con `asset_id IS NULL` | idem por `org_id` (adaptador pendiente) |
+
+Con vínculo, código/nombre/ubicación visibles salen del activo; `code`/`name` propios del equipo se conservan (etiquetas e historiales previos no se reescriben).

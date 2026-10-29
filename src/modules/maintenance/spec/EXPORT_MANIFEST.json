@@ -96,6 +96,7 @@
     "src/modules/maintenance/ui/__tests__/boundary.test.ts",
     "src/modules/maintenance/ui/__tests__/module-boundary.test.ts",
     "src/modules/maintenance/ui/components/asset-history-panel.tsx",
+    "src/modules/maintenance/ui/components/asset-metrology.tsx",
     "src/modules/maintenance/ui/components/asset-picker.tsx",
     "src/modules/maintenance/ui/components/corrective.tsx",
     "src/modules/maintenance/ui/components/due-decisions-panel.tsx",
