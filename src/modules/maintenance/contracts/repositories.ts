@@ -272,7 +272,7 @@ export interface MaintenanceRepositories {
   sessions: SessionsRepository;
   incidents: IncidentsRepository;
   certificates: CertificatesRepository;
-  /** Metrology submodule (optional until the ICORE package includes it). Contract: ./metrology.ts */
+  /** Optional metrology capability; SQL/UI are exported, real ICORE adapter is not implemented. */
   metrology?: import("./metrology").MetrologyContract;
   /** Corrective repairs (Bloque 2B, optional). Contract: ./corrective.ts */
   corrective?: import("./corrective").CorrectiveRepository;
