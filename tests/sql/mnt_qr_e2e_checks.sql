@@ -56,8 +56,8 @@ BEGIN
   CREATE FUNCTION pg_temp.q(sql text) RETURNS text LANGUAGE plpgsql AS $f$ DECLARE v text; BEGIN
     BEGIN EXECUTE sql INTO v; RETURN coalesce(v, 'null');
     EXCEPTION WHEN OTHERS THEN RETURN 'rej:' || SQLSTATE; END; END $f$;
-  CREATE FUNCTION pg_temp.c(nm text, expected text, sql text) RETURNS void LANGUAGE plpgsql AS $f$ BEGIN
-    INSERT INTO e2e SELECT coalesce(max(n), 0) + 1, nm, expected, pg_temp.q(sql) FROM e2e; END $f$;
+  CREATE FUNCTION pg_temp.c(nm text, ex text, sq text) RETURNS void LANGUAGE plpgsql AS $f$ BEGIN
+    INSERT INTO e2e SELECT coalesce(max(n), 0) + 1, nm, ex, pg_temp.q(sq) FROM e2e; END $f$;
 
   -- 1. supervisor asigna al operario A
   PERFORM pg_temp.act(SUP);
