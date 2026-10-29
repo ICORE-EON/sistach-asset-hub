@@ -56,4 +56,25 @@ SELECT t.fails('mtr: anon sin acceso', $$SELECT 1 FROM mnt_mtr_equipment$$, '425
 RESET ROLE;
 -- rollback: a failing atomic op leaves nothing behind
 SELECT t.ok('mtr: outbox recibe validaciones', (SELECT count(*) FROM mnt_outbox WHERE event_type='mnt.mtr.record_validated') = 3);
+-- Phase 2: optional asset link (same org, unique, set-once, no cascade)
+RESET ROLE;
+INSERT INTO mnt_asset_types(id,org_id,code,name_i18n) SELECT 'e0000000-0000-4000-8000-0000000000a0','a0000000-0000-4000-8000-000000000001','mtr_t','{"es":"t"}' WHERE NOT EXISTS (SELECT 1 FROM mnt_asset_types WHERE id='e0000000-0000-4000-8000-0000000000a0');
+INSERT INTO mnt_assets(id,org_id,asset_type_id,code,name) VALUES
+ ('e0000000-0000-4000-8000-0000000000a1','a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a0','ACT-1','Calibre físico'),
+ ('e0000000-0000-4000-8000-0000000000a2','a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a0','ACT-2','Otro');
+INSERT INTO mnt_asset_types(id,org_id,code,name_i18n) VALUES ('e0000000-0000-4000-8000-0000000000b0','b0000000-0000-4000-8000-000000000001','mtr_t','{"es":"t"}');
+INSERT INTO mnt_assets(id,org_id,asset_type_id,code,name) VALUES ('e0000000-0000-4000-8000-0000000000b2','b0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000b0','ACT-B','Ajeno');
+SET ROLE authenticated;
+SELECT t.login('c0000000-0000-4000-8000-0000000000c1');
+SELECT t.ok('mtr2: equipo sin activo sigue válido', (SELECT asset_id IS NULL FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000001'));
+SELECT t.fails('mtr2: activo de otra org rechazado', $$UPDATE mnt_mtr_equipment SET asset_id='e0000000-0000-4000-8000-0000000000b2' WHERE id='e0000000-0000-4000-8000-000000000001'$$, NULL);
+UPDATE mnt_mtr_equipment SET asset_id='e0000000-0000-4000-8000-0000000000a1' WHERE id='e0000000-0000-4000-8000-000000000001';
+SELECT t.ok('mtr2: vínculo guardado', (SELECT asset_id FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000001') = 'e0000000-0000-4000-8000-0000000000a1');
+SELECT t.fails('mtr2: vínculo no se puede cambiar', $$UPDATE mnt_mtr_equipment SET asset_id='e0000000-0000-4000-8000-0000000000a2' WHERE id='e0000000-0000-4000-8000-000000000001'$$, '42501');
+SELECT t.fails('mtr2: un activo solo una vez por org', $$INSERT INTO mnt_mtr_equipment(org_id,code,name,equipment_type,site_id,asset_id) VALUES ('a0000000-0000-4000-8000-000000000001','MTR-DUP','d','calibre','c0000000-0000-4000-8000-0000000005a1','e0000000-0000-4000-8000-0000000000a1')$$, '23505');
+SELECT t.login('c0000000-0000-4000-8000-0000000000c2');
+SELECT t.fails('mtr2: lector no puede vincular', $$INSERT INTO mnt_mtr_equipment(org_id,code,name,equipment_type,site_id,asset_id) VALUES ('a0000000-0000-4000-8000-000000000001','MTR-L','l','calibre','c0000000-0000-4000-8000-0000000005a1','e0000000-0000-4000-8000-0000000000a2')$$, '42501');
+RESET ROLE;
+SELECT t.fails('mtr2: borrar activo vinculado no borra en cascada', $$DELETE FROM mnt_assets WHERE id='e0000000-0000-4000-8000-0000000000a1'$$, NULL);
+SELECT t.ok('mtr2: historial intacto', (SELECT count(*) FROM mnt_mtr_records WHERE equipment_id='e0000000-0000-4000-8000-000000000001') >= 3);
 DO $$ BEGIN RAISE NOTICE 'MTR_TESTS_DONE'; END $$;
