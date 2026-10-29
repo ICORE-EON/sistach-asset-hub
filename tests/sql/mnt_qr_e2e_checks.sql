@@ -48,6 +48,7 @@ BEGIN
   INSERT INTO public.maintenance_items(company_id, session_id, asset_id, result, checklist_template_version_id) VALUES (CA, S2, A1, 'pending', V1);
 
   CREATE TEMP TABLE e2e(n int, name text, expected text, actual text) ON COMMIT DROP;
+  GRANT ALL ON e2e TO authenticated;
   CREATE FUNCTION pg_temp.act(u uuid) RETURNS void LANGUAGE plpgsql AS $f$ BEGIN
     RESET ROLE;
     PERFORM set_config('request.jwt.claims', json_build_object('sub', u, 'role', 'authenticated')::text, true);
