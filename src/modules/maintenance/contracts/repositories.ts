@@ -211,7 +211,8 @@ export interface SessionsRepository {
   /** Closed interventions, newest close first, paged server-side. */
   listInterventions(orgId: string, page: { offset: number; limit: number }): Promise<InterventionPage>;
   assertItemWritable(orgId: string, sessionId: string, itemId: string): Promise<{ id: string; asset_id: string; metadata: Json; }>;
-  setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number): Promise<void>;
+  /** Idempotent by key (same key → no second execution); server checks the caller may execute this session. */
+  setItemResult(orgId: string, sessionId: string, itemId: string, result: string, observations: string | null, failCount: number, idempotencyKey?: string): Promise<void>;
   /** Cancel a draft/in-progress session with a reason; no due date moves. Idempotent. */
   cancelSession(orgId: string, sessionId: string, reason: string): Promise<{ cancelledNow: boolean }>;
   /** Delete a draft only when it has no activity or evidence at all (server checks). */
@@ -276,4 +277,6 @@ export interface MaintenanceRepositories {
   metrology?: import("./metrology").MetrologyContract;
   /** Corrective repairs (Bloque 2B, optional). Contract: ./corrective.ts */
   corrective?: import("./corrective").CorrectiveRepository;
+  /** Authenticated QR execution (optional). Contract: ./scan.ts */
+  scan?: import("./scan").ScanContract;
 }

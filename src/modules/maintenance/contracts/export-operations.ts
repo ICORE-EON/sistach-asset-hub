@@ -2,6 +2,7 @@
 import { OPERATIONS, type OperationSpec } from './operations';
 import type { CorrectiveRepository } from './corrective';
 import type { MetrologyContract } from './metrology';
+import type { ScanContract } from './scan';
 
 const read = (authority: string, host: OperationSpec['host'] = []): OperationSpec => ({ kind: 'read', perm: 'mnt.view', authority, host, orgScoped: true });
 const write = (authority: string, perm = 'mnt.manage_assets'): OperationSpec => ({ kind: 'write', perm, authority, host: [], orgScoped: true });
@@ -45,4 +46,15 @@ export const METROLOGY_OPERATIONS = {
   'metrology.associateEquipment': atomic('RPC mnt_mtr_associate_equipment', 'mnt.manage_assets'),
 } satisfies Record<`metrology.${keyof MetrologyContract}`, OperationSpec>;
 
-export const EXPORT_OPERATIONS = { ...OPERATIONS, ...CORRECTIVE_OPERATIONS, ...METROLOGY_OPERATIONS };
+export const SCAN_OPERATIONS = {
+  'scan.resolveScan': { kind: 'read', perm: 'mnt.run', authority: 'RPC mnt_resolve_scan (assignment + generic not_available)', host: [], orgScoped: true },
+  'scan.listMyRunnableSessions': { kind: 'read', perm: 'mnt.run', authority: 'RPC mnt_list_my_runnable_sessions', host: [], orgScoped: true },
+  'scan.recordExecution': atomic('RPC mnt_record_item_execution (idempotency key)', 'mnt.run'),
+  'scan.recordClosureException': atomic('RPC mnt_record_closure_exception', 'mnt.close'),
+  'scan.listSessionExceptions': read('RLS mnt_session_item_exceptions'),
+  'scan.listSessionPeople': read('RPC mnt_list_session_people', ['people']),
+  'scan.assignSessionPeople': atomic('RPC mnt_assign_session_people', 'mnt.close'),
+  'scan.regenerateQr': atomic('RPC mnt_regenerate_asset_qr', 'mnt.admin'),
+} satisfies Record<`scan.${keyof ScanContract}`, OperationSpec>;
+
+export const EXPORT_OPERATIONS = { ...OPERATIONS, ...CORRECTIVE_OPERATIONS, ...METROLOGY_OPERATIONS, ...SCAN_OPERATIONS };

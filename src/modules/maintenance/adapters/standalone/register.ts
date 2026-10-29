@@ -13,6 +13,7 @@ import { createIncidentsRepo } from "./repos/incidents.repo";
 import { createCertificatesRepo } from "./repos/certificates.repo";
 import { createMetrologyRepo } from "./repos/metrology.repo";
 import { createCorrectiveRepo } from "./repos/corrective.repo";
+import { createScanRepo } from "./repos/scan.repo";
 import type { StandaloneClient } from "./client";
 
 /** Compile-time conformance: the standalone implementation must satisfy the module contracts. */
@@ -26,6 +27,7 @@ export function createStandaloneRepositories(client: StandaloneClient): Maintena
     certificates: createCertificatesRepo(client),
     metrology: createMetrologyRepo(client),
     corrective: createCorrectiveRepo(client),
+    scan: createScanRepo(client),
   } satisfies MaintenanceRepositories;
 }
 
