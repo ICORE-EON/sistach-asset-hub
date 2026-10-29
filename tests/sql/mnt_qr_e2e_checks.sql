@@ -85,7 +85,7 @@ BEGIN
   PERFORM pg_temp.c('operario A no puede cerrar', 'rej:42501', format($$SELECT public.mnt_sa_close_session(%L, %L, 'Op', NULL, 'sig')::text$$, CA, S1));
   PERFORM pg_temp.c('operario A no puede registrar excepción', 'rej:42501', format($$SELECT public.mnt_sa_record_closure_exception(%L, %L, 'inaccessible', 'No llego')::text$$, CA, I2));
   PERFORM pg_temp.c('operario A no puede asignar', 'rej:42501', format($$SELECT public.mnt_sa_assign_session_people(%L, %L, ARRAY[%L]::uuid[])::text$$, CA, S1, OPB));
-  PERFORM pg_temp.c('operario A no marca exceptuado por RLS', '0', format($$WITH x AS (UPDATE public.maintenance_items SET result = 'excepted' WHERE id = %L RETURNING 1) SELECT count(*) FROM x$$, I2));
+  PERFORM pg_temp.c('operario A no marca exceptuado directamente', 'rej:42501', format($$WITH x AS (UPDATE public.maintenance_items SET result = 'excepted' WHERE id = %L RETURNING 1) SELECT count(*) FROM x$$, I2));
   -- 7. operario B (misma empresa, no asignado) no obtiene datos
   PERFORM pg_temp.act(OPB);
   PERFORM pg_temp.c('no asignado: 0 sesiones visibles', '0', format($$SELECT count(*) FROM public.maintenance_sessions WHERE company_id = %L$$, CA));
@@ -100,7 +100,8 @@ BEGIN
   PERFORM pg_temp.c('supervisor registra excepción', 'true', format($$SELECT public.mnt_sa_record_closure_exception(%L, %L, 'inaccessible', 'Sala técnica cerrada con llave')->>'recorded_now'$$, CA, I2));
   PERFORM pg_temp.c('excepción no cuenta como revisado', 'excepted', format($$SELECT result FROM public.maintenance_items WHERE id = %L$$, I2));
   PERFORM pg_temp.c('supervisor cierra', 'true', format($$SELECT public.mnt_sa_close_session(%L, %L, 'Supervisor E2E', 'Jefe', 'sig')->>'closed_now'$$, CA, S1));
-  PERFORM pg_temp.c('excepción inmutable', 'rej:42501', format($$UPDATE public.mnt_session_item_exceptions SET reason_text = 'x' WHERE item_id = %L RETURNING 'changed'$$, I2));
+  PERFORM pg_temp.c('excepción inmutable (0 filas modificables)', 'null', format($$UPDATE public.mnt_session_item_exceptions SET reason_text = 'x' WHERE item_id = %L RETURNING 'changed'$$, I2));
+  PERFORM pg_temp.c('excepción conserva su motivo', 'Sala técnica cerrada con llave', format($$SELECT reason_text FROM public.mnt_session_item_exceptions WHERE item_id = %L$$, I2));
   -- 9. historial de cierre: ejecutores, resultados y excepción
   RESET ROLE;
   SELECT e.summary INTO summary FROM public.mnt_session_closure_events e WHERE e.session_id = S1;
