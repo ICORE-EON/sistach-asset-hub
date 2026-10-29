@@ -1,5 +1,11 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Corrección funcional Activos–Metrología 2026-10-29 (AUTORIZADA)
+- [ ] Asociación operativa N:1 independiente de identidad 1:1; SQL aditivo Sistach/ICORE y pruebas temporales.
+- [ ] Vinculación múltiple y alta existente desde activo principal; nombres coherentes y detalle de todas las versiones de registros.
+- [ ] Columna/filtro básico, contratos/manifiesto/documentación; navegador sin escrituras reales y regresiones.
+- Host/adaptador real ICORE permanece fuera de alcance; no modificar registros existentes ni crear TEST permanentes.
+
 ## Unificación Activos–Metrología 2026-10-28 (BLOQUEADA antes de implementación)
 - [ ] Vinculación mínima de identidad y navegación bidireccional, sin duplicados, cambios históricos ni limpieza automática.
 - Bloqueo material comprobado: el instalador independiente no contiene ninguna de las ocho tablas metrológicas ni sus operaciones atómicas; el adaptador ICORE no ofrece metrología. Añadir solo asset_id en Sistach no entrega la unificación portable autorizada. Portar el motor completo requiere resolver org/company, site, personas, permisos, documentos y snapshots, y comprobar instalación limpia/upgrade; excede una corrección pequeña. Se detiene antes de migrar o cambiar contratos/UI/datos.
