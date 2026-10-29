@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import type { MtrControlPlan, MtrControlPlanInput, MtrCriterion, MtrEquipmentInput } from "../../contracts/metrology";
 import { MetrologyRecordsTab } from "../components/metrology-records";
-import { PersonSelect, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
+import { PersonSelect, InstrumentTypeField, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
 
 const NEW_PLAN: MtrControlPlanInput = {
   kind: "calibration", method: "external", procedure: null, frequencyUnit: "years", frequencyValue: 1, acceptanceCriteria: null,
