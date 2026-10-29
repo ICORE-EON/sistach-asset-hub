@@ -57,7 +57,10 @@ export function defineRepositoryContract(setup: ContractSetup) {
     const liveIt = setup.live ? it : it.skip;
     describe("live (requiere host real)", () => {
       let host: LiveHost | null = null;
-      const h = async () => (host ??= await setup.live!());
+      const h = async () => {
+        if (!setup.live) throw new Error('Real host required');
+        return (host ??= await setup.live());
+      };
       const RANDOM_ORG = "00000000-0000-4000-8000-0000000000ff";
 
       liveIt("lecturas de una organización ajena o inexistente devuelven vacío o rechazan (fail-closed)", async () => {
@@ -79,13 +82,13 @@ export function defineRepositoryContract(setup: ContractSetup) {
         });
         const inA = (await repos.assets.listAssets(orgA)).find((a) => a.name === name);
         expect(inA).toBeTruthy();
+        if (!inA) throw new Error('Created asset not found');
         const inB = await repos.assets.listAssets(orgB).catch(() => []);
-        expect(inB.some((a) => a.id === inA!.id)).toBe(false);
-        expect(await rejectsOrEmpty(repos.assets.getAsset(orgB, inA!.id))).toBe(true);
-        await expect(repos.assets.softDeleteAsset(orgB, inA!.id).then(() => repos.assets.getAsset(orgA, inA!.id)))
-          .resolves.toMatchObject({ deleted_at: null })
-          .catch(() => undefined); // rejection is also acceptable
-        await repos.assets.softDeleteAsset(orgA, inA!.id);
+        expect(inB.some((a) => a.id === inA.id)).toBe(false);
+        expect(await rejectsOrEmpty(repos.assets.getAsset(orgB, inA.id))).toBe(true);
+        await repos.assets.softDeleteAsset(orgB, inA.id).catch(() => undefined);
+        expect(await repos.assets.getAsset(orgA, inA.id)).toMatchObject({ deleted_at: null });
+        await repos.assets.softDeleteAsset(orgA, inA.id);
       });
 
       liveIt("operaciones atómicas sobre entidades inexistentes rechazan: la base decide", async () => {

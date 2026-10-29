@@ -1,6 +1,6 @@
 /** Keeps the operation catalogue, the ICORE skeleton and the adapter spec in sync with the contract. */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { OPERATIONS } from "../operations";
 import { createIcoreRepositoriesSkeleton, createIcoreAdapterSkeleton, IcoreNotConfiguredError } from "../../adapters/icore/repositories";
 import { defineRepositoryContract } from "./contract-suite";
@@ -50,8 +50,7 @@ describe("esqueleto del adaptador ICORE", () => {
   it("no se registra en esta aplicación", () => {
     expect(createIcoreAdapterSkeleton().id).toBe("icore");
     expect(registeredAdapterId()).not.toBe("icore");
-    const router = readFileSync("src/router.tsx", "utf8");
-    expect(router).not.toMatch(/adapters\/icore/);
+    if (existsSync("src/router.tsx")) expect(readFileSync("src/router.tsx", "utf8")).not.toMatch(/adapters\/icore/);
   });
 });
 

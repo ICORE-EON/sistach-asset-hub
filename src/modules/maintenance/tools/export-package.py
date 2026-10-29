@@ -14,12 +14,16 @@ BASE = ROOT / MODULE
 MANIFEST = BASE / 'spec/EXPORT_MANIFEST.json'
 sha = lambda data: hashlib.sha256(data).hexdigest()
 
+def host_bound_test(path):
+    return '/__tests__/' in str(path) and path.suffix in {'.ts', '.tsx'} and bool(
+        re.search(r'''(?:from\s*|import\s*\()\s*["'][^"']*adapters/standalone/''', path.read_text()))
+
 
 def regenerate():
     old = json.loads(MANIFEST.read_text())
     portable = sorted(str(p.relative_to(ROOT)) for p in BASE.rglob('*') if p.is_file()
                       and '/standalone/' not in str(p) and '/adapters/__tests__/' not in str(p)
-                      and '__pycache__' not in str(p) and p.suffix != '.pyc')
+                      and '__pycache__' not in str(p) and p.suffix != '.pyc' and not host_bound_test(p))
     keys = sorted(re.findall(r'nc\(["\']([^"\']+)["\']\)', (BASE / 'adapters/icore/repositories.ts').read_text()))
     manifest = {
         'module': 'maintenance', 'contractVersion': old['contractVersion'],
@@ -34,6 +38,7 @@ def regenerate():
                     'src/lib/**', 'src/router.tsx', 'drizzle/**', 'supabase/**', 'tests/sql/**',
                     'business database dumps, documents/files, organizations, people, sites, assets, plans, executions, incidents, histories'],
         'testOnly': [p for p in portable if '/__tests__/' in p],
+        'excludedHostTests': sorted(str(p.relative_to(ROOT)) for p in BASE.rglob('*') if p.is_file() and host_bound_test(p)),
         'hostProvides': old['hostProvides'] + ['MaintenanceUiProvider.RecordDocument', 'TanStack route wrappers, QueryClient, semantic styles'],
         'npm': old['npm'], 'env': [],
         'limitations': ['Real ICORE host/repositories unimplemented; skeleton rejects all operations.',
