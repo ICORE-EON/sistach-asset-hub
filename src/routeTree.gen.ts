@@ -16,7 +16,6 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthenticatedAppRouteImport } from './routes/_authenticated/_app'
 import { Route as AuthenticatedSelectCompanyRouteImport } from './routes/_authenticated/select-company'
 import { Route as AcceptInvitationTokenRouteImport } from './routes/accept-invitation.$token'
-import { Route as QrTokenRouteImport } from './routes/qr.$token'
 import { Route as AuthenticatedAppAssetFamiliesRouteImport } from './routes/_authenticated/_app.asset-families'
 import { Route as AuthenticatedAppAssetTypesRouteImport } from './routes/_authenticated/_app.asset-types'
 import { Route as AuthenticatedAppAssetsRouteImport } from './routes/_authenticated/_app.assets'
@@ -47,7 +46,6 @@ import { Route as AuthenticatedAppMaintenancePlansIndexRouteImport } from './rou
 import { Route as AuthenticatedAppMaintenancePlansIdRouteImport } from './routes/_authenticated/_app.maintenance-plans.$id'
 import { Route as AuthenticatedAppMaintenanceIndexRouteImport } from './routes/_authenticated/_app.maintenance.index'
 import { Route as AuthenticatedAppMaintenanceIdRouteImport } from './routes/_authenticated/_app.maintenance.$id'
-import { Route as ApiPublicQrTokenRouteImport } from './routes/api/public/qr.$token'
 import { Route as AuthenticatedAppMetrologyEquipmentIndexRouteImport } from './routes/_authenticated/_app.metrology.equipment.index'
 import { Route as AuthenticatedAppMetrologyEquipmentIdRouteImport } from './routes/_authenticated/_app.metrology.equipment.$id'
 
@@ -83,11 +81,6 @@ const AuthenticatedSelectCompanyRoute =
 const AcceptInvitationTokenRoute = AcceptInvitationTokenRouteImport.update({
   id: '/accept-invitation/$token',
   path: '/accept-invitation/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QrTokenRoute = QrTokenRouteImport.update({
-  id: '/qr/$token',
-  path: '/qr/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAppAssetFamiliesRoute =
@@ -268,11 +261,6 @@ const AuthenticatedAppMaintenanceIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAppMaintenanceRoute,
   } as any)
-const ApiPublicQrTokenRoute = ApiPublicQrTokenRouteImport.update({
-  id: '/api/public/qr/$token',
-  path: '/api/public/qr/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAppMetrologyEquipmentIndexRoute =
   AuthenticatedAppMetrologyEquipmentIndexRouteImport.update({
     id: '/metrology/equipment/',
@@ -292,7 +280,6 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
-  '/qr/$token': typeof QrTokenRoute
   '/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/assets': typeof AuthenticatedAppAssetsRouteWithChildren
@@ -316,7 +303,6 @@ export interface FileRoutesByFullPath {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
-  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
@@ -333,7 +319,6 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
-  '/qr/$token': typeof QrTokenRoute
   '/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
@@ -350,7 +335,6 @@ export interface FileRoutesByTo {
   '/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
-  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/assets': typeof AuthenticatedAppAssetsIndexRoute
   '/certificate-templates': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/certificates': typeof AuthenticatedAppCertificatesIndexRoute
@@ -370,7 +354,6 @@ export interface FileRoutesById {
   '/_authenticated/_app': typeof AuthenticatedAppRouteWithChildren
   '/_authenticated/select-company': typeof AuthenticatedSelectCompanyRoute
   '/accept-invitation/$token': typeof AcceptInvitationTokenRoute
-  '/qr/$token': typeof QrTokenRoute
   '/_authenticated/_app/asset-families': typeof AuthenticatedAppAssetFamiliesRoute
   '/_authenticated/_app/asset-types': typeof AuthenticatedAppAssetTypesRoute
   '/_authenticated/_app/assets': typeof AuthenticatedAppAssetsRouteWithChildren
@@ -394,7 +377,6 @@ export interface FileRoutesById {
   '/_authenticated/_app/incidents/$id': typeof AuthenticatedAppIncidentsIdRoute
   '/_authenticated/_app/maintenance-plans/$id': typeof AuthenticatedAppMaintenancePlansIdRoute
   '/_authenticated/_app/maintenance/$id': typeof AuthenticatedAppMaintenanceIdRoute
-  '/api/public/qr/$token': typeof ApiPublicQrTokenRoute
   '/_authenticated/_app/assets/': typeof AuthenticatedAppAssetsIndexRoute
   '/_authenticated/_app/certificate-templates/': typeof AuthenticatedAppCertificateTemplatesIndexRoute
   '/_authenticated/_app/certificates/': typeof AuthenticatedAppCertificatesIndexRoute
@@ -413,7 +395,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/select-company'
     | '/accept-invitation/$token'
-    | '/qr/$token'
     | '/asset-families'
     | '/asset-types'
     | '/assets'
@@ -437,7 +418,6 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
-    | '/api/public/qr/$token'
     | '/assets/'
     | '/certificate-templates/'
     | '/certificates/'
@@ -454,7 +434,6 @@ export interface FileRouteTypes {
     | '/signup'
     | '/select-company'
     | '/accept-invitation/$token'
-    | '/qr/$token'
     | '/asset-families'
     | '/asset-types'
     | '/dashboard'
@@ -471,7 +450,6 @@ export interface FileRouteTypes {
     | '/incidents/$id'
     | '/maintenance-plans/$id'
     | '/maintenance/$id'
-    | '/api/public/qr/$token'
     | '/assets'
     | '/certificate-templates'
     | '/certificates'
@@ -490,7 +468,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_app'
     | '/_authenticated/select-company'
     | '/accept-invitation/$token'
-    | '/qr/$token'
     | '/_authenticated/_app/asset-families'
     | '/_authenticated/_app/asset-types'
     | '/_authenticated/_app/assets'
@@ -514,7 +491,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_app/incidents/$id'
     | '/_authenticated/_app/maintenance-plans/$id'
     | '/_authenticated/_app/maintenance/$id'
-    | '/api/public/qr/$token'
     | '/_authenticated/_app/assets/'
     | '/_authenticated/_app/certificate-templates/'
     | '/_authenticated/_app/certificates/'
@@ -532,8 +508,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   AcceptInvitationTokenRoute: typeof AcceptInvitationTokenRoute
-  QrTokenRoute: typeof QrTokenRoute
-  ApiPublicQrTokenRoute: typeof ApiPublicQrTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -585,13 +559,6 @@ declare module '@tanstack/react-router' {
       path: '/accept-invitation/$token'
       fullPath: '/accept-invitation/$token'
       preLoaderRoute: typeof AcceptInvitationTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/qr/$token': {
-      id: '/qr/$token'
-      path: '/qr/$token'
-      fullPath: '/qr/$token'
-      preLoaderRoute: typeof QrTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_app/asset-families': {
@@ -804,13 +771,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppMaintenanceIdRouteImport
       parentRoute: typeof AuthenticatedAppMaintenanceRoute
     }
-    '/api/public/qr/$token': {
-      id: '/api/public/qr/$token'
-      path: '/api/public/qr/$token'
-      fullPath: '/api/public/qr/$token'
-      preLoaderRoute: typeof ApiPublicQrTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/_app/metrology/equipment/': {
       id: '/_authenticated/_app/metrology/equipment/'
       path: '/metrology/equipment'
@@ -1020,8 +980,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   AcceptInvitationTokenRoute: AcceptInvitationTokenRoute,
-  QrTokenRoute: QrTokenRoute,
-  ApiPublicQrTokenRoute: ApiPublicQrTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
