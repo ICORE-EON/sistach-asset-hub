@@ -36,8 +36,8 @@ export function validUntilFrom(today: Date, intervalMonths: number | null | unde
 
 /** Same notes summary as before. */
 export function emissionSummary(results: string[], pendingCount: number): string {
-  const { ok: okCount, withIncidents: failCount, skipped } = certificateResultCounts(results);
-  const unreviewed = Math.max(skipped, pendingCount);
+  const { ok: okCount, withIncidents: failCount, skipped, excepted } = certificateResultCounts(results);
+  const unreviewed = Math.max(skipped + excepted, pendingCount);
   return `${okCount} equipo(s) OK${failCount > 0 ? `, ${failCount} con incidencias` : ""}${
     unreviewed > 0 ? `, ${unreviewed} sin revisar` : ""}.`;
 }

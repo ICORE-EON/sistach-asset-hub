@@ -39,7 +39,7 @@ export const isFailResult = (r: string | null | undefined) => certificateResultH
 /** Outcome stored in session metadata on close; pendingCount = items marked skipped at close. */
 export function legacySessionOutcome(results: string[], pendingCount: number): LegacyOutcome {
   const c = certificateResultCounts(results);
-  const incomplete = pendingCount > 0 || c.skipped > 0;
+  const incomplete = pendingCount > 0 || c.skipped > 0 || c.excepted > 0;
   if (c.withIncidents > 0) return incomplete ? "incomplete_with_incidents" : "with_incidents";
   return incomplete ? "incomplete" : "ok";
 }
