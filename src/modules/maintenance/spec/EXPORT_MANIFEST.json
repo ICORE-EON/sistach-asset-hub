@@ -132,7 +132,8 @@
     "src/modules/maintenance/ui/pages/PlanDetailPage.tsx",
     "src/modules/maintenance/ui/pages/PlansListPage.tsx",
     "src/modules/maintenance/ui/pages/SessionDetailPage.tsx",
-    "src/modules/maintenance/ui/pages/SessionsListPage.tsx"
+    "src/modules/maintenance/ui/pages/SessionsListPage.tsx",
+    "src/modules/maintenance/spec/DELIVERY_METROLOGY_CORRECTION_2026-10-29.md"
   ],
   "exclude": [
     "src/modules/maintenance/adapters/__tests__/adapters.test.ts",

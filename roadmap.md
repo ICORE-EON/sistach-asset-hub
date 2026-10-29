@@ -1,9 +1,10 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
 ## Corrección funcional Activos–Metrología 2026-10-29 (AUTORIZADA)
-- [ ] Asociación operativa N:1 independiente de identidad 1:1; SQL aditivo Sistach/ICORE y pruebas temporales.
-- [ ] Vinculación múltiple y alta existente desde activo principal; nombres coherentes y detalle de todas las versiones de registros.
-- [ ] Columna/filtro básico, contratos/manifiesto/documentación; navegador sin escrituras reales y regresiones.
+- [x] Asociación operativa N:1 independiente de identidad 1:1; SQL aditivo Sistach/ICORE y 210 PASS PostgreSQL temporal.
+- [x] Vinculación múltiple y alta existente desde activo principal; nombres coherentes y detalle de todas las versiones de registros.
+- [x] Columna y filtros, contratos/manifiesto/documentación; Vitest 270 PASS / 15 omitidas, build OK; navegador autenticado de Toni Enterprises sin escrituras.
+- [ ] E2E de guardado/visor con instrumentos: bloqueado por acceso del solicitante solo a Toni Enterprises (sin instrumentos ni centros) y prohibición de TEST permanente; reglas verificadas en SQL temporal. Informe: spec/DELIVERY_METROLOGY_CORRECTION_2026-10-29.md.
 - Host/adaptador real ICORE permanece fuera de alcance; no modificar registros existentes ni crear TEST permanentes.
 
 ## Unificación Activos–Metrología 2026-10-28 (BLOQUEADA antes de implementación)
