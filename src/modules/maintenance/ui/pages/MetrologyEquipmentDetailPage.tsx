@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import type { MtrControlPlan, MtrControlPlanInput, MtrCriterion, MtrEquipmentInput } from "../../contracts/metrology";
 import { MetrologyRecordsTab } from "../components/metrology-records";
-import { PersonSelect, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
+import { PersonSelect, InstrumentTypeField, ImpactBanner, KIND_LABEL, METHOD_LABEL, STATUS_LABEL, StatusBadge, UNIT_LABEL } from "../components/metrology-common";
 
 const NEW_PLAN: MtrControlPlanInput = {
   kind: "calibration", method: "external", procedure: null, frequencyUnit: "years", frequencyValue: 1, acceptanceCriteria: null,
@@ -221,7 +221,7 @@ export function MetrologyEquipmentDetailPage() {
           <DialogHeader><DialogTitle>Editar equipo</DialogTitle></DialogHeader>
           {edit && <div className="grid gap-3 sm:grid-cols-2">
             {([["name", "Nombre"], ["equipmentType", "Tipo"], ["magnitude", "Magnitud"], ["locationDetail", "Ubicación dentro del site"], ["brand", "Marca"], ["model", "Modelo"], ["serialNumber", "Nº de serie"]] as const).map(([k, l]) => (
-              <div key={k}><Label>{k === "equipmentType" ? "Tipo de instrumento" : l}</Label><Input readOnly={!!e.assetId && (k === "name" || k === "locationDetail")} value={e.assetId && k === "name" ? e.asset?.name ?? "—" : e.assetId && k === "locationDetail" ? e.asset?.locationName ?? "—" : (edit[k] as string | null) ?? ""} placeholder={k === "equipmentType" ? "Por ejemplo: manómetro" : undefined} onChange={(ev) => setEdit({ ...edit, [k]: ev.target.value })} />{e.assetId && k === "name" && <Link to="/assets/$id" params={{ id: e.assetId }} className="text-xs text-primary hover:underline">Editar nombre en Activos</Link>}</div>
+              <div key={k}><Label>{k === "equipmentType" ? "Tipo de instrumento" : l}{e.assetId && (k === "name" || k === "locationDetail") ? " (desde Activos, solo lectura)" : ""}</Label>{k === "equipmentType" ? <InstrumentTypeField value={(edit.equipmentType as string | null) ?? ""} onChange={(v) => setEdit({ ...edit, equipmentType: v })} /> : <Input className={e.assetId && (k === "name" || k === "locationDetail") ? "bg-muted" : undefined} readOnly={!!e.assetId && (k === "name" || k === "locationDetail")} value={e.assetId && k === "name" ? e.asset?.name ?? "—" : e.assetId && k === "locationDetail" ? e.asset?.locationName ?? "—" : (edit[k] as string | null) ?? ""} onChange={(ev) => setEdit({ ...edit, [k]: ev.target.value })} />}{e.assetId && k === "name" && <Link to="/assets/$id" params={{ id: e.assetId }} className="text-xs text-primary hover:underline">Editar nombre en Activos →</Link>}</div>
             ))}
             <div><Label>Responsable</Label><PersonSelect people={people} value={edit.responsibleRef ?? null} onChange={(v) => setEdit({ ...edit, responsibleRef: v })} /></div>
           </div>}

@@ -46,6 +46,7 @@
     "src/modules/maintenance/domain/inventory-catalog.ts",
     "src/modules/maintenance/domain/maintenance-suggestions.ts",
     "src/modules/maintenance/domain/metrology.ts",
+    "src/modules/maintenance/domain/metrology-instrument-types.ts",
     "src/modules/maintenance/domain/plan-classification.ts",
     "src/modules/maintenance/domain/scope.ts",
     "src/modules/maintenance/domain/session-history.ts",
