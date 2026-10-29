@@ -1,3 +1,4 @@
+import { formatTraceDate, type SessionTrace } from "../domain/session-trace";
 import { certificateResultSummary } from "../domain/certificate-results";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont, type PDFImage } from "pdf-lib";
 import type { CertificateTemplate, TemplateColumn } from "../domain/certificate-templates/types";
@@ -283,6 +284,8 @@ export interface BuildPdfInput {
   incidents?: IncidentRow[];
   logoUrl?: string | null;
   signatureDataUrl?: string | null;
+  /** Closing traceability: who executed and which equipment was excepted (never counted as reviewed). */
+  trace?: SessionTrace;
 }
 
 export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Array> {
@@ -366,6 +369,23 @@ export async function buildCertificatePdf(input: BuildPdfInput): Promise<Uint8Ar
   if (input.rows.length > 0) {
     ctx = { ...ctx, y: ctx.y - 6 };
     ctx = drawParagraph(ctx, `Resumen: ${certificateResultSummary(input.rows.map((r) => r.result))}`, 10);
+  }
+
+  // Executors and justified exceptions (closure summary)
+  if (input.trace && input.trace.executors.length > 0) {
+    ctx = { ...ctx, y: ctx.y - 8 };
+    ctx = ensureSpace(ctx, 18);
+    ctx.page.drawText(sanitize("Ejecutores"), { x: MARGIN, y: ctx.y - 12, size: 12, font: bold, color: rgb(0.08, 0.1, 0.2) });
+    ctx = { ...ctx, y: ctx.y - 18 };
+    ctx = drawParagraph(ctx, input.trace.executors.map((e) => `${e.name} (${e.items} equipo(s))`).join(", "), 10);
+  }
+  if (input.trace && input.trace.exceptions.length > 0) {
+    ctx = { ...ctx, y: ctx.y - 8 };
+    ctx = ensureSpace(ctx, 18);
+    ctx.page.drawText(sanitize("Excepciones justificadas (equipos NO revisados)"), { x: MARGIN, y: ctx.y - 12, size: 12, font: bold, color: rgb(0.55, 0.1, 0.1) });
+    ctx = { ...ctx, y: ctx.y - 18 };
+    ctx = drawGenericTable(ctx, ["Equipo", "Motivo", "Justificación", "Registrada por", "Fecha"], [2.5, 1.5, 4, 2, 2],
+      input.trace.exceptions.map((x) => [[x.assetCode, x.assetName].filter(Boolean).join(" · "), x.reason, x.text, x.by, formatTraceDate(x.at)]));
   }
 
   // Incidents table

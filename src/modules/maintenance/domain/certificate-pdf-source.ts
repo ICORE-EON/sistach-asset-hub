@@ -64,9 +64,8 @@ export function composePdfData(a: {
       vars: { ...base, company_name: snap.company.name, company_cif: snap.company.cif, company_address: snap.company.address,
         location_name: snap.location_name, plan_name: snap.plan?.name ?? "" },
       rows: snap.items.map((i) => {
-        const id = (i as { asset_id?: string }).asset_id ?? (i.asset as { id?: string } | null)?.id;
         const n = normalizeCertificateResult(i.result);
-        return { asset: i.asset, result: id && exceptedAssets.has(id) && (n === "skipped" || n === "na") ? "excepted" as const : n, notes: i.notes };
+        return { asset: i.asset, result: exceptedAssets.has(i.asset_id) && (n === "skipped" || n === "na") ? "excepted" as const : n, notes: i.notes };
       }),
       incidents: snap.incidents, trace,
       logo: planSnapshotLogo(a.orgId, snap.logo), signature: a.cert.signature_image_url ?? null,

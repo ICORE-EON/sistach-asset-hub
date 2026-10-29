@@ -101,7 +101,7 @@ export const certificateService = {
     }
     const bytes = await renderCertificatePdf({
       template: { ...DEFAULT_CERTIFICATE_TEMPLATE, ...template, columns: (Array.isArray(template.columns) ? template.columns : []) as TemplateColumn[] },
-      vars: data.vars, rows: data.rows, incidents: data.incidents, logoUrl, signatureDataUrl: data.signature,
+      vars: data.vars, rows: data.rows, incidents: data.incidents, trace: data.trace, logoUrl, signatureDataUrl: data.signature,
     });
     const r = await repo().storePdf(org, id, bytes, await sha256Hex(bytes));
     if (warning) console.warn(`[certificates] ${id}: PDF generado sin logo — ${warning}`);
