@@ -5,7 +5,7 @@ Entrega técnica para implementar posteriormente el adaptador **en la cuenta/pro
 
 Commit base de esta preparación: `6c25b606427eee0d9836fc62ccec7f3cbee959c9`. **No es un commit de los cambios finales**: la revisión exacta e inmutable del paquete es su `payloadSha256` en `PACKAGE_RECEIPT.json` y el SHA-256 externo del ZIP. `SHA256SUMS` cubre cada archivo de `EXPORT_MANIFEST.json`, incluido este handoff. El recibo y las sumas son un sobre externo al payload para evitar hashes autorreferenciales. Un cambio de un byte exige generar otro paquete/SHA; no reemplazar una entrega ya sellada.
 
-Manifiesto v2 y `contracts/export-operations.ts`: **143 operaciones**: activos 28, checklists 15, planes 14, sesiones 17, incidencias 11, certificados 26, correctivos 8, metrología 24. El archivo base `operations.ts` mantiene sus 111 operaciones por compatibilidad. Las capacidades del **adaptador real** están false en el manifiesto. El stub exportado expone y rechaza las 143 llamadas; no es una implementación funcional.
+Manifiesto v2 y `contracts/export-operations.ts`: **143 operaciones**: activos 27, checklists 15, planes 15, sesiones 17, incidencias 11, certificados 26, correctivos 8, metrología 24. El archivo base `operations.ts` mantiene sus 111 operaciones por compatibilidad. Las capacidades del **adaptador real** están false en el manifiesto. El stub exportado expone y rechaza las 143 llamadas; no es una implementación funcional.
 
 ## Inventario funcional exportado
 - Activos: inventario, familias/tipos, categorías conceptuales, ficha, ámbito por centros, búsqueda, retirada/eliminación elegible y botiquín.
