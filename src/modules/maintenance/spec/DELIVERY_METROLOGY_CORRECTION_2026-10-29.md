@@ -29,3 +29,5 @@
 - Reasignación de instrumento ya asociado bloqueada; no se añade flujo de traslado/desvinculación ni limpieza de datos.
 - Búsqueda de asociaciones muestra hasta 100 coincidencias a la vez sobre el listado existente; no se construye una pantalla compleja ni nueva capa de datos.
 - E2E de guardado y de detalle con instrumentos reales pendiente por alcance de acceso y prohibición de crear TEST permanentes; validación de reglas/persistencia cubierta en PostgreSQL desechable, no sustituye integración real del host.
+## Cierre documental posterior
+Estado vigente y evidencias finales: INTEGRATION_HANDOFF.md / VALIDATION_FINAL.md. La posterior UX fue validada manualmente por el usuario: selector compartido catálogo/Otro/legado, nombre independiente frente a identidad, filas sin duplicar, separación «Equipos de medida asociados» y «Control metrológico del propio activo». No confundir esa aceptación manual con E2E automatizado ni con integración real iCore. Instalador y ambas relaciones están implementados/exportados; adaptador REAL sigue pendiente, con stub completo de rechazo.

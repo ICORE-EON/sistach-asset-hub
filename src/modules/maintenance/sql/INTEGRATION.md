@@ -1,7 +1,6 @@
 # Instalación del módulo de mantenimiento en ICORE (esquema limpio v1)
 
-Orden: 1) el host provee los puntos de integración; 2) `install_v1.sql`; 3) `seed_catalog_v1.sql`;
-4) el host registra cada organización con `mnt_register_org(org_id)` (service_role).
+Orden vigente: 1) host aporta contratos; 2) `install_v1.sql`; 3) `install_metrology_v1.sql` si procede; 4) catálogos opcionales v1→v2; 5) registro/activación explícitos. Ver `../spec/INTEGRATION_HANDOFF.md` para comandos, actualización y rollback.
 Ambos scripts son idempotentes y transaccionales. El instalador falla antes de crear nada si falta un requisito.
 
 ## Puntos de integración que aporta ICORE
@@ -47,3 +46,6 @@ el esquema y el catálogo, y ejecuta las comprobaciones. No se conecta nunca a l
 - **Responsabilidad del host ICORE:** los documentos y archivos viven en el DocumentPort del host. El host debe impedir borrar (fila y objeto de almacenamiento) documentos vinculados a una sesión cerrada o a un certificado, y las incidencias del host originadas en un cierre. Si ICORE necesita que el borrado definitivo sea solo de "administrador", debe mapear `mnt.admin` a ese rol (o separar un permiso propio).
 - Antes del borrado definitivo, el host debe comprobar también dependencias documentales directas e indirectas de activos/planes/borradores, transaccionalmente en su autoridad SQL. Este instalador no conoce sus tablas documentales ni demuestra esa integración: no basta una comprobación previa en la UI. No se duplica el módulo documental ni de incidencias del host.
 - Validación local final 2026-10-25: instalación limpia, reinstalación idéntica y suite completa `ALL_DONE` (107 comprobaciones PASS, 32 específicas 2A). Aceptación en ICORE real pendiente de sus contratos y protecciones documentales; el host simulado no la sustituye.
+
+## Estado actual y alcance
+El complemento `install_metrology_v1.sql` está implementado: ocho tablas, motor/RLS/guardas, identidad 1:1 y principal N:1 (`mnt_mtr_associate_equipment`). No requiere tablas de host duplicadas; personas/centros/documentos vía contratos existentes. El adaptador real permanece sin implementar. Las fixtures históricas congeladas y smoke solo se usan en PostgreSQL temporal; no son instalación productiva ni datos demo a migrar. Resultados vigentes: `../spec/VALIDATION_FINAL.md`.

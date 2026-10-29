@@ -15,7 +15,7 @@ Los apartados históricos siguientes conservan resultados de sus fechas, no repr
 - [ ] E2E de guardado/visor con instrumentos: bloqueado por acceso del solicitante solo a Toni Enterprises (sin instrumentos ni centros) y prohibición de TEST permanente; reglas verificadas en SQL temporal. Informe: spec/DELIVERY_METROLOGY_CORRECTION_2026-10-29.md.
 - Host/adaptador real ICORE permanece fuera de alcance; no modificar registros existentes ni crear TEST permanentes.
 
-## Unificación Activos–Metrología 2026-10-28 (BLOQUEADA antes de implementación)
+## Unificación Activos–Metrología 2026-10-28 (bloqueo histórico SUPERADO por fases 1–2)
 - [ ] Vinculación mínima de identidad y navegación bidireccional, sin duplicados, cambios históricos ni limpieza automática.
 - Bloqueo material comprobado: el instalador independiente no contiene ninguna de las ocho tablas metrológicas ni sus operaciones atómicas; el adaptador ICORE no ofrece metrología. Añadir solo asset_id en Sistach no entrega la unificación portable autorizada. Portar el motor completo requiere resolver org/company, site, personas, permisos, documentos y snapshots, y comprobar instalación limpia/upgrade; excede una corrección pequeña. Se detiene antes de migrar o cambiar contratos/UI/datos.
 - Alternativa A: vínculo primero en Sistach, conservando motor y entregando contrato/documentación portable, pero dejando instalación metrológica ICORE pendiente (coste relativo bajo; requiere aceptar esa excepción de alcance).
@@ -36,10 +36,10 @@ Los apartados históricos siguientes conservan resultados de sus fechas, no repr
 ## Corrección acotada de sugerencias 2026-10-26 (COMPLETADA)
 - [x] 37 intervenciones concretas, notas y seis propuestas trimestrales/anuales orientativas revisables; resto a definir por empresa. Aplicación explícita, 13 códigos antiguos conservados, ningún cambio en planes/datos.
 - [x] Vitest 257 PASS / 4 omitidas, incluida instalación SQL en PostgreSQL temporal y manifiesto. Build observado OK; typecheck manual separado no ejecutado por restricción del entorno. Navegador autenticado verifica nombre/notas/frecuencia y selección previa intacta hasta aplicar; formulario móvil sin desbordamiento, cero errores y sin guardar/TEST.
-- [x] Catálogo/UI/tests ya incluidos en manifiesto ICORE; no requiere migración ni seed/alteración de instalador. Dependencias y límites vigentes en `spec/INSTALL_ICORE.md`; integración real del host/adaptador y metrología pendientes, no afirmadas. E2E de nueva persistencia no realizado por prohibición de escribir datos.
+- [x] Catálogo/UI/tests ya incluidos en manifiesto ICORE; no requiere migración ni seed/alteración de instalador. Dependencias y límites vigentes en `spec/INSTALL_ICORE.md`; integración real del host/adaptador y adaptador real de metrología pendiente; SQL y relaciones implementados después. E2E de nueva persistencia no realizado por prohibición de escribir datos.
 
 ## Entrega acotada 2026-10-26 — portabilidad y sugerencias (ENTREGADO con bloqueo de host/metrología)
-- [x] Sincronizados clasificación, ejecución, guarda técnica, catálogo v2 y manifiesto completo. SQL temporal 150 PASS/ALL_DONE, actualización con plan legado intacto. Host real NO integrado; portado SQL/adaptador metrología pendiente por alcance material, ver `spec/INSTALL_ICORE.md`.
+- [x] Sincronizados clasificación, ejecución, guarda técnica, catálogo v2 y manifiesto completo. SQL temporal 150 PASS/ALL_DONE, actualización con plan legado intacto. Host real NO integrado; portado SQL metrológico completado posteriormente, adaptador real pendiente, ver `spec/INSTALL_ICORE.md`.
 - [x] Sugerencias opcionales en Nuevo plan: 13 tareas prácticas, origen sin especificar, frecuencia y equipos confirmados; navegador autenticado sin escritura, cero errores. E2E de persistencia no ejecutado por restricción TEST. Vitest 237 PASS/4 omitidas, incluida completitud de manifiesto; build OK; typecheck separado no ejecutado por restricción del entorno.
 - Biblioteca de emisiones aplazada en esta entrega: contrastar fuentes oficiales por ámbito/año antes de incluir cifras; priorizar portabilidad y sugerencias. Sin motor de huella ni cálculos automáticos.
 
@@ -107,7 +107,7 @@ Los apartados históricos siguientes conservan resultados de sus fechas, no repr
 - [ ] Pendiente: E2E con escritura (importar tipo + crear/editar activo) — requiere autorización para crear tipos en una empresa. Limpieza de datos ficticios: requiere alcance exacto.
 ### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.
 
-- [x] Metrología opción B Fase 1 (2026-10-29): `src/modules/maintenance/sql/install_metrology_v1.sql` — 8 tablas, 15 funciones; PostgreSQL temporal 185 PASS/ALL_DONE. Pendiente: adaptador TS ICORE, host real, código MTR automático en ICORE. Fase 2 (vínculo activo↔metrología) sin autorizar.
+- [x] Metrología opción B Fase 1 (2026-10-29): `src/modules/maintenance/sql/install_metrology_v1.sql` — 8 tablas, 15 funciones; PostgreSQL temporal 185 PASS/ALL_DONE. Pendiente: adaptador TS ICORE, host real, código MTR automático en ICORE. Fase 2 autorizada e implementada después (ver sección siguiente).
 
 ## Metrología Fase 2 — vínculo Activo ↔ Metrología (2026-10-29)
 - [x] `mnt_mtr_equipment.asset_id` opcional, misma org, único, definitivo, sin cascada (Sistach + `install_metrology_v1.sql`).

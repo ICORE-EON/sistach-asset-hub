@@ -2,14 +2,46 @@
   "module": "maintenance",
   "contractVersion": "1.0.0",
   "requires": {
-    "tables": [{ "name": "host organization table", "standalone": "public.companies", "pk": "id uuid" }],
-    "functions": [
-      "host_has_perm(org_id uuid, perm text) returns boolean  -- SECURITY DEFINER, search_path='', identity from auth.uid(), fail-closed, EXECUTE only to authenticated",
-      "host_current_person() returns uuid",
-      "host_site_tree(org_id uuid)",
-      "host_register_document_version(...)"
+    "sqlFunctions": [
+      "auth.uid() returns uuid",
+      "host_has_perm(uuid,text) returns boolean",
+      "host_person_ref() returns uuid",
+      "host_person_snapshot(uuid) returns jsonb",
+      "host_site_in_org(uuid,uuid) returns boolean",
+      "host_document_version_sha(uuid,uuid) returns text"
     ],
-    "optional": ["host outbox table"]
+    "roles": [
+      "anon",
+      "authenticated",
+      "service_role"
+    ],
+    "typescriptPorts": [
+      "TenantPort",
+      "AuthzPort",
+      "PeoplePort",
+      "SitePort",
+      "AssetPort",
+      "DocumentPort"
+    ],
+    "ui": [
+      "MaintenanceUiProvider",
+      "Attachments",
+      "RecordDocument",
+      "TanStack routes",
+      "QueryClient",
+      "semantic UI styles and kit"
+    ],
+    "organizationSource": "organizations (planned host source; not queried here)",
+    "outbox": "mnt_outbox is module-owned; host supplies consumer"
   },
-  "permissions": ["mnt.view", "mnt.manage_assets", "mnt.run", "mnt.close", "mnt.reopen", "mnt.certify", "mnt.admin"]
+  "permissions": [
+    "mnt.view",
+    "mnt.manage_assets",
+    "mnt.run",
+    "mnt.close",
+    "mnt.reopen",
+    "mnt.certify",
+    "mnt.admin"
+  ],
+  "integrationStatus": "fail-closed stub only; canonical mapping and real host acceptance pending"
 }
