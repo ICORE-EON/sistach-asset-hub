@@ -14,11 +14,14 @@ describe.skipIf(!available)("install_v1 on real PostgreSQL (throwaway cluster)",
   it("installs clean and idempotent; RLS, triggers, RPC, rollback and concurrency behave", () => {
     const r = spawnSync("bash", [script], { encoding: "utf8", timeout: 170_000 });
     const out = `${r.stdout}\n${r.stderr}`;
-    if (r.status === 3 && /PENDING/.test(out)) { console.warn(out); return; }
     const passes = out.split("\n").filter((l) => l.startsWith("PASS "));
     expect(out, out).not.toMatch(/FAIL|ERROR/);
     expect(r.status, out).toBe(0);
     expect(out).toMatch(/ALL_DONE/);
+    expect(out).toContain('PASS smoke: persistencia tras COMMIT en conexión nueva');
+    expect(out).toContain('PASS smoke: fixture eliminada');
+    expect(out).toContain('PASS mtr instalación limpia sin add-on previo (8 tablas)');
+    expect(out).toContain('PASS upgrade de revisión congelada c15a30cf');
     expect(passes.length).toBeGreaterThanOrEqual(180);
   }, 180_000);
 });

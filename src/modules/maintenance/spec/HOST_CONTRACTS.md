@@ -1,7 +1,7 @@
 # Contratos que debe implementar ICORE
 
 Dos niveles: **SQL** (autoridad, lo usa `install_v1.sql`) y **TypeScript** (puertos de `contracts/index.ts`, solo UX/datos auxiliares).
-Aquí no se fijan tablas, nombres ni servicios reales de ICORE: eso se decide en su repositorio.
+Las fuentes de verdad previstas y sus nombres se documentan en INTEGRATION_HANDOFF.md; no se ha inspeccionado su esquema ni se implementan consultas reales. Las firmas SQL de este documento son el contrato requerido, no tablas nuevas del host.
 
 ## 1. Organizaciones
 - SQL: ICORE llama `public.mnt_register_org(org uuid)` (service_role) al dar de alta la organización en el módulo. `org_id` = identificador canónico de organización de ICORE.
@@ -41,7 +41,7 @@ Reutiliza los contratos SQL existentes; no añade ninguno nuevo:
 - `host_site_in_org(org, site)` — obligatorio en alta/edición/traslado de equipos (sustituye `locations`); NULL/false ⇒ rechazo 23514.
 - `host_document_version_sha(org, ref)` — `document_ref` de un registro debe resolver dentro de la org al validar; NULL ⇒ rechazo 23514 (fail-closed).
 - `host_has_perm(org, perm)` vía `mnt_can`: `mnt.view`, `mnt.manage_assets` (equipos/planes/traslado/estado), `mnt.run` (borradores y líneas), `mnt.close` (validar, rectificar, decidir No apto, cerrar impacto).
-TypeScript: el adaptador ICORE de `MetrologyRepository` sigue **sin implementar**.
+TypeScript: contrato de 24 operaciones y stub de rechazo explícito exportados; adaptador REAL iCore de `MetrologyContract` sigue **sin implementar**.
 
 
 ### Metrología Fase 2
@@ -49,3 +49,8 @@ No requiere nuevos contratos de host: el vínculo usa `mnt_assets` del propio pa
 
 ### Asociación operativa (corrección 2026-10-29)
 `parent_asset_id` es una relación N:1 separada de `asset_id` (identidad 1:1). FK compuesta a `mnt_assets`, sin cascada. `mnt_mtr_associate_equipment(org,parent,ids[])` usa permisos `mnt.manage_assets` + RLS, bloqueo ordenado, lote atómico e idempotente; rechaza reasignaciones y tenants ajenos. `getInventoryAsset` debe leer un activo vigente solo de la org. El host documental `RecordDocument` con `disabled=true` permite abrir el certificado, nunca subir/quitar. Adaptador real ICORE continúa pendiente.
+
+## Fuentes de verdad y recolocación
+Ver INTEGRATION_HANDOFF.md: organizaciones `organizations`; centros `org_sites`; personas/puestos `people`, `positions`, `position_assignments`; documentación `documents`, `document_versions`; acciones `management_actions`; estructura `mgmt_families`, `mgmt_element_catalog`, `mgmt_elements`, `mgmt_components`; planificación `mgmt_plans`, `mgmt_plan_status`, `mgmt_reviews`. Normativa: enlaces estructurados del catálogo, no texto libre como autoridad. Estos nombres describen intención; no son consultas ni un esquema verificado.
+
+No crear réplicas de estas autoridades. `mnt_orgs` registra referencias/ajustes técnicos del módulo, no sustituye organizations. Las tablas mnt de catálogos/planes son el almacenamiento operativo del instalador de referencia; el destino debe acordar su correspondencia/proyección con el sistema canónico antes de activar, no instalar una autoridad paralela a ciegas. No hay ese mapeo real en esta entrega.

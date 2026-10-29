@@ -12,9 +12,12 @@ const notAvailable = () => Promise.reject(new Error("ICORE adapter no implementa
 
 export const ICORE_REQUIRED = [
   "host_has_perm(org_id uuid, perm text)",
-  "host_current_person()",
-  "host_site_tree(org_id uuid)",
-  "host_register_document_version(...)",
+  "host_person_ref()",
+  "host_person_snapshot(uuid)",
+  "host_site_in_org(uuid,uuid)",
+  "host_document_version_sha(uuid,uuid)",
+  "auth.uid() / roles anon, authenticated, service_role",
+  "PeoplePort / SitePort / DocumentPort (TypeScript)",
   "host asset registry (AssetPort)",
 ];
 

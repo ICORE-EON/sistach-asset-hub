@@ -1,6 +1,6 @@
 # Correspondencia DTO del módulo ↔ conceptos de ICORE
 
-Solo conceptual. El mapeo físico (tablas/columnas reales) se hará en el repositorio de ICORE.
+Solo conceptual. Nombres canónicos previstos en INTEGRATION_HANDOFF.md; columnas/consultas y mapeo real se implementarán y probarán en destino.
 Los DTO no se renombran: el adaptador de ICORE traduce.
 
 | Campo/DTO actual | Concepto ICORE esperado | Esquema limpio (`install_v1.sql`) | Nota |
@@ -47,7 +47,7 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 | `document_ref`, `photo_document_ref` | ref documento host | `document_ref` validado al validar |
 | `mtr_validate_record` etc. | `mnt_mtr_validate_record` etc. | misma firma y semántica |
 | `can_view/can_manage_assets/can_run_maintenance/can_close_session` | `mnt.view/manage_assets/run/close` | |
-DTOs de `contracts/metrology.ts` sin cambios; el mapeo TS→SQL ICORE queda pendiente.
+DTOs de `contracts/metrology.ts` exportados; mapeo TS→SQL REAL iCore pendiente. Stub de las 24 operaciones exportado, sin lecturas simuladas.
 
 
 ### Fase 2 — vínculo con activo
@@ -64,3 +64,6 @@ Con vínculo, código/nombre/ubicación visibles salen del activo; `code`/`name`
 - `associateEquipment(org,parent,ids[])` → Sistach `mtr_associate_equipment` / ICORE `mnt_mtr_associate_equipment`. Lote atómico idempotente, sin reasignación. Alta incluye parent opcional sin crear activos implícitos.
 - `updateEquipment`: con `assetId` no enviar `name` ni ubicación redundantes; nombre solo en Activos. Sin identidad física, el nombre propio se actualiza normalmente, también con parent asociado.
 - `MtrRecord.rectificationReason` → `rectification_reason`. Detalle reutiliza registros/líneas y slot documental de solo lectura. Método y criterios textuales provienen del **plan actual**, no de un snapshot histórico inexistente; no afirmar que son los criterios congelados al validar. Tolerancias, modo, resultados y valores de las líneas sí proceden del registro.
+
+## Autoridades del host
+No migrar company/locations/profiles/memberships/documents/counters del standalone. Alias DTO antiguos (`company_id`, `location_id`, etc.) son modelos de vista, no una orden de duplicar fuentes canónicas. Normativa libre (`requirement_reference` y textos de plantilla) se conserva como descripción legada/exportable, nunca como autoridad normativa: iCore debe resolver relaciones estructuradas del catálogo. Planes/sesiones y referencias a acciones necesitan mapeo explícito con mgmt_plans/mgmt_reviews/management_actions en destino; no está implementado aquí.

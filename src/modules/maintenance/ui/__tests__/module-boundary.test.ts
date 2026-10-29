@@ -4,7 +4,7 @@
  * nor on the standalone adapter. Only adapters/standalone may import app infrastructure.
  */
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = "src/modules/maintenance";
@@ -47,7 +47,7 @@ describe("maintenance module export boundary", () => {
       expect(s, f).not.toMatch(/\.repo"|createClient|\.from\("/);
     }
   });
-  it("only adapters/standalone imports app infrastructure, and nothing outside it imports it except app wiring", () => {
+  it.skipIf(!existsSync("src/router.tsx"))("only adapters/standalone imports app infrastructure, and nothing outside it imports it except app wiring", () => {
     const appFiles = walk("src").filter((f) => !f.startsWith(ROOT) && !/routeTree\.gen/.test(f));
     const users = appFiles.filter((f) => /modules\/maintenance\/adapters\/standalone/.test(readFileSync(f, "utf8")));
     expect(users.sort()).toEqual(["src/router.tsx", "src/routes/_authenticated/_app.tsx"]);

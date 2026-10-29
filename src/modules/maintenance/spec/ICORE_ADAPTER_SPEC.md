@@ -1,7 +1,6 @@
-# Especificación del adaptador ICORE — 94 operaciones
+# Especificación del adaptador ICORE — 143 operaciones exportadas
 
-Firmas: `contracts/repositories.ts`. Metadatos: `contracts/operations.ts` (sincronizados por prueba).
-Se mencionaban 90; el recuento exacto del contrato actual es **94** (2 de ellas son utilidades sin organización: `sha256Hex`, `signedLogoUrl`).
+Firmas: `contracts/repositories.ts`, `corrective.ts`, `metrology.ts`. Superficie completa: `contracts/export-operations.ts` y `EXPORT_MANIFEST.json`: **111 base + 8 correctivas + 24 metrológicas = 143**. `operations.ts` conserva el catálogo base para compatibilidad. Dos operaciones base no llevan org explícita: `sha256Hex`, `signedLogoUrl`; el host debe autorizar recursos/URLs firmadas. Todas las operaciones del stub fallan; ninguna consulta real implementada.
 
 Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers · **atomic** una RPC o transacción única · **host** resuelta por un puerto del host.
 
@@ -18,7 +17,7 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 | 23503 | referencia a entidad de otra organización o inexistente | propagar |
 | 23505 | duplicado | propagar (createSession con el mismo request_id devuelve la misma sesión) |
 | P0002 | no encontrado en RPC | `get*` devuelve `null`; escrituras propagan |
-| 40001 | conflicto de concurrencia | reintentar una vez o propagar |
+| 40001 | conflicto de concurrencia | recargar y propagar; no reintentar automáticamente edición descriptiva |
 | MNT_ICORE_NOT_CONFIGURED | esqueleto sin implementar | nunca en producción |
 
 **Regla de autoridad:** las transiciones y estados los decide PostgreSQL. Las comprobaciones de `domain/*-rules.ts` son solo UX. Una operación **atomic** debe llamar a la RPC y devolver lo que la base decida; está prohibido calcular estado/outcome en TypeScript y escribirlo directamente.
@@ -179,4 +178,48 @@ Tipo: **read** lectura bajo RLS · **write** escritura directa bajo RLS/triggers
 - `listUpcoming` excluye equipos retirados/borrados y vínculos con `end_on` pasado (no los averiados ni en mantenimiento); lee por bloques sin truncado silencioso. Un vínculo con inicio futuro aparece como «Desde …» y nunca vencido; no entra en sesiones hasta su inicio.
 
 ## Metrología
-SQL disponible en `sql/install_metrology_v1.sql` (RPC `mnt_mtr_*`). El adaptador ICORE de metrología **no existe todavía**: `capabilities.metrology` debe seguir desactivado y cualquier llamada debe fallar con error claro.
+SQL disponible en `sql/install_metrology_v1.sql` (RPC `mnt_mtr_*`). El adaptador REAL iCore de metrología **no está implementado**; contrato/stub sí exportados: `capabilities.metrology` debe seguir desactivado y cualquier llamada debe fallar con error claro.
+
+
+## Correctivos y Metrología: superficie completa
+Todas las firmas y salidas exactas se mantienen en los contratos tipados, no se inventa mapeo físico del host. La cobertura de cada clave, presencia de RPC y fallo del stub se ejecuta en `contracts/__tests__/handoff-contracts.test.ts`. El destino debe añadir pruebas live de cada operación implementada; shape/rechazo no equivale a funcionamiento.
+
+| Operación correctiva | Contrato | Autoridad |
+|---|---|---|
+| `list` | CorrectiveRepository.list | RLS |
+| `get` | CorrectiveRepository.get | RLS |
+| `listEntries` | CorrectiveRepository.listEntries | RLS |
+| `create` | CorrectiveRepository.create | mnt_create_corrective |
+| `update` | CorrectiveRepository.update | mnt_update_corrective |
+| `addEntry` | CorrectiveRepository.addEntry | mnt_add_entry |
+| `linkIncident` | CorrectiveRepository.linkIncident | mnt_link_incident |
+| `close` | CorrectiveRepository.close | mnt_close_corrective |
+
+| Operación metrológica | Contrato | Estado iCore |
+|---|---|---|
+| `listSites` | MetrologyContract.listSites | stub fail-closed; implementación real pendiente |
+| `listPeople` | MetrologyContract.listPeople | stub fail-closed; implementación real pendiente |
+| `listEquipment` | MetrologyContract.listEquipment | stub fail-closed; implementación real pendiente |
+| `getEquipment` | MetrologyContract.getEquipment | stub fail-closed; implementación real pendiente |
+| `createEquipment` | MetrologyContract.createEquipment | stub fail-closed; implementación real pendiente |
+| `updateEquipment` | MetrologyContract.updateEquipment | stub fail-closed; implementación real pendiente |
+| `listPlans` | MetrologyContract.listPlans | stub fail-closed; implementación real pendiente |
+| `savePlan` | MetrologyContract.savePlan | stub fail-closed; implementación real pendiente |
+| `listRecords` | MetrologyContract.listRecords | stub fail-closed; implementación real pendiente |
+| `getRecordLines` | MetrologyContract.getRecordLines | stub fail-closed; implementación real pendiente |
+| `saveDraft` | MetrologyContract.saveDraft | stub fail-closed; implementación real pendiente |
+| `validateRecord` | MetrologyContract.validateRecord | stub fail-closed; implementación real pendiente |
+| `rectifyRecord` | MetrologyContract.rectifyRecord | stub fail-closed; implementación real pendiente |
+| `decideUnfit` | MetrologyContract.decideUnfit | stub fail-closed; implementación real pendiente |
+| `listImpactReviews` | MetrologyContract.listImpactReviews | stub fail-closed; implementación real pendiente |
+| `closeImpact` | MetrologyContract.closeImpact | stub fail-closed; implementación real pendiente |
+| `moveSite` | MetrologyContract.moveSite | stub fail-closed; implementación real pendiente |
+| `setStatus` | MetrologyContract.setStatus | stub fail-closed; implementación real pendiente |
+| `listHistory` | MetrologyContract.listHistory | stub fail-closed; implementación real pendiente |
+| `findByAsset` | MetrologyContract.findByAsset | stub fail-closed; implementación real pendiente |
+| `listLinkableAssets` | MetrologyContract.listLinkableAssets | stub fail-closed; implementación real pendiente |
+| `linkAsset` | MetrologyContract.linkAsset | stub fail-closed; implementación real pendiente |
+| `getInventoryAsset` | MetrologyContract.getInventoryAsset | stub fail-closed; implementación real pendiente |
+| `associateEquipment` | MetrologyContract.associateEquipment | stub fail-closed; implementación real pendiente |
+
+Identidad `asset_id` 1:1 opcional y asociación `parent_asset_id` N:1 son independientes, tenant-scoped, definitivas y RESTRICT. No reinterpretar una como otra. Relaciones y SQL disponibles; ruta/formulario/visor ya portables, conexión al host pendiente.
