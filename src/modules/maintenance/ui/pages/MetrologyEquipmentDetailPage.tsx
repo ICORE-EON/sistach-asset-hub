@@ -49,7 +49,12 @@ export function MetrologyEquipmentDetailPage() {
   const [labelOpen, setLabelOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const saveEdit = useMutation({
-    mutationFn: () => metrologyService.updateEquipment(orgId, id, edit!),
+    mutationFn: () => {
+      if (!edit) throw new Error("No hay cambios");
+      const patch = { ...edit };
+      if (eq.data?.assetId) { delete patch.name; delete patch.locationDetail; }
+      return metrologyService.updateEquipment(orgId, id, patch);
+    },
     onSuccess: () => { toast.success("Equipo actualizado"); setEdit(null); refresh(); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -90,7 +95,7 @@ export function MetrologyEquipmentDetailPage() {
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {e.asset ? (<>
-          <span className="text-muted-foreground">Activo del inventario:</span>
+          <span className="text-muted-foreground">Activo del inventario (misma identidad):</span>
           <Link to="/assets/$id" params={{ id: e.asset.id }} className="font-medium underline-offset-2 hover:underline">{e.asset.code} · {e.asset.name ?? "—"}</Link>
           <span className="text-muted-foreground">· Ficha metrológica {e.code}</span>
         </>) : (<>
@@ -98,6 +103,7 @@ export function MetrologyEquipmentDetailPage() {
           {canManage && <Button size="sm" variant="outline" onClick={() => setLinkOpen(true)}>Vincular a activo</Button>}
         </>)}
       </div>
+      {e.parentAsset && <div className="text-sm"><span className="text-muted-foreground">Activo principal asociado: </span><Link to="/assets/$id" params={{ id: e.parentAsset.id }} className="font-medium hover:underline">{e.parentAsset.code} · {e.parentAsset.name ?? "—"}</Link></div>}
       <LinkAssetDialog orgId={orgId!} equipmentId={id} open={linkOpen} onOpenChange={setLinkOpen} />
       {pending && <ImpactBanner />}
 
@@ -215,7 +221,7 @@ export function MetrologyEquipmentDetailPage() {
           <DialogHeader><DialogTitle>Editar equipo</DialogTitle></DialogHeader>
           {edit && <div className="grid gap-3 sm:grid-cols-2">
             {([["name", "Nombre"], ["equipmentType", "Tipo"], ["magnitude", "Magnitud"], ["locationDetail", "Ubicación dentro del site"], ["brand", "Marca"], ["model", "Modelo"], ["serialNumber", "Nº de serie"]] as const).map(([k, l]) => (
-              <div key={k}><Label>{l}</Label><Input value={(edit[k] as string | null) ?? ""} onChange={(ev) => setEdit({ ...edit, [k]: ev.target.value || null })} /></div>
+              <div key={k}><Label>{k === "equipmentType" ? "Tipo de instrumento" : l}</Label><Input readOnly={!!e.assetId && (k === "name" || k === "locationDetail")} value={e.assetId && k === "name" ? e.asset?.name ?? "—" : e.assetId && k === "locationDetail" ? e.asset?.locationName ?? "—" : (edit[k] as string | null) ?? ""} placeholder={k === "equipmentType" ? "Por ejemplo: manómetro" : undefined} onChange={(ev) => setEdit({ ...edit, [k]: ev.target.value })} />{e.assetId && k === "name" && <Link to="/assets/$id" params={{ id: e.assetId }} className="text-xs text-primary hover:underline">Editar nombre en Activos</Link>}</div>
             ))}
             <div><Label>Responsable</Label><PersonSelect people={people} value={edit.responsibleRef ?? null} onChange={(v) => setEdit({ ...edit, responsibleRef: v })} /></div>
           </div>}
