@@ -1,12 +1,12 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
 ## Flujo QR operativo autenticado 2026-10-29 (APROBADO plan rev. 2)
-- [ ] Retirar endpoint público QR con privilegios; resolución autenticada por RPC con respuesta genérica.
-- [ ] Asignación de operarios por sesión; run/close/admin separados en servidor.
-- [ ] Ejecución idempotente, excepciones motivadas (solo mnt.close), cierre bloqueado con pendientes, historial de cierre.
-- [ ] Regeneración de QR con hash del token anterior; impresión de la nueva etiqueta.
-- [ ] UI móvil portable (SessionRunPage) + wrappers standalone; contrato ScanContract, stub iCore fail-closed.
-- [ ] SQL portable + pruebas temporales, Vitest, manifiesto y documentación.
+- [x] Retirar endpoint público QR con privilegios; resolución autenticada por RPC con respuesta genérica.
+- [x] Asignación de operarios por sesión; run/close/admin separados en servidor.
+- [x] Ejecución idempotente, excepciones motivadas (solo mnt.close), cierre bloqueado con pendientes, historial de cierre.
+- [x] Regeneración de QR con hash del token anterior; impresión de la nueva etiqueta.
+- [x] UI móvil portable (SessionRunPage) + wrappers standalone; contrato ScanContract, stub iCore fail-closed.
+- [x] SQL portable + pruebas temporales, Vitest, manifiesto y documentación.
 
 ## Cierre final de exportación 2026-10-29 (AUTORIZADO, sin funciones nuevas)
 - [x] Sincronizar documentación, contratos y manifiesto real, distinguiendo exportado/probado/host/stub (143 operaciones).

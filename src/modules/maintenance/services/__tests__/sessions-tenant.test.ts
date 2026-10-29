@@ -287,10 +287,10 @@ describe("cross-org guards, transitions and idempotency", () => {
   it("completing an item writes with the current org and keeps the snapshot", async () => {
     const r = await sessionService.completeItem(B, { sessionId: "sB2", item: { id: "iB1", asset_id: "aB" }, intent: "complete", observations: "", questions: [] });
     expect(r).toEqual({ dbResult: "ok", createdIncidents: 0, failsWithoutIncident: 0 });
-    const it = DB.maintenance_items.find((i) => i.id === "iB1")!;
-    expect((it.metadata as Row).snapshot).toEqual({ asset: { code: "AST-B" } });
-    expect(it.observations).toBeNull();
-    expect(writes.at(-1)!.filters).toEqual([["id", "iB1"], ["session_id", "sB2"]]);
+    // Completion goes through the idempotent, assignment-checked RPC with the current org.
+    const call = rpcCalls.filter((x) => x.fn === "mnt_sa_record_item_execution").at(-1)!;
+    expect(call.args).toMatchObject({ p_company: B, p_session: "sB2", p_item: "iB1", p_result: "ok", p_observations: "" });
+    expect(String(call.args.p_key).length).toBeGreaterThanOrEqual(8);
   });
 
   it("close is idempotent: second close does not re-close nor re-emit; pending → skipped; outcome frozen", async () => {

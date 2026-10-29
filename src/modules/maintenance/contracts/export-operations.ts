@@ -52,7 +52,7 @@ export const SCAN_OPERATIONS = {
   'scan.recordExecution': atomic('RPC mnt_record_item_execution (idempotency key)', 'mnt.run'),
   'scan.recordClosureException': atomic('RPC mnt_record_closure_exception', 'mnt.close'),
   'scan.listSessionExceptions': read('RLS mnt_session_item_exceptions'),
-  'scan.listSessionPeople': read('RPC mnt_list_session_people', ['people']),
+  'scan.listSessionPeople': read('RLS mnt_session_assignees + host PeoplePort', ['people']),
   'scan.assignSessionPeople': atomic('RPC mnt_assign_session_people', 'mnt.close'),
   'scan.regenerateQr': atomic('RPC mnt_regenerate_asset_qr', 'mnt.admin'),
 } satisfies Record<`scan.${keyof ScanContract}`, OperationSpec>;

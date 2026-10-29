@@ -20,6 +20,8 @@ BEGIN
   END;
   RAISE EXCEPTION 'FAIL % (no falló)', label;
 END $$;
+CREATE FUNCTION t.rows(stmt text) RETURNS int LANGUAGE plpgsql AS $$
+DECLARE n int; BEGIN EXECUTE stmt; GET DIAGNOSTICS n = ROW_COUNT; RETURN n; END $$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA t TO PUBLIC;
 
 \set orgA '''a0000000-0000-4000-8000-000000000001'''
@@ -75,7 +77,7 @@ SELECT t.ok('qr: sin sesion no revela datos', public.mnt_resolve_scan(:'tok1') =
 SELECT t.login(:adminB);
 SELECT t.ok('qr: otra empresa recibe respuesta generica', public.mnt_resolve_scan(:'tok1', :'s1') = '{"status":"not_available"}'::jsonb);
 SELECT t.fails('qr: otra empresa no registra ejecucion', format('SELECT public.mnt_record_item_execution(%L, %L, ''ok'', NULL, ''keyB00000'')', :orgA, :'i1'), '42501');
-SELECT t.ok('qr: otra empresa no modifica items', (WITH u AS (UPDATE mnt_session_items SET observations = 'x' WHERE id = :'i1' RETURNING 1) SELECT count(*) FROM u) = 0);
+SELECT t.ok('qr: otra empresa no modifica items', t.rows(format('UPDATE mnt_session_items SET observations = ''x'' WHERE id = %L', :'i1')) = 0);
 -- 3. same company without run
 SELECT t.login(:viewA);
 SELECT t.ok('qr: sin permiso run rechazado', public.mnt_resolve_scan(:'tok1', :'s1') = '{"status":"not_available"}'::jsonb);
@@ -85,7 +87,7 @@ SELECT t.ok('qr: run no asignado -> generico (con sesion)', public.mnt_resolve_s
 SELECT t.ok('qr: run no asignado -> generico (sin sesion)', public.mnt_resolve_scan(:'tok1') = '{"status":"not_available"}'::jsonb);
 SELECT t.ok('qr: run no asignado no ve la sesion en su lista', public.mnt_list_my_runnable_sessions(:orgA) = '[]'::jsonb);
 SELECT t.fails('qr: run no asignado no registra', format('SELECT public.mnt_record_item_execution(%L, %L, ''ok'', NULL, ''keyU00000'')', :orgA, :'i1'), '42501');
-SELECT t.ok('qr: run no asignado no actualiza por RLS', (WITH u AS (UPDATE mnt_session_items SET observations = 'x' WHERE id = :'i1' RETURNING 1) SELECT count(*) FROM u) = 0);
+SELECT t.ok('qr: run no asignado no actualiza por RLS', t.rows(format('UPDATE mnt_session_items SET observations = ''x'' WHERE id = %L', :'i1')) = 0);
 SELECT t.fails('qr: run no asignado no responde checklist', format('INSERT INTO mnt_responses(org_id, item_id, question_id, answer) VALUES (%L, %L, ''a0000000-0000-4000-8000-00000000c7b1'', ''{}'')', :orgA, :'i1'), '42501');
 SELECT t.fails('qr: operario no asigna operarios', format('SELECT public.mnt_assign_session_people(%L, %L, ARRAY[%L]::uuid[])', :orgA, :'s1', :run2A), '42501');
 -- assignment by supervisor
@@ -123,7 +125,7 @@ SELECT public.mnt_close_session(:orgA, :'s1');
 RESET ROLE;
 SELECT t.ok('qr: cierre con excepcion motivada permitido', (SELECT status || '/' || outcome FROM mnt_sessions WHERE id = :'s1') = 'closed/partial');
 SELECT t.ok('qr: historial de cierre con ejecutores y excepciones', (SELECT jsonb_array_length(summary->'exceptions') = 1
-         AND summary->'exceptions'->0->>'code' = 'inaccessible' AND summary->'executors'->0->>'ref' = :'runA'
+         AND summary->'exceptions'->0->>'code' = 'inaccessible' AND summary->'executors'->0->>'ref' = :runA
          FROM mnt_session_closure_events WHERE session_id = :'s1'));
 SELECT t.fails('qr: excepciones inmutables', format('UPDATE mnt_session_item_exceptions SET reason_text = ''x'' WHERE item_id = %L', :'i2'), '55000');
 SET ROLE authenticated;

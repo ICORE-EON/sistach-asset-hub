@@ -6,7 +6,7 @@ import { createIcoreRepositoriesSkeleton, IcoreNotConfiguredError } from '../../
 const root = 'src/modules/maintenance';
 const declared = () => {
   const keys: string[] = [];
-  for (const [file, prefix] of [['repositories.ts', null], ['corrective.ts', 'corrective'], ['metrology.ts', 'metrology']] as const) {
+  for (const [file, prefix] of [['repositories.ts', null], ['corrective.ts', 'corrective'], ['metrology.ts', 'metrology'], ['scan.ts', 'scan']] as const) {
     let block: string | null = null;
     for (const line of readFileSync(`${root}/contracts/${file}`, 'utf8').split('\n')) {
       const match = /^export interface (\w+)(Repository|Contract) \{/.exec(line);
