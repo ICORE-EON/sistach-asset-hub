@@ -348,7 +348,7 @@ export function AssetDetailPage() {
 
         <AssetMetrologyCard
           orgId={activeCompanyId!} asset={asset} canManage={canManage}
-          typeName={types.find((t) => t.id === asset.asset_type_id)?.name ?? null}
+          typeName={((types.find((t) => t.id === asset.asset_type_id)?.name_i18n as Record<string, string> | undefined)?.es) ?? null}
         />
 
         {asset.asset_types?.category === "first_aid_kit" && (

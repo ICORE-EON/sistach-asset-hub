@@ -86,7 +86,7 @@ export function MetrologyEquipmentDetailPage() {
         <h1 className="text-2xl font-semibold">{e.asset ? `${e.asset.code} · ${e.asset.name ?? e.name}` : `${e.code} · ${e.name}`}</h1>
         <StatusBadge stored={e.status} nextDue={nextDue} />
         <Button variant="outline" size="sm" className="ml-auto" onClick={() => setLabelOpen(true)}><Printer className="mr-1 h-4 w-4" />Imprimir etiqueta</Button>
-        <MetrologyLabelDialog open={labelOpen} onOpenChange={setLabelOpen} equipment={e} nextDue={nextDue} />
+        <MetrologyLabelDialog open={labelOpen} onOpenChange={setLabelOpen} equipment={e.asset ? { ...e, code: e.asset.code, name: e.asset.name ?? e.name } : e} nextDue={nextDue} />
       </div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         {e.asset ? (<>
