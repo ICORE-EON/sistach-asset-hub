@@ -228,6 +228,7 @@ AS $function$
     WHEN 'months' THEN (p_from + make_interval(months => p_value))::date
     WHEN 'years'  THEN (p_from + make_interval(years => p_value))::date
     ELSE NULL END
+
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_close_impact(p_review uuid, p_conclusion text, p_justification text, p_actions text, p_period text, p_reviewed_on date, p_ext_type text, p_ext_id text, p_ext_label text, p_ext_url text)
@@ -252,7 +253,7 @@ BEGIN
          external_ref_type = p_ext_type, external_ref_id = p_ext_id, external_ref_label = p_ext_label, external_ref_url = p_ext_url,
          closed_by = public.host_person_ref(), closed_by_snapshot = public.mnt_actor_snapshot(), closed_at = now()
    WHERE id = i.id;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_decide_unfit(p_record uuid, p_decision text, p_notes text, p_allowed_uses text)
@@ -287,7 +288,7 @@ BEGIN
    WHERE id = e.id;
   PERFORM public.mnt_mtr_log_status(e.org_id, e.id, 'unfit', v_to, 'decision_' || p_decision, r.id, p_notes);
   RETURN v_to;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_log_status(p_org uuid, p_eq uuid, p_from text, p_to text, p_cause text, p_record uuid, p_note text)
@@ -298,6 +299,7 @@ CREATE OR REPLACE FUNCTION public.mnt_mtr_log_status(p_org uuid, p_eq uuid, p_fr
 AS $function$
   INSERT INTO public.mnt_mtr_status_history(org_id, equipment_id, from_status, to_status, cause, record_id, note, changed_by, changed_by_snapshot)
   VALUES (p_org, p_eq, p_from, p_to, p_cause, p_record, p_note, public.host_person_ref(), public.mnt_actor_snapshot())
+
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_move_site(p_equipment uuid, p_site uuid, p_location_detail text, p_note text)
@@ -318,7 +320,7 @@ BEGIN
   UPDATE public.mnt_mtr_equipment SET site_id = p_site, location_detail = p_location_detail WHERE id = e.id;
   INSERT INTO public.mnt_mtr_site_moves(org_id, equipment_id, from_site_id, to_site_id, location_detail, note, moved_by, moved_by_snapshot)
   VALUES (e.org_id, e.id, e.site_id, p_site, p_location_detail, p_note, public.host_person_ref(), public.mnt_actor_snapshot());
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_rectify_record(p_record uuid, p_reason text)
@@ -347,7 +349,7 @@ BEGIN
          CASE WHEN tolerance IS NULL THEN result END
     FROM public.mnt_mtr_record_lines WHERE record_id = r.id;
   RETURN v_id;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_reference_eligible(p_org uuid, p_equipment uuid, p_on date)
@@ -368,6 +370,7 @@ AS $function$
                FROM public.mnt_mtr_records r
                WHERE r.control_plan_id = p.id AND r.status = 'validated' AND r.performed_on <= p_on
                ORDER BY r.performed_on DESC, r.version DESC LIMIT 1) IS TRUE))
+
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_set_status(p_equipment uuid, p_status text, p_reason text)
@@ -399,7 +402,7 @@ BEGIN
   END IF;
   UPDATE public.mnt_mtr_equipment SET status = p_status, allowed_uses = NULL WHERE id = e.id;
   PERFORM public.mnt_mtr_log_status(e.org_id, e.id, e.status, p_status, 'manual', NULL, p_reason);
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_append_only()
@@ -409,7 +412,7 @@ CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_append_only()
 AS $function$
 BEGIN
   RAISE EXCEPTION 'Historial inmutable (%)', TG_TABLE_NAME USING ERRCODE = '42501';
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_equipment_guard()
@@ -437,7 +440,7 @@ BEGIN
   END IF;
   NEW.updated_at := now();
   RETURN NEW;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_impact_guard()
@@ -450,7 +453,7 @@ BEGIN
     RAISE EXCEPTION 'Evaluación de impacto cerrada o no eliminable' USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_line_guard()
@@ -469,7 +472,7 @@ BEGIN
     RAISE EXCEPTION 'No se puede mover una línea' USING ERRCODE = '42501';
   END IF;
   RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_plan_guard()
@@ -483,7 +486,7 @@ BEGIN
   END IF;
   NEW.updated_at := now();
   RETURN NEW;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_tg_record_guard()
@@ -529,7 +532,7 @@ BEGIN
   END IF;
   NEW.updated_at := now();
   RETURN NEW;
-END
+END 
 $function$;
 
 CREATE OR REPLACE FUNCTION public.mnt_mtr_validate_record(p_record uuid)
@@ -630,7 +633,7 @@ BEGIN
     jsonb_build_object('result', v_result, 'equipment_id', e.id, 'next_due', v_next));
   -- Un control Apto no cambia el estado: la reactivación es una decisión explícita (mtr_set_status).
   RETURN jsonb_build_object('result', v_result, 'next_due', v_next, 'equipment_status', v_new_status);
-END $function$
+END 
 $function$;
 
 -- -------------------------------------------------------------- triggers --
