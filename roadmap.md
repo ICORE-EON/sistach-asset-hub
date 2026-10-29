@@ -1,10 +1,11 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
 ## Cierre final de exportación 2026-10-29 (AUTORIZADO, sin funciones nuevas)
-- [ ] Sincronizar documentación, contratos y manifiesto real, distinguiendo exportado/probado/host/stub.
-- [ ] Handoff único con fuentes de verdad iCore, instalación/actualización, rollback y aceptación.
-- [ ] Cobertura de operaciones/exportación y smoke metrológico efímero; SQL temporal limpio/upgrade y tests.
-- [ ] Evidencia separada de build/typecheck y paquete sellado por SHA-256; sin datos demo ni despliegue.
+- [x] Sincronizar documentación, contratos y manifiesto real, distinguiendo exportado/probado/host/stub (143 operaciones).
+- [x] Handoff único con fuentes de verdad iCore, instalación/actualización, rollback y aceptación.
+- [x] Cobertura de operaciones/exportación y smoke metrológico efímero; 217 SQL PASS, baseline previa congelada; 418 Vitest app y 285 aisladas.
+- [x] Paquete content-addressed por SHA-256 con sumas por archivo, sin datos demo ni despliegue; build automático observado OK.
+- [ ] Typecheck independiente: bloqueado por prohibición de invocación manual y ausencia de evidencia separada del entorno. No se marca aprobado ni se declara aceptación completa. Adaptador/host real iCore deliberadamente fuera de alcance; aceptación en destino según handoff.
 
 Los apartados históricos siguientes conservan resultados de sus fechas, no representan pendientes actuales. El cierre final y `spec/INTEGRATION_HANDOFF.md` son la referencia vigente; M2–M7 están canceladas.
 
