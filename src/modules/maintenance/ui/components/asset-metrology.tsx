@@ -60,20 +60,33 @@ export function AssetMetrologyCard({ orgId, asset, typeName, canManage }: { orgI
 
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <h3 className="font-medium">Equipos de medida vinculados</h3>
-        {instruments.isError ? <p className="text-destructive">No se pudieron cargar los equipos.</p> : linked.length ? <ul className="divide-y rounded-md border">{linked.map((e) => (
-          <li key={e.id}><Link to="/metrology/equipment/$id" params={{ id: e.id }} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-muted">
-            <span className="font-medium">{e.asset?.name ?? e.name}</span>
-            <span className="font-mono text-xs text-muted-foreground">{e.code}</span>
-            <span className="text-xs text-muted-foreground">{e.relation === "identity" ? "Equipo del inventario" : "Instrumento asociado"}</span>
-            <span className="ml-auto flex items-center gap-2"><StatusBadge stored={e.status} nextDue={e.nextDueOn} /><span className="text-muted-foreground">Próximo control: {e.nextDueOn ?? "sin programar"}</span></span>
-          </Link></li>
-        ))}</ul> : <p className="text-muted-foreground">{instruments.isLoading || link.isLoading ? "Cargando…" : "Sin equipos de medida vinculados"}</p>}
-        {canManage && <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setSelected([]); setSearch(""); setAssociateOpen(true); }}>Vincular equipo existente</Button>
-          <Button asChild size="sm"><Link to="/metrology/equipment" search={{ newEquipment: true, parentAssetId: asset.id }}>Nuevo equipo de medida</Link></Button>
-          {!eqId && !link.isLoading && <Button size="sm" variant="outline" onClick={() => { setSiteId(""); setOpen(true); }}>Activar metrología en este equipo</Button>}
-        </div>}
+        <div className="space-y-2">
+          <h3 className="font-medium">Equipos de medida asociados</h3>
+          <p className="text-muted-foreground">Instrumentos instalados o asociados a este activo, con sus propios controles de calibración y verificación.</p>
+          {instruments.isError ? <p className="text-destructive">No se pudieron cargar los equipos.</p> : linked.length ? <ul className="divide-y rounded-md border">{linked.map((e) => (
+            <li key={e.id}><Link to="/metrology/equipment/$id" params={{ id: e.id }} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 hover:bg-muted">
+              <span className="font-medium">{e.asset?.name ?? e.name}</span>
+              <span className="font-mono text-xs text-muted-foreground">{e.code}</span>
+              <span className="text-xs text-muted-foreground">{e.relation === "identity" ? "Equipo del inventario" : "Instrumento asociado"}</span>
+              <span className="ml-auto flex items-center gap-2"><StatusBadge stored={e.status} nextDue={e.nextDueOn} /><span className="text-muted-foreground">Próximo control: {e.nextDueOn ?? "sin programar"}</span></span>
+            </Link></li>
+          ))}</ul> : <p className="text-muted-foreground">{instruments.isLoading || link.isLoading ? "Cargando…" : "Sin equipos de medida vinculados"}</p>}
+          {canManage && <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setSelected([]); setSearch(""); setAssociateOpen(true); }}>Vincular equipo existente</Button>
+            <Button asChild size="sm"><Link to="/metrology/equipment" search={{ newEquipment: true, parentAssetId: asset.id }}>Nuevo equipo de medida</Link></Button>
+          </div>}
+        </div>
+        <div className="border-t pt-3" />
+        <div className="space-y-2">
+          <h3 className="font-medium">Control metrológico del propio activo</h3>
+          <p className="text-muted-foreground">Utiliza esta opción si el propio activo es un instrumento de medida que necesita calibraciones o verificaciones. Se gestionará desde Activos y Metrología, sin crear otro equipo físico. Así podrás asociarlo tanto a planes de mantenimiento como a planes de calibración o verificación.</p>
+          {eqId ? (
+            <Button asChild size="sm" variant="outline"><Link to="/metrology/equipment/$id" params={{ id: eqId }}>Ver controles metrológicos</Link></Button>
+          ) : (
+            <p className="text-muted-foreground">{link.isLoading ? "Cargando…" : "Este activo todavía no tiene control metrológico propio."}</p>
+          )}
+          {canManage && !eqId && !link.isLoading && <Button size="sm" variant="outline" onClick={() => { setSiteId(""); setOpen(true); }}>Añadir control metrológico al activo</Button>}
+        </div>
       </CardContent>
       <Dialog open={associateOpen} onOpenChange={setAssociateOpen}>
         <DialogContent><DialogHeader><DialogTitle>Vincular equipos existentes · {asset.code}</DialogTitle></DialogHeader>
