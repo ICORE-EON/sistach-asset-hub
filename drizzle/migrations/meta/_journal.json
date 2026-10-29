@@ -92,6 +92,13 @@
       "when": 1793082249548,
       "tag": "0012_mnt_corrective_safe_edit",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793263886978,
+      "tag": "0013_mtr_equipment_asset_link",
+      "breakpoints": true
     }
   ]
 }
