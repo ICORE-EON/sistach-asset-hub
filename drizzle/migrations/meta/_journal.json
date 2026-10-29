@@ -127,6 +127,13 @@
       "when": 1793285661418,
       "tag": "0017_mnt_excepted_only_via_rpc",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793286014608,
+      "tag": "0018_mnt_fix_closure_exception_record",
+      "breakpoints": true
     }
   ]
 }
