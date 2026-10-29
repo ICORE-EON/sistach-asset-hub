@@ -114,7 +114,7 @@ BEGIN
      AND summary->'exceptions'->0->>'text' = 'Sala técnica cerrada con llave' AND summary->'exceptions'->0->>'by' = SUP::text
      AND summary->'exceptions'->0->>'at' IS NOT NULL)::text;
   INSERT INTO e2e SELECT (SELECT max(n) FROM e2e) + 1, 'resultado de sesión incompleto (no OK)', 'incomplete',
-    (SELECT outcome FROM public.maintenance_sessions WHERE id = S1);
+    (SELECT metadata->>'outcome' FROM public.maintenance_sessions WHERE id = S1);
   -- certificate as emitted by the host after close (certificate + items linked to the session)
   INSERT INTO public.certificates(id, company_id, code, title, issued_on, issuer_name, status)
     VALUES (CERT, CA, 'E2E-CERT', 'Certificado E2E', current_date, 'Supervisor E2E', 'issued');
