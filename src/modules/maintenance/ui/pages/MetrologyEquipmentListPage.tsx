@@ -105,10 +105,10 @@ export function MetrologyEquipmentListPage() {
           <TableBody>
             {rows.map((e) => (
               <TableRow key={e.id}>
-                <TableCell><Link to="/metrology/equipment/$id" params={{ id: e.id }} className="font-medium underline-offset-2 hover:underline">{e.code}</Link></TableCell>
-                <TableCell>{e.name}{e.pendingImpact && <AlertTriangle className="ml-1 inline h-4 w-4 text-destructive" aria-label="Impacto pendiente" />}</TableCell>
+                <TableCell><Link to="/metrology/equipment/$id" params={{ id: e.id }} className="font-medium underline-offset-2 hover:underline">{e.asset?.code ?? e.code}</Link></TableCell>
+                <TableCell>{e.asset?.name ?? e.name}{e.pendingImpact && <AlertTriangle className="ml-1 inline h-4 w-4 text-destructive" aria-label="Impacto pendiente" />}</TableCell>
                 <TableCell>{e.equipmentType}</TableCell>
-                <TableCell>{siteName.get(e.siteId) ?? "—"}{e.locationDetail ? ` · ${e.locationDetail}` : ""}</TableCell>
+                <TableCell>{siteName.get(e.siteId) ?? "—"}{e.asset ? (e.asset.locationName ? ` · ${e.asset.locationName}` : "") : e.locationDetail ? ` · ${e.locationDetail}` : ""}</TableCell>
                 <TableCell>{(e.responsibleRef && personName.get(e.responsibleRef)) ?? "—"}</TableCell>
                 <TableCell>{e.lastResult ? <Badge variant={e.lastResult === "fit" ? "secondary" : e.lastResult === "restricted" ? "outline" : "destructive"}>{LAST[e.lastResult]}</Badge> : "—"}</TableCell>
                 <TableCell>{e.nextDueOn ?? "—"}</TableCell>
