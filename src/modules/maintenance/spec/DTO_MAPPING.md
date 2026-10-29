@@ -58,3 +58,9 @@ DTOs de `contracts/metrology.ts` sin cambios; el mapeo TS→SQL ICORE queda pend
 | `findByAsset` / `listLinkableAssets` / `linkAsset` | consultas filtradas por `company_id` + UPDATE con `asset_id IS NULL` | idem por `org_id` (adaptador pendiente) |
 
 Con vínculo, código/nombre/ubicación visibles salen del activo; `code`/`name` propios del equipo se conservan (etiquetas e historiales previos no se reescriben).
+
+### Asociación operativa y detalle 2026-10-29
+- `parentAssetId` / `parentAsset` → `parent_asset_id` + activo principal de la misma org; varios instrumentos pueden compartirlo, sin cambiar identidad ni su nombre propio.
+- `associateEquipment(org,parent,ids[])` → Sistach `mtr_associate_equipment` / ICORE `mnt_mtr_associate_equipment`. Lote atómico idempotente, sin reasignación. Alta incluye parent opcional sin crear activos implícitos.
+- `updateEquipment`: con `assetId` no enviar `name` ni ubicación redundantes; nombre solo en Activos. Sin identidad física, el nombre propio se actualiza normalmente, también con parent asociado.
+- `MtrRecord.rectificationReason` → `rectification_reason`. Detalle reutiliza registros/líneas y slot documental de solo lectura. Método y criterios textuales provienen del **plan actual**, no de un snapshot histórico inexistente; no afirmar que son los criterios congelados al validar. Tolerancias, modo, resultados y valores de las líneas sí proceden del registro.
