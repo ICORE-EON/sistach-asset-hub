@@ -19,6 +19,6 @@ describe.skipIf(!available)("install_v1 on real PostgreSQL (throwaway cluster)",
     expect(out, out).not.toMatch(/FAIL|ERROR/);
     expect(r.status, out).toBe(0);
     expect(out).toMatch(/ALL_DONE/);
-    expect(passes.length).toBeGreaterThanOrEqual(66);
+    expect(passes.length).toBeGreaterThanOrEqual(180);
   }, 180_000);
 });

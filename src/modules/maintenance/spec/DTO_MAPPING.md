@@ -37,3 +37,14 @@ Los DTO no se renombran: el adaptador de ICORE traduce.
 - Categorías: el esquema limpio usa familias; `listCategories/saveCategory/deleteCategory` necesitan integración explícita del host, no existen tablas duplicadas de categorías.
 - Sugerencias: catálogo en código, no tabla ni activación. Código de plan estable `SUG-*`, único por org. La UI exige confirmar frecuencia/activos; la primera fecha puede quedar NULL. No escribe al seleccionar.
 - Selector de activos: reutiliza `plans.listScopeAssets` → `ScopeAsset` sin nueva operación. Devolver código/nombre, tipo (`code`, `name_i18n`), ubicación (`name`) y su id; jerarquía `ScopeLocation` aporta centro padre. Resultado completo solo de `orgId`, no borrados/no retirados y sujeto al ámbito actual; paginar internamente la lectura si hay límite de API. UI busca sin acentos por todos esos campos y pagina resultados; conserva IDs seleccionados fuera de búsqueda.
+
+## Metrología (Sistach → `install_metrology_v1.sql`)
+| Sistach | ICORE limpio | Nota |
+|---|---|---|
+| `company_id` | `org_id` → `mnt_orgs` | mismo nombre de tabla `mnt_mtr_*` |
+| `site_id` → `locations` | `site_id` (ref host, `host_site_in_org`) | sin FK a host |
+| `created_by`/`*_by` = `auth.uid()` | `host_person_ref()` | snapshot por `mnt_actor_snapshot()` |
+| `document_ref`, `photo_document_ref` | ref documento host | `document_ref` validado al validar |
+| `mtr_validate_record` etc. | `mnt_mtr_validate_record` etc. | misma firma y semántica |
+| `can_view/can_manage_assets/can_run_maintenance/can_close_session` | `mnt.view/manage_assets/run/close` | |
+DTOs de `contracts/metrology.ts` sin cambios; el mapeo TS→SQL ICORE queda pendiente.

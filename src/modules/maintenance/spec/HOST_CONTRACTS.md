@@ -33,3 +33,12 @@ Aquí no se fijan tablas, nombres ni servicios reales de ICORE: eso se decide en
 - Cada RPC escribe el cambio y el evento en la misma transacción. Tipos: ver `MntDomainEvent` en `contracts/index.ts`.
 - ICORE lee con `service_role` en orden de `created_at`, procesa de forma idempotente por `event_id` y marca `processed_at`. Reintentos: al menos una vez.
 - Pendiente ICORE: transporte (cola, cron, trigger), retención y panel de auditoría.
+
+## Metrología (`install_metrology_v1.sql`)
+Reutiliza los contratos SQL existentes; no añade ninguno nuevo:
+- `host_person_ref()` — autor de altas, validaciones, decisiones, cierres de impacto y movimientos (sustituye `auth.uid()`).
+- `host_person_snapshot(uuid)` vía `mnt_actor_snapshot()` — instantánea de firmante (sustituye la lectura de `profiles`).
+- `host_site_in_org(org, site)` — obligatorio en alta/edición/traslado de equipos (sustituye `locations`); NULL/false ⇒ rechazo 23514.
+- `host_document_version_sha(org, ref)` — `document_ref` de un registro debe resolver dentro de la org al validar; NULL ⇒ rechazo 23514 (fail-closed).
+- `host_has_perm(org, perm)` vía `mnt_can`: `mnt.view`, `mnt.manage_assets` (equipos/planes/traslado/estado), `mnt.run` (borradores y líneas), `mnt.close` (validar, rectificar, decidir No apto, cerrar impacto).
+TypeScript: el adaptador ICORE de `MetrologyRepository` sigue **sin implementar**.
