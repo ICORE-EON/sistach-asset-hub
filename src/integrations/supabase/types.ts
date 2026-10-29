@@ -2916,6 +2916,7 @@ export type Database = {
           magnitude: string | null
           model: string | null
           name: string
+          parent_asset_id: string | null
           photo_document_ref: string | null
           range_max: number | null
           range_min: number | null
@@ -2947,6 +2948,7 @@ export type Database = {
           magnitude?: string | null
           model?: string | null
           name: string
+          parent_asset_id?: string | null
           photo_document_ref?: string | null
           range_max?: number | null
           range_min?: number | null
@@ -2978,6 +2980,7 @@ export type Database = {
           magnitude?: string | null
           model?: string | null
           name?: string
+          parent_asset_id?: string | null
           photo_document_ref?: string | null
           range_max?: number | null
           range_min?: number | null
@@ -3019,6 +3022,13 @@ export type Database = {
             columns: ["company_id", "site_id"]
             isOneToOne: false
             referencedRelation: "locations"
+            referencedColumns: ["company_id", "id"]
+          },
+          {
+            foreignKeyName: "mnt_mtr_equipment_parent_asset_fkey"
+            columns: ["company_id", "parent_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
             referencedColumns: ["company_id", "id"]
           },
         ]
@@ -4519,6 +4529,10 @@ export type Database = {
           p_technician_name?: string
         }
         Returns: undefined
+      }
+      mtr_associate_equipment: {
+        Args: { p_equipment: string[]; p_org: string; p_parent: string }
+        Returns: number
       }
       mtr_calc_next_due: {
         Args: { p_from: string; p_unit: string; p_value: number }

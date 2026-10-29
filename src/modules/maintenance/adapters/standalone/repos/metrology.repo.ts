@@ -19,14 +19,17 @@ const toEq = (r: R): MtrEquipment => ({
   resolution: r.resolution, declaredAccuracy: r.declared_accuracy, restrictions: r.restrictions, allowedUses: r.allowed_uses,
   registeredOn: r.registered_on, status: r.status, assetId: r.asset_id ?? null,
   asset: r.asset ? { id: r.asset.id, code: r.asset.code, name: r.asset.name, typeName: r.asset.asset_types?.name_i18n?.es ?? null, locationName: r.asset.locations?.name ?? null } : null,
+  parentAssetId: r.parent_asset_id ?? null,
+  parentAsset: r.parent_asset ? { id: r.parent_asset.id, code: r.parent_asset.code, name: r.parent_asset.name, typeName: r.parent_asset.asset_types?.name_i18n?.es ?? null, locationName: r.parent_asset.locations?.name ?? null } : null,
 });
-const EQ_SEL = "*, asset:assets!mnt_mtr_equipment_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name))";
+const EQ_SEL = "*, asset:assets!mnt_mtr_equipment_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name)), parent_asset:assets!mnt_mtr_equipment_parent_asset_fkey(id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name))";
 const fromEq = (v: Partial<MtrEquipmentInput>): R => {
   const m: R = {
     name: v.name, equipment_type: v.equipmentType, magnitude: v.magnitude, intended_use: v.intendedUse, site_id: v.siteId,
     location_detail: v.locationDetail, responsible_ref: v.responsibleRef, brand: v.brand, model: v.model,
     serial_number: v.serialNumber, range_min: v.rangeMin, range_max: v.rangeMax, unit: v.unit, resolution: v.resolution,
     declared_accuracy: v.declaredAccuracy, restrictions: v.restrictions, registered_on: v.registeredOn, asset_id: v.assetId,
+    parent_asset_id: v.parentAssetId,
   };
   Object.keys(m).forEach((k) => m[k] === undefined && delete m[k]);
   return m;
@@ -44,6 +47,7 @@ const toRec = (r: R): MtrRecord => ({
   version: r.version, supersedesId: r.supersedes_id, validatedAt: r.validated_at, laboratory: r.laboratory,
   certificateNumber: r.certificate_number, accreditation: r.accreditation, declaredUncertainty: r.declared_uncertainty,
   adjustedOrRepaired: r.adjusted_or_repaired, referenceEquipmentId: r.reference_equipment_id, restrictions: r.restrictions ?? null,
+  rectificationReason: r.rectification_reason ?? null,
 });
 const toLine = (r: R): MtrRecordLine => ({
   position: r.position, label: r.label, referenceValue: r.reference_value, measuredValue: r.measured_value,
@@ -97,7 +101,10 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       return r.id;
     },
     async updateEquipment(orgId, id, v) {
+      const current = await this.getEquipment(orgId, id);
       const patch = fromEq(v);
+      if (current.assetId) { delete patch.name; delete patch.location_detail; }
+      delete patch.parent_asset_id; // association is atomic and cannot silently reassign
       delete patch.site_id; // site changes go through moveSite (traced)
       delete patch.asset_id; // linking goes through linkAsset
       ok(await db.from("mnt_mtr_equipment").update(patch).eq("company_id", orgId).eq("id", id));
@@ -118,6 +125,14 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
       await owned("mnt_mtr_equipment", orgId, equipmentId);
       const r = ok(await db.from("mnt_mtr_equipment").update({ asset_id: assetId }).eq("company_id", orgId).eq("id", equipmentId).is("asset_id", null).select("id"));
       if (!(r as R[]).length) throw new Error("El equipo ya está vinculado a un activo");
+    },
+    async getInventoryAsset(orgId, assetId) {
+      const r = ok(await db.from("assets").select("id,code,name,asset_types!assets_asset_type_id_fkey(name_i18n),locations!assets_location_id_fkey(name)").eq("company_id", orgId).eq("id", assetId).is("deleted_at", null).maybeSingle());
+      if (!r) throw new Error("Activo no disponible en la organización");
+      return { id: r.id, code: r.code, name: r.name, typeName: r.asset_types?.name_i18n?.es ?? null, locationName: r.locations?.name ?? null };
+    },
+    async associateEquipment(orgId, parentAssetId, equipmentIds) {
+      ok(await db.rpc("mtr_associate_equipment", { p_org: orgId, p_parent: parentAssetId, p_equipment: equipmentIds }));
     },
     async listPlans(orgId, equipmentId) {
       return (ok(await db.from("mnt_mtr_control_plans").select("*").eq("company_id", orgId).eq("equipment_id", equipmentId).order("created_at")) as R[]).map(toPlan);
@@ -164,7 +179,8 @@ export function createMetrologyRepo(client: StandaloneClient): MetrologyContract
           criterion_key: l.criterionKey, mode: l.mode, error_value: l.mode === "manual" ? l.errorValue : null,
         }))));
       }
-      return id!;
+      if (!id) throw new Error("No se pudo guardar el registro");
+      return id;
     },
     async validateRecord(orgId, recordId) {
       await owned("mnt_mtr_records", orgId, recordId);
