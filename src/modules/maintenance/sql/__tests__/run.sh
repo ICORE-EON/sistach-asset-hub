@@ -107,6 +107,14 @@ PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/current_de
 PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/handoff_smoke.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /FAIL/p; /ERROR/p'
 PGOPTIONS="-c client_min_messages=notice" P -d mnt -f "$HERE/fixtures/smoke_readback.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /FAIL/p; /ERROR/p'
 
+# 3c. QR execution flow on a fresh install (assignment, run/close/admin, idempotency, exceptions, regeneration)
+P -c "CREATE DATABASE scan" >/dev/null
+P -d scan -f "$HERE/fixtures/host_stub.sql" >/dev/null
+P -d scan -f "$SQL/install_v1.sql" >/dev/null
+P -d scan -f "$SQL/seed_catalog_v1.sql" >/dev/null
+P -d scan -f "$SQL/install_v1.sql" >/dev/null
+PGOPTIONS="-c client_min_messages=notice" P -d scan -f "$HERE/fixtures/scan_tests.sql" 2>&1 | sed -n 's/^.*NOTICE:  //p; /SCAN_DONE/p; /FAIL/p; /ERROR/p; /LINE/p'
+
 # 4. concurrency: two simultaneous closes of the same session -> exactly one wins
 S3="$(P -d mnt -At -f "$HERE/fixtures/concurrency_setup.sql" | tail -1)"
 CLOSE="SET ROLE authenticated; SELECT set_config('request.jwt.claims', '{\"sub\":\"a0000000-0000-4000-8000-0000000000a1\"}', false);"
