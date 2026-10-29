@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { checklistKeys, checklistService } from "../../services/checklists";
 import { sessionKeys, sessionService } from "../../services/sessions";
+import { newIdempotencyKey } from "../../services/scan";
+import { SessionExecutionPanel } from "../components/session-execution";
 
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -361,7 +363,7 @@ function ItemStatusIcon({ result }: { result: string }) {
   return <Circle className="mt-0.5 h-4 w-4 text-muted-foreground" />;
 }
 
-function ItemChecklist({
+export function ItemChecklist({
   item,
   editable,
   companyId,
@@ -374,6 +376,8 @@ function ItemChecklist({
 }) {
   const qc = useQueryClient();
   const [observations, setObservations] = useState(item.observations ?? "");
+  // One key per completion attempt: double taps / retries never create a second execution.
+  const execKey = useRef(newIdempotencyKey());
 
   const { data: questions = [] } = useQuery({
     queryKey: checklistKeys.itemQuestions(companyId, item.checklist_template_version_id),
@@ -407,9 +411,10 @@ function ItemChecklist({
   const completeItem = useMutation({
     mutationFn: (intent: "complete" | "na") =>
       sessionService.completeItem(companyId, {
-        sessionId, item: { id: item.id, asset_id: item.asset_id }, intent, observations, questions,
+        sessionId, item: { id: item.id, asset_id: item.asset_id }, intent, observations, questions, idempotencyKey: execKey.current,
       }),
     onSuccess: ({ dbResult, createdIncidents, failsWithoutIncident }) => {
+      execKey.current = newIdempotencyKey();
       if (dbResult === "not_applicable") {
         toast.success("Activo marcado como N/A");
       } else if (createdIncidents > 0) {
