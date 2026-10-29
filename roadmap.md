@@ -1,5 +1,13 @@
 # Roadmap – desacoplamiento del módulo de mantenimiento
 
+## Cierre final de exportación 2026-10-29 (AUTORIZADO, sin funciones nuevas)
+- [ ] Sincronizar documentación, contratos y manifiesto real, distinguiendo exportado/probado/host/stub.
+- [ ] Handoff único con fuentes de verdad iCore, instalación/actualización, rollback y aceptación.
+- [ ] Cobertura de operaciones/exportación y smoke metrológico efímero; SQL temporal limpio/upgrade y tests.
+- [ ] Evidencia separada de build/typecheck y paquete sellado por SHA-256; sin datos demo ni despliegue.
+
+Los apartados históricos siguientes conservan resultados de sus fechas, no representan pendientes actuales. El cierre final y `spec/INTEGRATION_HANDOFF.md` son la referencia vigente; M2–M7 están canceladas.
+
 ## Corrección funcional Activos–Metrología 2026-10-29 (AUTORIZADA)
 - [x] Asociación operativa N:1 independiente de identidad 1:1; SQL aditivo Sistach/ICORE y 210 PASS PostgreSQL temporal.
 - [x] Vinculación múltiple y alta existente desde activo principal; nombres coherentes y detalle de todas las versiones de registros.
