@@ -28,6 +28,20 @@ describe("metrologyService", () => {
     expect(() => metrologyService.validateRecord(null, "r")).toThrow(/Sin empresa/);
     expect(calls).toHaveLength(0);
   });
+  it("asociación N:1 conserva organización y elimina ids repetidos sin crear instrumentos", async () => {
+    useTestRepositories({ metrology: recorder } as never);
+    calls.length = 0;
+    await metrologyService.associateEquipment(A, "caldera", ["sonda", "manómetro", "sonda"]);
+    expect(calls).toEqual([{ method: "associateEquipment", args: [A, "caldera", ["sonda", "manómetro"]] }]);
+    expect(() => metrologyService.associateEquipment(null, "caldera", ["sonda"])).toThrow(/Sin empresa/);
+    expect(() => metrologyService.associateEquipment(A, "caldera", [])).toThrow(/Selecciona instrumentos/);
+  });
+  it("alta asociada conserva nombre propio y tipo ficticio elegido por el usuario", async () => {
+    useTestRepositories({ metrology: recorder } as never);
+    calls.length = 0;
+    await metrologyService.createEquipment(A, { name: " Sonda 1 ", equipmentType: " Extintor ", siteId: "site-a", parentAssetId: "caldera" } as never);
+    expect(calls[0]).toEqual({ method: "createEquipment", args: [A, { name: "Sonda 1", equipmentType: "Extintor", siteId: "site-a", parentAssetId: "caldera" }] });
+  });
   it("comprobaciones UX: restringir exige usos, impacto exige acciones, estado exige motivo", async () => {
     useTestRepositories({ metrology: recorder } as never);
     expect(() => metrologyService.decideUnfit(A, "r", "restrict", null, "")).toThrow(/usos permitidos/);

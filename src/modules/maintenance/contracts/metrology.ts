@@ -25,9 +25,12 @@ export type MtrEquipment = {
   assetId: string | null;
   /** When linked, code/name/location come from the asset (source of truth). */
   asset: MtrLinkedAsset | null;
+  /** Operational association, NOT physical identity. Several instruments may share it. */
+  parentAssetId: string | null;
+  parentAsset: MtrLinkedAsset | null;
 };
 export type MtrLinkedAsset = { id: string; code: string; name: string | null; typeName: string | null; locationName: string | null };
-export type MtrEquipmentInput = Omit<MtrEquipment, "id" | "orgId" | "code" | "status" | "registeredOn" | "assetId" | "asset"> & { registeredOn?: string; assetId?: string | null };
+export type MtrEquipmentInput = Omit<MtrEquipment, "id" | "orgId" | "code" | "status" | "registeredOn" | "assetId" | "asset" | "parentAssetId" | "parentAsset"> & { registeredOn?: string; assetId?: string | null; parentAssetId?: string | null };
 
 export type MtrControlPlan = {
   id: string; equipmentId: string; kind: MtrControlKind; method: MtrMethod; procedure: string | null;
@@ -51,6 +54,7 @@ export type MtrRecord = {
   laboratory: string | null; certificateNumber: string | null; accreditation: string | null;
   declaredUncertainty: string | null; adjustedOrRepaired: boolean | null; referenceEquipmentId: string | null;
   restrictions: string | null;
+  rectificationReason?: string | null;
 };
 export type MtrRecordDraft = Omit<MtrRecord, "id" | "equipmentId" | "status" | "version" | "supersedesId" | "validatedAt" | "nextDueCalculated"> & { lines: MtrRecordLine[] };
 
@@ -101,4 +105,7 @@ export interface MetrologyContract {
   listLinkableAssets(orgId: string): Promise<MtrLinkedAsset[]>;
   /** Links an unlinked equipment to an asset (same org; set once, enforced by the database). */
   linkAsset(orgId: string, equipmentId: string, assetId: string): Promise<void>;
+  getInventoryAsset(orgId: string, assetId: string): Promise<MtrLinkedAsset>;
+  /** Atomic, idempotent batch; reject any unavailable/cross-org/already-associated instrument. */
+  associateEquipment(orgId: string, parentAssetId: string, equipmentIds: string[]): Promise<void>;
 }

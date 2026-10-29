@@ -99,6 +99,13 @@
       "when": 1793263886978,
       "tag": "0013_mtr_equipment_asset_link",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793267544357,
+      "tag": "0014_mtr_principal_asset_association",
+      "breakpoints": true
     }
   ]
 }

@@ -77,4 +77,32 @@ SELECT t.fails('mtr2: lector no puede vincular', $$INSERT INTO mnt_mtr_equipment
 RESET ROLE;
 SELECT t.fails('mtr2: borrar activo vinculado no borra en cascada', $$DELETE FROM mnt_assets WHERE id='e0000000-0000-4000-8000-0000000000a1'$$, NULL);
 SELECT t.ok('mtr2: historial intacto', (SELECT count(*) FROM mnt_mtr_records WHERE equipment_id='e0000000-0000-4000-8000-000000000001') >= 3);
+-- Independent N:1 principal association; preserve identity and validated evidence.
+SET ROLE authenticated;
+SELECT t.login('c0000000-0000-4000-8000-0000000000c1');
+INSERT INTO mnt_mtr_equipment(id,org_id,code,name,equipment_type,site_id) VALUES
+ ('e0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000001','MTR-2','Sonda 1','extintor','c0000000-0000-4000-8000-0000000005a1'),
+ ('e0000000-0000-4000-8000-000000000003','a0000000-0000-4000-8000-000000000001','MTR-3','Manómetro','presión','c0000000-0000-4000-8000-0000000005a1'),
+ ('e0000000-0000-4000-8000-000000000004','a0000000-0000-4000-8000-000000000001','MTR-4','Sin asociar','caudal','c0000000-0000-4000-8000-0000000005a1');
+SELECT t.ok('mtr3: varios instrumentos comparten principal', mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a2',ARRAY['e0000000-0000-4000-8000-000000000002','e0000000-0000-4000-8000-000000000003']::uuid[]) = 2);
+SELECT t.ok('mtr3: lote repetido e ids duplicados idempotentes', mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a2',ARRAY['e0000000-0000-4000-8000-000000000002','e0000000-0000-4000-8000-000000000002']::uuid[]) = 1);
+SELECT t.ok('mtr3: asociación no crea identidad', (SELECT count(*) FROM mnt_mtr_equipment WHERE parent_asset_id='e0000000-0000-4000-8000-0000000000a2' AND asset_id IS NULL)=2);
+UPDATE mnt_mtr_equipment SET name='Sonda renombrada' WHERE id='e0000000-0000-4000-8000-000000000002';
+SELECT t.ok('mtr3: asociado sin identidad conserva nombre editable y tipo ficticio', (SELECT name='Sonda renombrada' AND equipment_type='extintor' FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000002'));
+SELECT t.fails('mtr3: nombre con identidad solo en Activos', $$UPDATE mnt_mtr_equipment SET name='engaño' WHERE id='e0000000-0000-4000-8000-000000000001'$$,'42501');
+SELECT t.fails('mtr3: no reasignación silenciosa', $$UPDATE mnt_mtr_equipment SET parent_asset_id='e0000000-0000-4000-8000-0000000000a1' WHERE id='e0000000-0000-4000-8000-000000000002'$$,'42501');
+SELECT t.fails('mtr3: lote en conflicto rechaza todo', $$SELECT mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a1',ARRAY['e0000000-0000-4000-8000-000000000004','e0000000-0000-4000-8000-000000000002']::uuid[])$$,'42501');
+SELECT t.ok('mtr3: rollback deja instrumento libre', (SELECT parent_asset_id IS NULL FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000004'));
+SELECT t.fails('mtr3: principal de otra org prohibido en alta', $$INSERT INTO mnt_mtr_equipment(org_id,code,name,equipment_type,site_id,parent_asset_id) VALUES ('a0000000-0000-4000-8000-000000000001','MTR-X','x','sonda','c0000000-0000-4000-8000-0000000005a1','e0000000-0000-4000-8000-0000000000b2')$$,'23514');
+SELECT t.fails('mtr3: RPC principal de otra org prohibido', $$SELECT mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000b2',ARRAY['e0000000-0000-4000-8000-000000000004']::uuid[])$$,'23514');
+SELECT t.fails('mtr3: instrumento ajeno o inexistente rechaza lote', $$SELECT mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a1',ARRAY['e0000000-0000-4000-8000-000000000004','e0000000-0000-4000-8000-000000000099']::uuid[])$$,'23514');
+SELECT t.login('c0000000-0000-4000-8000-0000000000c2');
+SELECT t.fails('mtr3: lector no asocia por RPC', $$SELECT mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a1',ARRAY['e0000000-0000-4000-8000-000000000004']::uuid[])$$,'42501');
+UPDATE mnt_mtr_equipment SET parent_asset_id='e0000000-0000-4000-8000-0000000000a1' WHERE id='e0000000-0000-4000-8000-000000000004';
+SELECT t.ok('mtr3: RLS lector no actualiza asociación', (SELECT parent_asset_id IS NULL FROM mnt_mtr_equipment WHERE id='e0000000-0000-4000-8000-000000000004'));
+SELECT t.login('b0000000-0000-4000-8000-0000000000b1');
+SELECT t.fails('mtr3: tenant ajeno no usa RPC de A', $$SELECT mnt_mtr_associate_equipment('a0000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-0000000000a1',ARRAY['e0000000-0000-4000-8000-000000000004']::uuid[])$$,'42501');
+RESET ROLE;
+SELECT t.fails('mtr3: principal no borrable en cascada', $$DELETE FROM mnt_assets WHERE id='e0000000-0000-4000-8000-0000000000a2'$$,NULL);
+SELECT t.ok('mtr3: registros originales y rectificados siguen íntegros', (SELECT count(*) FROM mnt_mtr_records WHERE equipment_id='e0000000-0000-4000-8000-000000000001')=3 AND (SELECT count(*) FROM mnt_mtr_record_lines)=2);
 DO $$ BEGIN RAISE NOTICE 'MTR_TESTS_DONE'; END $$;

@@ -9,6 +9,7 @@ import { Gauge, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,15 +25,26 @@ export function AssetMetrologyCard({ orgId, asset, typeName, canManage }: { orgI
   const navigate = useNavigate();
   const link = useQuery({ queryKey: [...metrologyKeys.all(orgId), "by-asset", asset.id], enabled: !!orgId, queryFn: () => metrologyService.findByAsset(orgId, asset.id) });
   const eqId = link.data ?? null;
-  const eq = useQuery({ queryKey: metrologyKeys.detail(orgId, eqId ?? "-"), enabled: !!eqId, queryFn: () => metrologyService.getEquipment(orgId, eqId!) });
-  const plans = useQuery({ queryKey: metrologyKeys.plans(orgId, eqId ?? "-"), enabled: !!eqId, queryFn: () => metrologyService.listPlans(orgId, eqId!) });
+  const eq = useQuery({ queryKey: metrologyKeys.detail(orgId, eqId ?? "-"), enabled: !!eqId, queryFn: () => metrologyService.getEquipment(orgId, eqId ?? "") });
+  const plans = useQuery({ queryKey: metrologyKeys.plans(orgId, eqId ?? "-"), enabled: !!eqId, queryFn: () => metrologyService.listPlans(orgId, eqId ?? "") });
   const [open, setOpen] = useState(false);
+  const [associateOpen, setAssociateOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const instruments = useQuery({ queryKey: metrologyKeys.equipment(orgId), queryFn: () => metrologyService.listEquipment(orgId) });
+  const associated = (instruments.data ?? []).filter((e) => e.parentAssetId === asset.id);
+  const available = (instruments.data ?? []).filter((e) => !e.parentAssetId && normalizeAssetSearch([e.asset?.code ?? e.code, e.asset?.name ?? e.name, e.equipmentType, e.asset?.locationName, e.locationDetail].join(" ")).includes(normalizeAssetSearch(search)));
+  const associate = useMutation({
+    mutationFn: () => metrologyService.associateEquipment(orgId, asset.id, selected),
+    onSuccess: () => { toast.success("Instrumentos asociados"); setAssociateOpen(false); setSelected([]); qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const { data: sites = [] } = useQuery({ queryKey: metrologyKeys.sites(orgId), enabled: open, queryFn: () => metrologyService.listSites(orgId) });
   const [siteId, setSiteId] = useState("");
-  const [eqType, setEqType] = useState(typeName ?? "");
+  const [eqType, setEqType] = useState("");
   const create = useMutation({
     mutationFn: () => metrologyService.createEquipment(orgId, {
-      name: asset.name ?? asset.code, equipmentType: eqType, siteId: siteId || (sites.some((s) => s.id === asset.location_id) ? asset.location_id! : ""),
+      name: asset.name ?? asset.code, equipmentType: eqType, siteId: siteId || (sites.some((s) => s.id === asset.location_id) ? (asset.location_id ?? "") : ""),
       locationDetail: null, magnitude: null, intendedUse: null, responsibleRef: null, brand: asset.manufacturer, model: asset.model,
       serialNumber: asset.serial_number, rangeMin: null, rangeMax: null, unit: null, resolution: null, declaredAccuracy: null,
       restrictions: null, allowedUses: null, assetId: asset.id,
@@ -40,20 +52,34 @@ export function AssetMetrologyCard({ orgId, asset, typeName, canManage }: { orgI
     onSuccess: (id) => { toast.success("Metrología activada"); setOpen(false); qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) }); navigate({ to: "/metrology/equipment/$id", params: { id } }); },
     onError: (e: Error) => toast.error(e.message),
   });
-  const nextDue = (plans.data ?? []).filter((p) => p.active && p.nextDueOn).map((p) => p.nextDueOn!).sort()[0] ?? null;
-  const defaultSite = sites.some((s) => s.id === asset.location_id) ? asset.location_id! : "";
+  const nextDue = (plans.data ?? []).filter((p) => p.active && p.nextDueOn).flatMap((p) => p.nextDueOn ? [p.nextDueOn] : []).sort()[0] ?? null;
+  const defaultSite = sites.some((s) => s.id === asset.location_id) ? (asset.location_id ?? "") : "";
 
   return (
     <Card className="lg:col-span-3">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-2 text-base"><Gauge className="h-4 w-4" />Metrología</CardTitle>
-        {eqId ? (
+
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <div className="space-y-2">
+          <h3 className="font-medium">Instrumentos asociados a este activo principal</h3>
+          {instruments.isError ? <p className="text-destructive">No se pudieron cargar los instrumentos.</p> : associated.length ? associated.map((e) => (
+            <div key={e.id} className="flex flex-wrap items-center gap-2 border-b py-2">
+              <Link to="/metrology/equipment/$id" params={{ id: e.id }} className="font-medium hover:underline">{e.asset?.code ?? e.code} · {e.asset?.name ?? e.name}</Link>
+              <StatusBadge stored={e.status} nextDue={e.nextDueOn} /><span className="text-muted-foreground">Próximo control: {e.nextDueOn ?? "—"}</span>
+            </div>
+          )) : <p className="text-muted-foreground">{instruments.isLoading ? "Cargando…" : "Sin instrumentos asociados"}</p>}
+          {canManage && <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setSelected([]); setSearch(""); setAssociateOpen(true); }}>Vincular equipo existente</Button>
+            <Button asChild size="sm"><Link to="/metrology/equipment" search={{ newEquipment: true, parentAssetId: asset.id }}>Nuevo equipo de medida</Link></Button>
+          </div>}
+        </div>
+        <div className="border-t pt-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">Control de este mismo equipo (identidad de inventario)</h3>        {eqId ? (
           <Button asChild size="sm" variant="outline"><Link to="/metrology/equipment/$id" params={{ id: eqId }}>Gestionar metrología</Link></Button>
         ) : canManage && !link.isLoading ? (
           <Button size="sm" variant="outline" onClick={() => { setSiteId(""); setOpen(true); }}>Activar metrología</Button>
-        ) : null}
-      </CardHeader>
-      <CardContent className="text-sm">
+        ) : null}</div>
         {link.isLoading ? <span className="text-muted-foreground">Cargando…</span> : eqId && eq.data ? (
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-mono text-xs">{eq.data.code}</span>
@@ -62,14 +88,27 @@ export function AssetMetrologyCard({ orgId, asset, typeName, canManage }: { orgI
           </div>
         ) : (
           <span className="text-muted-foreground">Sin control metrológico. Actívalo solo si este equipo necesita calibración o verificación.</span>
-        )}
+        )}</div>
       </CardContent>
+      <Dialog open={associateOpen} onOpenChange={setAssociateOpen}>
+        <DialogContent><DialogHeader><DialogTitle>Vincular equipos existentes · {asset.code}</DialogTitle></DialogHeader>
+          <Input aria-label="Buscar instrumentos" placeholder="Buscar código, nombre, tipo o ubicación" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="max-h-72 space-y-2 overflow-y-auto">
+            {available.slice(0, 100).map((e) => <label key={e.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
+              <Checkbox checked={selected.includes(e.id)} onCheckedChange={(v) => setSelected((s) => v ? [...s, e.id] : s.filter((x) => x !== e.id))} />
+              <span>{e.asset?.code ?? e.code} · {e.asset?.name ?? e.name}<span className="block text-muted-foreground">{e.equipmentType}</span></span>
+            </label>)}
+            {!available.length && <p className="text-sm text-muted-foreground">Sin instrumentos disponibles</p>}
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setAssociateOpen(false)}>Cancelar</Button><Button disabled={!selected.length || associate.isPending} onClick={() => associate.mutate()}>Vincular ({selected.length})</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Activar metrología · {asset.code}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Se usará este mismo equipo del inventario; no se crea otro equipo físico. Código, nombre y ubicación se leen siempre de Activos.</p>
+          <p className="text-sm text-muted-foreground">Control metrológico opcional para este equipo ya registrado. Su nombre y ubicación se gestionan en Activos.</p>
           <div className="space-y-3">
-            <div><Label>Tipo de instrumento</Label><Input value={eqType} onChange={(e) => setEqType(e.target.value)} /></div>
+            <div><Label>Tipo de instrumento</Label><Input placeholder={typeName ? `Por ejemplo: ${typeName}` : "Por ejemplo: manómetro"} value={eqType} onChange={(e) => setEqType(e.target.value)} /></div>
             <div><Label>Site (centro) de control</Label>
               <Select value={siteId || defaultSite} onValueChange={setSiteId}>
                 <SelectTrigger><SelectValue placeholder="Selecciona un site" /></SelectTrigger>
@@ -99,7 +138,7 @@ export function LinkAssetDialog({ orgId, equipmentId, open, onOpenChange }: { or
     return list.slice(0, 50);
   }, [assets, q]);
   const save = useMutation({
-    mutationFn: () => metrologyService.linkAsset(orgId, equipmentId, sel!),
+    mutationFn: () => metrologyService.linkAsset(orgId, equipmentId, sel ?? ""),
     onSuccess: () => { toast.success("Equipo vinculado al activo"); onOpenChange(false); qc.invalidateQueries({ queryKey: metrologyKeys.all(orgId) }); },
     onError: (e: Error) => toast.error(e.message),
   });

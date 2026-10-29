@@ -45,6 +45,11 @@ export const metrologyService = {
   findByAsset: (orgId: string | null, assetId: string) => repo().findByAsset(need(orgId), assetId),
   listLinkableAssets: (orgId: string | null) => repo().listLinkableAssets(need(orgId)),
   linkAsset: (orgId: string | null, equipmentId: string, assetId: string) => repo().linkAsset(need(orgId), equipmentId, assetId),
+  getInventoryAsset: (orgId: string | null, assetId: string) => repo().getInventoryAsset(need(orgId), assetId),
+  associateEquipment: (orgId: string | null, parentAssetId: string, equipmentIds: string[]) => {
+    fail(!equipmentIds.length ? ["Selecciona instrumentos"] : []);
+    return repo().associateEquipment(need(orgId), parentAssetId, [...new Set(equipmentIds)]);
+  },
   listPlans: (orgId: string | null, equipmentId: string) => repo().listPlans(need(orgId), equipmentId),
   savePlan: (orgId: string | null, equipmentId: string, planId: string | null, v: MtrControlPlanInput) => {
     fail(v.frequencyUnit !== "before_use" && !(v.frequencyValue && v.frequencyValue > 0) ? ["La frecuencia debe ser mayor que 0"] : []);

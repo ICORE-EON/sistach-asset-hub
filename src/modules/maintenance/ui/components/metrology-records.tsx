@@ -13,7 +13,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { metrologyKeys, metrologyService } from "../../services/metrology";
 import type { MtrControlPlan, MtrEquipment, MtrImpactReview, MtrPerson, MtrRecord, MtrRecordDraft, MtrRecordLine } from "../../contracts/metrology";
 import { aggregateLines, lineError, lineEval, type MtrImpactConclusion, type MtrUnfitDecision } from "../../domain/metrology";
-import { DECISION_LABEL, IMPACT_NOTICE, KIND_LABEL, NONE, PersonSelect, today } from "./metrology-common";
+import { DECISION_LABEL, IMPACT_NOTICE, KIND_LABEL, METHOD_LABEL, NONE, PersonSelect, today } from "./metrology-common";
+import { Link } from "@tanstack/react-router";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMaintenanceUi } from "../host";
 
 const RES: Record<string, string> = { fit: "Apto", unfit: "No apto", restricted: "Apto con restricciones" };
@@ -44,6 +46,8 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
   const planOf = (pid: string) => plans.find((p) => p.id === pid);
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [view, setView] = useState<MtrRecord | null>(null);
+  const detailLines = useQuery({ queryKey: metrologyKeys.lines(orgId, view?.id ?? "-"), enabled: !!view && !!orgId, queryFn: () => metrologyService.getRecordLines(orgId, view?.id ?? "") });
   const [decision, setDecision] = useState<{ recordId: string; d: MtrUnfitDecision; notes: string; uses: string } | null>(null);
   const [rectify, setRectify] = useState<{ recordId: string; reason: string } | null>(null);
   const [impact, setImpact] = useState<{ id: string; c: MtrImpactConclusion; just: string; actions: string; period: string; on: string; extId: string; extLabel: string } | null>(null);
@@ -127,6 +131,8 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
   const dPlan = dv && planOf(dv.controlPlanId);
   const agg = dv?.lines.length ? aggregateLines(dv.lines) : null;
   const pending = impacts.filter((i) => i.status === "pending");
+  const viewPlan = view ? planOf(view.controlPlanId) : undefined;
+  const value = (label: string, v: unknown) => <div><dt className="text-xs text-muted-foreground">{label}</dt><dd className="break-words whitespace-pre-wrap">{v == null || v === "" ? "—" : String(v)}</dd></div>;
 
   return (
     <div className="space-y-3">
@@ -162,6 +168,7 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
             <span className="text-muted-foreground">Realizado por: {personName(r.performerRef)}</span>
             {r.nextDueOverride ? <span className="text-muted-foreground">Próximo: {r.nextDueOverride} (ajustado)</span> : r.nextDueCalculated && <span className="text-muted-foreground">Próximo: {r.nextDueCalculated}</span>}
             <span className="ml-auto flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setView(r)}>Ver detalle</Button>
               {r.status === "draft" && canRun && <Button size="sm" variant="ghost" onClick={() => openDraft(r)}>Editar</Button>}
               {r.status === "validated" && canClose && <Button size="sm" variant="ghost" onClick={() => setRectify({ recordId: r.id, reason: "" })}>Rectificar</Button>}
             </span>
@@ -169,6 +176,43 @@ export function MetrologyRecordsTab({ orgId, equipment, plans, people, impacts, 
         ))}
         {!records.length && <p className="text-muted-foreground">Sin registros.</p>}
       </CardContent></Card>
+
+      <Dialog open={!!view} onOpenChange={(o) => !o && setView(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader><DialogTitle>Detalle del registro · {view && KIND_LABEL[view.kind]} v{view?.version}</DialogTitle></DialogHeader>
+          {view && <>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              {value("Fecha", view.performedOn)}{value("Tipo", KIND_LABEL[view.kind])}
+              {value("Método (plan de control)", viewPlan ? METHOD_LABEL[viewPlan.method] : null)}{value("Técnico", personName(view.performerRef))}
+              {value("Laboratorio", view.laboratory)}{value("Nº de certificado", view.certificateNumber)}
+              {value("Acreditación", view.accreditation)}{value("Incertidumbre declarada", view.declaredUncertainty)}
+              {value("Ajustado o reparado", view.adjustedOrRepaired == null ? null : view.adjustedOrRepaired ? "Sí" : "No")}
+              <div><dt className="text-xs text-muted-foreground">Equipo de referencia</dt><dd>{view.referenceEquipmentId ? (() => { const ref = allEq.find((e) => e.id === view.referenceEquipmentId); return ref ? <Link to="/metrology/equipment/$id" params={{ id: ref.id }} className="hover:underline">{ref.asset?.code ?? ref.code} · {ref.asset?.name ?? ref.name}</Link> : "—"; })() : "—"}</dd></div>
+              {value("Resultado", view.result ? RES[view.result] : null)}{value("Restricciones", view.restrictions)}
+              {value("Observaciones", view.observations)}{value("Estado", REC_STATUS[view.status])}
+              {value("Validado el", view.validatedAt)}{value("Versión", view.version)}
+              {value("Motivo de rectificación", view.rectificationReason)}
+              {value("Próximo control calculado", view.nextDueCalculated)}{value("Próximo control ajustado", view.nextDueOverride)}{value("Motivo del ajuste", view.overrideReason)}
+              <div className="sm:col-span-2"><dt className="text-xs text-muted-foreground">Certificado / documento</dt><dd>{view.documentRef && RecordDocument ? <RecordDocument value={view.documentRef} onChange={() => {}} disabled /> : "—"}</dd></div>
+            </dl>
+            <h3 className="text-sm font-medium">Puntos de medición</h3>
+            {detailLines.isError ? <p role="alert" className="text-sm text-destructive">No se pudieron cargar las mediciones.</p> : detailLines.isLoading ? <p className="text-sm text-muted-foreground">Cargando…</p> : <Table>
+              <TableHeader><TableRow><TableHead>Punto</TableHead><TableHead>Referencia</TableHead><TableHead>Medido</TableHead><TableHead>Error</TableHead><TableHead>Tolerancia</TableHead><TableHead>Modo</TableHead><TableHead>Resultado</TableHead></TableRow></TableHeader>
+              <TableBody>{(detailLines.data ?? []).map((l) => <TableRow key={l.position}><TableCell>{l.label || "—"}</TableCell><TableCell>{l.referenceValue ?? "—"}</TableCell><TableCell>{l.measuredValue ?? "—"}</TableCell><TableCell>{l.errorValue ?? "—"}</TableCell><TableCell>{l.tolerance ?? "—"}</TableCell><TableCell>{MODE_LABEL[l.mode]}</TableCell><TableCell>{l.result ? RES[l.result] : "—"}</TableCell></TableRow>)}{!detailLines.data?.length && <TableRow><TableCell colSpan={7}>—</TableCell></TableRow>}</TableBody>
+            </Table>}
+            <div className="space-y-1 text-sm"><h3 className="font-medium">Criterio de aceptación (plan actual)</h3>
+              <p className="whitespace-pre-wrap">{viewPlan?.acceptanceCriteria || "—"}</p>
+              {viewPlan?.criteria.map((c) => <p key={c.key}>{c.magnitude} ({c.unit}) · {c.mode === "manual" ? c.description || "—" : `±${c.tolerance ?? "—"}${c.mode === "percentage" ? " %" : ` ${c.unit}`}`}</p>)}
+            </div>
+            <div className="space-y-1 text-sm"><h3 className="font-medium">Trazabilidad de versiones</h3>
+              {view.supersedesId && <Button variant="link" size="sm" onClick={() => { const previous = records.find((r) => r.id === view.supersedesId); if (previous) setView(previous); }} disabled={!records.some((r) => r.id === view.supersedesId)}>Ver versión anterior</Button>}
+              {records.filter((r) => r.supersedesId === view.id).map((r) => <Button key={r.id} variant="link" size="sm" onClick={() => setView(r)}>Ver versión {r.version} · {REC_STATUS[r.status]}</Button>)}
+              {!view.supersedesId && !records.some((r) => r.supersedesId === view.id) && <p>—</p>}
+            </div>
+          </>}
+          <DialogFooter><Button variant="outline" onClick={() => setView(null)}>Cerrar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">

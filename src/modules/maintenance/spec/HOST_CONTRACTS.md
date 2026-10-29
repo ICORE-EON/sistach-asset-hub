@@ -46,3 +46,6 @@ TypeScript: el adaptador ICORE de `MetrologyRepository` sigue **sin implementar*
 
 ### Metrología Fase 2
 No requiere nuevos contratos de host: el vínculo usa `mnt_assets` del propio paquete. La ubicación mostrada para equipos vinculados procede del activo (`site_ref`, resuelto por el host).
+
+### Asociación operativa (corrección 2026-10-29)
+`parent_asset_id` es una relación N:1 separada de `asset_id` (identidad 1:1). FK compuesta a `mnt_assets`, sin cascada. `mnt_mtr_associate_equipment(org,parent,ids[])` usa permisos `mnt.manage_assets` + RLS, bloqueo ordenado, lote atómico e idempotente; rechaza reasignaciones y tenants ajenos. `getInventoryAsset` debe leer un activo vigente solo de la org. El host documental `RecordDocument` con `disabled=true` permite abrir el certificado, nunca subir/quitar. Adaptador real ICORE continúa pendiente.
