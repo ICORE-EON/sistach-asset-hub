@@ -30,7 +30,7 @@ BEGIN
   INSERT INTO public.company_members(company_id, user_id, role, active) VALUES
     (CA, SUP, 'manager', true), (CA, OPA, 'employee', true), (CA, OPB, 'employee', true), (CB, OPB, 'administrator', true);
   INSERT INTO public.asset_families(company_id, code, name_i18n) VALUES (CA, 'E2E-F', '{"es":"Extintores E2E"}') RETURNING id INTO F;
-  INSERT INTO public.asset_types(company_id, asset_family_id, code, category, name_i18n) VALUES (CA, F, 'E2E-T', 'fire', '{"es":"Extintor E2E"}') RETURNING id INTO T;
+  INSERT INTO public.asset_types(company_id, family_id, code, category, name_i18n) VALUES (CA, F, 'E2E-T', 'fire', '{"es":"Extintor E2E"}') RETURNING id INTO T;
   INSERT INTO public.assets(id, company_id, asset_type_id, code, name, status, qr_token) VALUES
     (A1, CA, T, 'E2E-001', 'Extintor pasillo', 'active', TOK1),
     (A2, CA, T, 'E2E-002', 'Extintor sala técnica', 'active', 'e2e0000000000000000000000000000000000002');
