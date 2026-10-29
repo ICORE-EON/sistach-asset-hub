@@ -4688,6 +4688,9 @@ export type Database = {
         Args: { p_session: string }
         Returns: boolean
       }
+      mnt_sa_can_see_certificate: { Args: { p_cert: string }; Returns: boolean }
+      mnt_sa_can_see_item: { Args: { p_item: string }; Returns: boolean }
+      mnt_sa_can_see_session: { Args: { p_session: string }; Returns: boolean }
       mnt_sa_cancel_session: {
         Args: { p_company: string; p_reason: string; p_session: string }
         Returns: Json
@@ -4822,6 +4825,15 @@ export type Database = {
       mnt_sa_session_months: {
         Args: { p_plan: string; p_session: string }
         Returns: number
+      }
+      mnt_sa_session_visible: {
+        Args: {
+          p_company: string
+          p_created_by: string
+          p_session: string
+          p_technician: string
+        }
+        Returns: boolean
       }
       mnt_sa_set_due: {
         Args: { p_company: string; p_items: Json; p_reason?: string }

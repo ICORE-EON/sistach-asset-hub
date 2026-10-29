@@ -16,7 +16,7 @@
  * phase), so skipped is stored as "na" in that column and its true value comes from the linked
  * maintenance item (or the certificate snapshot). resolveCertificateItemResult applies that precedence.
  */
-export type CertificateResult = "ok" | "conditional" | "failed" | "na" | "skipped";
+export type CertificateResult = "ok" | "conditional" | "failed" | "na" | "skipped" | "excepted";
 
 export function normalizeCertificateResult(r: string | null | undefined): CertificateResult {
   switch (r) {
@@ -24,6 +24,7 @@ export function normalizeCertificateResult(r: string | null | undefined): Certif
     case "with_incident": case "conditional": return "conditional";
     case "fail": case "failed": return "failed";
     case "na": case "n/a": case "not_applicable": return "na";
+    case "excepted": return "excepted"; // justified closing exception: NOT reviewed
     default: return "skipped";
   }
 }
@@ -31,7 +32,7 @@ export function normalizeCertificateResult(r: string | null | undefined): Certif
 /** Value written to certificate_items.result (constraint-compatible). */
 export function storedCertificateResult(r: string | null | undefined): "ok" | "conditional" | "failed" | "na" {
   const n = normalizeCertificateResult(r);
-  return n === "skipped" ? "na" : n;
+  return n === "skipped" || n === "excepted" ? "na" : n;
 }
 
 /**
@@ -40,7 +41,10 @@ export function storedCertificateResult(r: string | null | undefined): "ok" | "c
  * Without a source, the stored value is used as is.
  */
 export function resolveCertificateItemResult(stored: string | null | undefined, source?: string | null): CertificateResult {
-  if (source != null && normalizeCertificateResult(source) === "skipped" && (stored === "na" || stored == null)) return "skipped";
+  if (source != null && (stored === "na" || stored == null)) {
+    const n = normalizeCertificateResult(source);
+    if (n === "skipped" || n === "excepted") return n;
+  }
   if (stored == null && source != null) return normalizeCertificateResult(source);
   return normalizeCertificateResult(stored);
 }
@@ -51,6 +55,7 @@ export const CERTIFICATE_RESULT_LABELS: Record<CertificateResult, string> = {
   failed: "Fallo",
   na: "N/A",
   skipped: "Sin revisar",
+  excepted: "Excepción justificada (no revisado)",
 };
 
 export const certificateResultLabel = (r: string | null | undefined) =>
@@ -64,16 +69,16 @@ export const certificateResultHasIncident = (r: string | null | undefined) => {
 
 export type CertificateResultCounts = {
   total: number; ok: number; conditional: number; failed: number; withIncidents: number;
-  na: number; skipped: number; reviewed: number; complete: boolean;
+  na: number; skipped: number; excepted: number; reviewed: number; complete: boolean;
 };
 
 /** Counters and completeness. Complete = every item reviewed (no skipped). Empty lists are incomplete. */
 export function certificateResultCounts(results: Array<string | null | undefined>): CertificateResultCounts {
-  const c = { total: results.length, ok: 0, conditional: 0, failed: 0, withIncidents: 0, na: 0, skipped: 0, reviewed: 0, complete: false };
+  const c = { total: results.length, ok: 0, conditional: 0, failed: 0, withIncidents: 0, na: 0, skipped: 0, excepted: 0, reviewed: 0, complete: false };
   for (const r of results) c[normalizeCertificateResult(r)]++;
   c.withIncidents = c.conditional + c.failed;
-  c.reviewed = c.total - c.skipped;
-  c.complete = c.total > 0 && c.skipped === 0;
+  c.reviewed = c.total - c.skipped - c.excepted;
+  c.complete = c.total > 0 && c.skipped === 0 && c.excepted === 0;
   return c;
 }
 
@@ -81,5 +86,6 @@ export function certificateResultCounts(results: Array<string | null | undefined
 export function certificateResultSummary(results: Array<string | null | undefined>): string {
   const c = certificateResultCounts(results);
   const parts = [`${c.ok} OK`, `${c.conditional} con incidencia`, `${c.failed} con fallo`, `${c.na} N/A`, `${c.skipped} sin revisar`];
+  if (c.excepted > 0) parts.push(`${c.excepted} con excepción justificada (no revisados)`);
   return `${c.total} equipo(s): ${parts.join(" · ")}. ${c.complete ? "Mantenimiento completo" : "Mantenimiento incompleto"}.`;
 }
