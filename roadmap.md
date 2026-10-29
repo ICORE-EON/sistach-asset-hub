@@ -93,3 +93,10 @@
 ### Hito 2 — (no iniciar) Clasificación de planes por naturaleza/origen (etiqueta, no verificación legal), catálogo de revisiones configurable, buscador de activos, edición/cancelación segura de reparaciones/planes/metrología sin borrar actividad real, coste estimado simple.
 
 - [x] Metrología opción B Fase 1 (2026-10-29): `src/modules/maintenance/sql/install_metrology_v1.sql` — 8 tablas, 15 funciones; PostgreSQL temporal 185 PASS/ALL_DONE. Pendiente: adaptador TS ICORE, host real, código MTR automático en ICORE. Fase 2 (vínculo activo↔metrología) sin autorizar.
+
+## Metrología Fase 2 — vínculo Activo ↔ Metrología (2026-10-29)
+- [x] `mnt_mtr_equipment.asset_id` opcional, misma org, único, definitivo, sin cascada (Sistach + `install_metrology_v1.sql`).
+- [x] Ficha de activo: tarjeta Metrología (Activar / Gestionar); ficha metrológica: enlace al activo o «Vincular a activo» con buscador.
+- [x] Con vínculo, código/nombre/ubicación mostrados salen de Activos; datos de control y etiquetas/historial previos se conservan.
+- [ ] Adaptador TS de metrología ICORE + conexión al host real (pendiente, fuera de alcance).
+- [ ] Prueba con escritura en navegador (activar/vincular) — no hecha para no crear registros reales.
