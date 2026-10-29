@@ -113,6 +113,13 @@
       "when": 1793280004511,
       "tag": "0015_mnt_qr_session_run",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793285311740,
+      "tag": "0016_mnt_session_visibility_by_assignment",
+      "breakpoints": true
     }
   ]
 }
