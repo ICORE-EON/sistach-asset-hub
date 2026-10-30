@@ -141,4 +141,26 @@ RESET ROLE;
 SELECT t.ok('qr: solo se guarda el hash del token anterior', (SELECT old_token_sha256 = encode(sha256(convert_to(:'tok1', 'UTF8')), 'hex')
          AND old_token_sha256 <> :'tok1' FROM mnt_qr_token_events WHERE asset_id = :a1)
        AND NOT EXISTS (SELECT 1 FROM mnt_qr_token_events WHERE old_token_sha256 = :'tok1'));
+-- 11. read visibility: run-only operators see only explicitly assigned sessions; technician grants nothing
+UPDATE mnt_sessions SET technician_ref = :run2A WHERE id = :'s2';
+SET ROLE authenticated;
+SELECT t.login(:run2A);
+SELECT t.ok('vis: tecnico sin asignacion no ve la sesion', (SELECT count(*) FROM mnt_sessions) = 0);
+SELECT t.ok('vis: tecnico sin asignacion no ejecuta', NOT public.mnt_can_execute_session(:'s2'));
+SELECT t.ok('vis: no asignado no ve equipos/respuestas/excepciones/cierres/certificados',
+  (SELECT count(*) FROM mnt_session_items) + (SELECT count(*) FROM mnt_responses) + (SELECT count(*) FROM mnt_session_item_exceptions)
+  + (SELECT count(*) FROM mnt_session_closure_events) + (SELECT count(*) FROM mnt_session_assignees) + (SELECT count(*) FROM mnt_item_execution_keys)
+  + (SELECT count(*) FROM mnt_session_history) + (SELECT count(*) FROM mnt_certificates WHERE session_id IS NOT NULL)
+  + (SELECT count(*) FROM mnt_due_changes WHERE session_id IS NOT NULL) = 0);
+SELECT t.login(:runA);
+SELECT t.ok('vis: operario asignado ve solo su sesion', (SELECT array_agg(id) FROM mnt_sessions) = ARRAY[:'s1']::uuid[]);
+SELECT t.ok('vis: operario asignado ve sus equipos', (SELECT count(*) FROM mnt_session_items WHERE session_id = :'s1') > 0
+  AND (SELECT count(*) FROM mnt_session_items WHERE session_id = :'s2') = 0);
+SELECT t.login(:viewA);
+SELECT t.ok('vis: lector conserva visibilidad de empresa', (SELECT count(*) FROM mnt_sessions) = 2);
+SELECT t.login(:closeA);
+SELECT t.ok('vis: supervisor conserva visibilidad de empresa', (SELECT count(*) FROM mnt_sessions) = 2);
+SELECT t.login(:adminB);
+SELECT t.ok('vis: otra empresa no ve nada', (SELECT count(*) FROM mnt_sessions) + (SELECT count(*) FROM mnt_session_items) = 0);
+RESET ROLE;
 \echo SCAN_DONE

@@ -560,6 +560,7 @@ BEGIN
   ELSE
     SELECT session_id, checklist_version_id INTO sess, ver FROM public.mnt_session_items
      WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.item_id ELSE NEW.item_id END;
+    IF sess IS NULL THEN RAISE EXCEPTION 'mnt: equipo no disponible' USING ERRCODE = '42501'; END IF;
     IF TG_OP <> 'DELETE' THEN
       SELECT version_id INTO qver FROM public.mnt_checklist_questions WHERE id = NEW.question_id;
       IF qver IS DISTINCT FROM ver THEN
@@ -1452,14 +1453,27 @@ CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_session_clo
 DROP TRIGGER IF EXISTS mnt_append_only ON public.mnt_qr_token_events;
 CREATE TRIGGER mnt_append_only BEFORE UPDATE OR DELETE ON public.mnt_qr_token_events FOR EACH ROW EXECUTE FUNCTION public.mnt_tg_append_only();
 
--- run permission AND (assigned OR technician OR close permission). Status is checked by each RPC.
+-- run permission AND (explicit active assignment OR close permission). Technician/creator grant nothing.
+-- Status is checked by each RPC.
 CREATE OR REPLACE FUNCTION public.mnt_can_execute_session(p_session uuid) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT public.host_person_ref() IS NOT NULL AND EXISTS (
     SELECT 1 FROM public.mnt_sessions s
      WHERE s.id = p_session AND public.mnt_can(s.org_id, 'mnt.run')
-       AND (public.mnt_can(s.org_id, 'mnt.close') OR s.technician_ref = public.host_person_ref()
+       AND (public.mnt_can(s.org_id, 'mnt.close')
             OR EXISTS (SELECT 1 FROM public.mnt_session_assignees a WHERE a.session_id = s.id
+                        AND a.person_ref = public.host_person_ref() AND a.revoked_at IS NULL)))
+$$;
+
+-- Read visibility of a session: mnt.view AND (not run-only OR explicit active assignment).
+-- Run-only = mnt.run without mnt.close/mnt.admin. Viewers and supervisors keep org visibility.
+CREATE OR REPLACE FUNCTION public.mnt_can_see_session(p_session uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT public.host_person_ref() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.mnt_sessions s
+     WHERE s.id = p_session AND public.mnt_can(s.org_id, 'mnt.view')
+       AND (NOT public.mnt_can(s.org_id, 'mnt.run') OR public.mnt_can(s.org_id, 'mnt.close') OR public.mnt_can(s.org_id, 'mnt.admin')
+            OR EXISTS (SELECT 1 FROM public.mnt_session_assignees a WHERE a.session_id = s.id AND a.org_id = s.org_id
                         AND a.person_ref = public.host_person_ref() AND a.revoked_at IS NULL)))
 $$;
 
@@ -1646,6 +1660,27 @@ BEGIN
     EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view''))', t);
   END LOOP;
 
+  -- Session-scoped reads: run-only operators see only explicitly assigned sessions (all derived tables).
+  EXECUTE 'DROP POLICY mnt_read ON public.mnt_sessions';
+  EXECUTE 'CREATE POLICY mnt_read ON public.mnt_sessions FOR SELECT TO authenticated USING (public.mnt_can_see_session(id))';
+  EXECUTE 'DROP POLICY mnt_upd ON public.mnt_sessions';
+  EXECUTE 'CREATE POLICY mnt_upd ON public.mnt_sessions FOR UPDATE TO authenticated USING (public.mnt_can(org_id, ''mnt.run'') AND public.mnt_can_see_session(id)) WITH CHECK (public.mnt_can(org_id, ''mnt.run''))';
+  FOREACH t IN ARRAY ARRAY['mnt_session_items','mnt_session_history','mnt_session_entries','mnt_session_assignees',
+                           'mnt_session_item_exceptions','mnt_session_closure_events'] LOOP
+    EXECUTE format('DROP POLICY mnt_read ON public.%I', t);
+    EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view'') AND public.mnt_can_see_session(session_id))', t);
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['mnt_responses','mnt_item_execution_keys'] LOOP
+    EXECUTE format('DROP POLICY mnt_read ON public.%I', t);
+    EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view'') AND EXISTS (SELECT 1 FROM public.mnt_session_items i WHERE i.id = item_id AND public.mnt_can_see_session(i.session_id)))', t);
+  END LOOP;
+  FOREACH t IN ARRAY ARRAY['mnt_due_changes','mnt_certificates'] LOOP
+    EXECUTE format('DROP POLICY mnt_read ON public.%I', t);
+    EXECUTE format('CREATE POLICY mnt_read ON public.%I FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view'') AND (session_id IS NULL OR public.mnt_can_see_session(session_id)))', t);
+  END LOOP;
+  EXECUTE 'DROP POLICY mnt_read ON public.mnt_certificate_items';
+  EXECUTE 'CREATE POLICY mnt_read ON public.mnt_certificate_items FOR SELECT TO authenticated USING (public.mnt_can(org_id, ''mnt.view'') AND EXISTS (SELECT 1 FROM public.mnt_certificates c WHERE c.id = certificate_id AND (c.session_id IS NULL OR public.mnt_can_see_session(c.session_id))))';
+
   -- functions: nothing executable by PUBLIC/anon; RPCs + mnt_can for authenticated
   FOR f IN SELECT oid::regprocedure FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND proname LIKE 'mnt\_%' LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
@@ -1660,7 +1695,7 @@ BEGIN
     'mnt_create_corrective(uuid,uuid,date,text,text,uuid,boolean,text,boolean,uuid)','mnt_add_entry(uuid,uuid,date,text)',
     'mnt_link_incident(uuid,uuid,uuid)','mnt_close_corrective(uuid,uuid,date,text,text,text,text,boolean)',
     'mnt_update_corrective(uuid,uuid,timestamptz,text,text,boolean,text,text)',
-    'mnt_can_execute_session(uuid)','mnt_resolve_scan(text,uuid)','mnt_list_my_runnable_sessions(uuid)',
+    'mnt_can_execute_session(uuid)','mnt_can_see_session(uuid)','mnt_resolve_scan(text,uuid)','mnt_list_my_runnable_sessions(uuid)',
     'mnt_record_item_execution(uuid,uuid,text,text,text)','mnt_record_closure_exception(uuid,uuid,text,text)',
     'mnt_assign_session_people(uuid,uuid,uuid[])','mnt_regenerate_asset_qr(uuid,uuid)'] LOOP
     EXECUTE format('GRANT EXECUTE ON FUNCTION public.%s TO authenticated', p);

@@ -134,6 +134,13 @@
       "when": 1793286014608,
       "tag": "0018_mnt_fix_closure_exception_record",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793339083887,
+      "tag": "0019_mnt_session_access_assignment_only",
+      "breakpoints": true
     }
   ]
 }

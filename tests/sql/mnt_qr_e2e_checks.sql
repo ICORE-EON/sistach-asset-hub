@@ -41,11 +41,12 @@ BEGIN
   INSERT INTO public.checklist_questions(id, template_version_id, position, prompt, response_type) VALUES (Q1, V1, 1, '¿Presión correcta?', 'boolean');
   INSERT INTO public.maintenance_sessions(id, company_id, code, plan_id, status, started_at, kind, created_by) VALUES
     (S1, CA, 'E2E-S1', P, 'in_progress', now(), 'preventive', SUP),
-    (S2, CA, 'E2E-S2', P, 'in_progress', now(), 'preventive', SUP);
+    (S2, CA, 'E2E-S2', P, 'in_progress', now(), 'preventive', OPA);  -- OPA es creador de S2, sin asignación
   INSERT INTO public.maintenance_items(id, company_id, session_id, asset_id, result, checklist_template_version_id, metadata) VALUES
     (I1, CA, S1, A1, 'pending', V1, '{"snapshot":{"asset":{"code":"E2E-001","name":"Extintor pasillo"}}}'),
     (I2, CA, S1, A2, 'pending', V1, '{"snapshot":{"asset":{"code":"E2E-002","name":"Extintor sala técnica"}}}');
   INSERT INTO public.maintenance_items(company_id, session_id, asset_id, result, checklist_template_version_id) VALUES (CA, S2, A1, 'pending', V1);
+  UPDATE public.maintenance_sessions SET technician_id = OPA WHERE id = S2;  -- y también técnico: no concede acceso
 
   CREATE TEMP TABLE e2e(n int, name text, expected text, actual text) ON COMMIT DROP;
   GRANT ALL ON e2e TO authenticated;
@@ -70,6 +71,8 @@ BEGIN
   PERFORM pg_temp.c('operario A: equipos solo de su sesión', '2', format($$SELECT count(*) FROM public.maintenance_items WHERE company_id = %L$$, CA));
   PERFORM pg_temp.c('operario A: lista móvil solo su sesión', '1', format($$SELECT jsonb_array_length(public.mnt_sa_list_my_runnable_sessions(%L))$$, CA));
   PERFORM pg_temp.c('operario A: personas de S2 no visibles', '[]', format($$SELECT public.mnt_sa_list_session_people(%L, %L)::text$$, CA, S2));
+  PERFORM pg_temp.c('operario A técnico+creador de S2 sin asignación: no la ve', '0', format($$SELECT count(*) FROM public.maintenance_sessions WHERE id = %L$$, S2));
+  PERFORM pg_temp.c('operario A técnico+creador de S2 sin asignación: no la ejecuta', 'false', format($$SELECT public.mnt_sa_can_execute_session(%L)::text$$, S2));
   -- 3. escanea / resuelve
   PERFORM pg_temp.c('operario A: QR sin sesión ofrece solo S1', '1', format($$SELECT jsonb_array_length(public.mnt_sa_resolve_scan(%L)->'sessions')$$, TOK1));
   PERFORM pg_temp.c('operario A: QR con S1 resuelve su equipo', I1::text, format($$SELECT public.mnt_sa_resolve_scan(%L, %L)->>'item_id'$$, TOK1, S1));

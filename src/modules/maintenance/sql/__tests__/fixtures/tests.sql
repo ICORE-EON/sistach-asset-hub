@@ -362,6 +362,7 @@ SELECT t.ok('2B: actuacion registrada', public.mnt_add_entry(:orgA, :'r1', curre
   AND public.mnt_add_entry(:orgA, :'r1', current_date - 1, 'Recarga') IS NOT NULL);
 SELECT t.fails('2B: actuacion anterior a deteccion', format('SELECT public.mnt_add_entry(%L, %L, current_date - 9, ''x'')', :orgA, :'r1'), '23514');
 SELECT t.fails('2B: actuaciones inmutables', format('UPDATE mnt_session_entries SET body = ''x'' WHERE session_id = %L', :'r1'), NULL);
+SELECT t.login(:adminA); -- run-only operators do not see unassigned sessions
 SELECT updated_at AS edit_token FROM mnt_sessions WHERE id=:'r1' \gset
 SELECT public.mnt_update_corrective(:orgA, :'r1', :'edit_token', 'Fuga revisada', 'normal', true, 'Proveedor confirmado', 'Responsable');
 SELECT t.ok('edicion: guarda descripción y responsable sin cambiar fecha ni actuaciones',
