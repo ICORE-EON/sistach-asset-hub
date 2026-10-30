@@ -560,6 +560,7 @@ BEGIN
   ELSE
     SELECT session_id, checklist_version_id INTO sess, ver FROM public.mnt_session_items
      WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.item_id ELSE NEW.item_id END;
+    IF sess IS NULL THEN RAISE EXCEPTION 'mnt: equipo no disponible' USING ERRCODE = '42501'; END IF;
     IF TG_OP <> 'DELETE' THEN
       SELECT version_id INTO qver FROM public.mnt_checklist_questions WHERE id = NEW.question_id;
       IF qver IS DISTINCT FROM ver THEN
